@@ -1,16 +1,8 @@
-# Generated Copilot bundle (produced by build.py / install.sh)
-dist/
-
-# Local, per-machine Claude Code settings (not shared)
-.claude/settings.local.json
-
 # OS / editor cruft
 .DS_Store
 *.swp
 .idea/
 .vscode/
 
-# Python (legacy build tooling — no longer used, kept ignored just in case)
-__pycache__/
-*.py[cod]
-.venv/
+# co-agents local working memory — never committed
+.coagents/

@@ -4,24 +4,23 @@ A reusable **team of AI agents** for your work and pet projects. Six specialists
 distinct **personality and point of view** — run a real feature lifecycle: **brainstorm a
 requirement from multiple angles, agree on a solution, split it into tasks, then build, test,
 review, and document it.** A master conductor (the **Maestro**) frames the work, convenes the
-team, routes requests, and keeps the rationale. Every project gets its own committed **memory
-folder** so discussions and decisions are never lost between sessions.
+team, routes requests, and keeps the rationale. Every project gets its own local **memory
+folder** (git-ignored) so discussions and decisions are never lost between sessions.
 
-It runs in **GitHub Copilot (VS Code)** and **Claude Code** from one source. Talk to the
-**Maestro** and let it delegate, or address **any specialist directly** — and if a request isn't
-theirs, they hand it to the right teammate.
+It runs in **GitHub Copilot (VS Code)**. Talk to the **Maestro** and let it delegate, or address
+**any specialist directly** — and if a request isn't theirs, they hand it to the right teammate.
 
 ## The team
 
 | Agent | Persona | Bias (kept honest by the team) | Owns |
 |-------|---------|-------------------------------|------|
-| **Maestro** | Calm facilitator (the conductor — a selectable agent in Copilot; the main session in Claude Code) | Forces a decision | Framing, routing, brainstorm rounds, synthesis, memory |
-| `@architect` — **Sol** | Systems thinker | Leans to structure; can over-engineer | Analysis, design, task breakdown |
-| `@engineer` — **Max** | Pragmatist | Ships fast; can under-design | Implementation, debugging, spikes |
-| `@tester` — **Vera** | The breaker | Thorough; can over-test | Test plans, verification, edge cases |
-| `@reviewer` — **Cass** | Constructive red-teamer | Risk-focused; can slow things down | Code review + decision critique |
-| `@researcher` — **Ada** | Evidence-driven scholar | Rigorous; can rabbit-hole | Options, prior art, sourced findings |
-| `@scribe` — **Quill** | Clear voice | Thorough; can over-document | Docs + recording the team's work |
+| **Maestro** | Calm facilitator (a selectable agent in the Copilot agents dropdown) | Forces a decision | Framing, routing, brainstorm rounds, synthesis, memory |
+| `@ca-architect` — **Sol** | Systems thinker | Leans to structure; can over-engineer | Analysis, design, task breakdown |
+| `@ca-engineer` — **Max** | Pragmatist | Ships fast; can under-design | Implementation, debugging, spikes |
+| `@ca-tester` — **Vera** | The breaker | Thorough; can over-test | Test plans, verification, edge cases |
+| `@ca-reviewer` — **Cass** | Constructive red-teamer | Risk-focused; can slow things down | Code review + decision critique |
+| `@ca-researcher` — **Ada** | Evidence-driven scholar | Rigorous; can rabbit-hole | Options, prior art, sourced findings |
+| `@ca-scribe` — **Quill** | Clear voice | Thorough; can over-document | Docs + recording the team's work |
 
 The biases are deliberate. When Sol wants structure and Max wants to ship, that tension is the
 point — a brainstorm with six agreeable agents is just one opinion repeated.
@@ -29,11 +28,11 @@ point — a brainstorm with six agreeable agents is just one opinion repeated.
 **The team challenges you, too.** By design, no agent is a yes-man: they push back on weak
 reasoning — yours included — before acting on it. Everything they record is written for *you* to
 read and understand later (plain language, terms defined, the *why* always explained), and you can
-interrogate any of it: ask what a decision means with `/team-ask`, or have your own reasoning
-grilled one sharp question at a time with `/team-grill`.
+interrogate any of it: ask what a decision means with `/ca-ask`, or have your own reasoning
+grilled one sharp question at a time with `/ca-grill`.
 
-From one canonical source, the six personas, nine commands, and memory conventions run in both
-tools; `build.py` generates the native Copilot bundle.
+The Maestro plus six specialists, nineteen commands, and method skills install as native VS Code Copilot
+customizations — `ca-` prefixed custom agents, prompt files, instruction files, and reusable skills.
 
 ## Install
 
@@ -45,6 +44,8 @@ Install globally, for every workspace, from a clone of this repo:
 git clone https://github.com/mohamed-abdelsamei/co-agents.git
 cd co-agents
 ./install.sh                 # → your VS Code user profile (all workspaces)
+./install.sh --update        # refresh the managed install after pulling changes
+./install.sh --uninstall     # remove the managed install
 ```
 
 Or install the team into a single repo's `.github/` (preserves any existing
@@ -52,68 +53,72 @@ Or install the team into a single repo's `.github/` (preserves any existing
 
 ```bash
 ./install.sh --project /path/to/your/repo
+./install.sh --project /path/to/your/repo --uninstall
 ```
 
-Needs `python3`. After installing, open Copilot Chat and pick the **Maestro** agent (or a
-specialist) from the agents dropdown, or run a `/team-*` prompt. Run `--dry-run` first to preview,
-`--help` for all options.
+> Project installs copy the agents, prompts, and instructions into `.github/`, but **not** the
+> `templates/coagents/` starter files — those ship with the global payload. `/ca-init` and
+> `/ca-onboard` still scaffold `.coagents/` correctly by generating the content directly.
 
-> **How global install works:** the build emits VS Code custom agents (`*.agent.md`), prompt
-> files (`*.prompt.md`), and an always-apply instructions file, and the installer drops them into
-> your VS Code user-profile `prompts/` folder, which VS Code discovers in every workspace. Memory
-> (`.coagents/`) is per-project — run `/team-init` (new) or `/team-onboard` (existing) inside a
-> project to create it.
+Needs `python3`. After installing, open Copilot Chat and pick the **ca-maestro** agent (or a
+specialist) from the agents dropdown, or run a `/ca-*` prompt. Run `--dry-run` first to
+preview, `--help` for all options.
 
-### Claude Code (plugin)
-
-```
-/plugin marketplace add mohamed-abdelsamei/co-agents
-/plugin install co-agents
-```
-
-> **How the Claude install differs from Copilot:** it copies **nothing** into your project.
-> Copilot has no plugin system, so `install.sh` physically writes files (`*.agent.md`,
-> `*.prompt.md`, `*.instructions.md`) into folders VS Code discovers. Claude Code *does* have a
-> plugin system, so it loads the team — `agents/`, `commands/`, `skills/` — **by reference**
-> straight from the plugin directory; there's nothing to copy or keep in sync. So don't expect
-> agent/command files to appear under your repo's `.claude/`. If you do see `.claude/settings.json`
-> or `settings.local.json`, those are Claude Code's **normal config/permission files** (created
-> when you change permissions, hooks, model, etc.) — not something this plugin installs. The only
-> thing co-agents adds to your repo is project memory (`.coagents/`), and only when you run
-> `/team-init` or `/team-onboard`.
+> **How global install works:** the repo contains native VS Code custom agents (`ca-*.agent.md`),
+> prompt files (`ca-*.prompt.md`), instructions (`ca-*.instructions.md`), and skills (`skills/*`). The installer keeps
+> the global payload in one managed directory at your VS Code user profile `co-agents/`, then
+> creates root-level discovery symlinks in `prompts/` so VS Code still finds the files in every workspace.
+> It also exposes skills through `~/.copilot/skills/`.
+> It does **not** copy the project-scope `copilot-instructions.md` into the global payload, so
+> global installs keep one always-on team instruction instead of two. It also writes
+> `.co-agents-plugin.json`, so `--update` and `--uninstall` know exactly what to replace or remove.
+> If an older flat install is already present, matching files are adopted into the managed install
+> automatically; use `./install.sh --update` to replace older co-agents files that differ from the
+> current payload. Memory (`.coagents/`) is per-project — run
+> `/ca-init` (new) or `/ca-onboard` (existing) inside a project to create it.
 
 ### Then bring the team onto your project (once)
 
-- **New project** (little/no code) → `/team-init` — a short interview, then it scaffolds memory.
-- **Existing project** → `/team-onboard` — the team scans and *understands* your codebase and any
+- **New project** (little/no code) → `/ca-init` — a short interview, then it scaffolds memory.
+- **Existing project** → `/ca-onboard` — the team scans and *understands* your codebase and any
   existing context files (`CLAUDE.md`, `AGENTS.md`, `copilot-instructions.md`, `context.md`, …)
   **without modifying them**, then builds its memory to complement them.
+- **Refresh project instructions/context understanding** → `/ca-refresh` — re-read authoritative
+  project rules and reconcile local `.coagents/` assumptions after teammate/tooling changes.
 
 ## Commands
 
 | What you want | Command |
 |---------------|---------|
-| Start the team on a **new** project | `/team-init` |
-| Onboard the team to an **existing** project | `/team-onboard` |
-| Debate a topic from every angle and decide | `/team-brainstorm <topic>` |
-| Turn a feature/requirement into a plan + tasks | `/team-plan <feature>` |
-| Build a task: implement → test → review | `/team-build <task>` |
-| Ship the whole backlog autonomously (plan → build → commit per task) | `/team-ship [feature]` |
-| Review code, or stress-test a decision | `/team-review <target>` |
-| Ask about any decision, term, or topic | `/team-ask <question>` |
-| Be interrogated on your own reasoning | `/team-grill <idea>` |
-| Hand any request to the Maestro to route | `/team-delegate <request>` |
+| Start the team on a **new** project | `/ca-init` |
+| Onboard the team to an **existing** project | `/ca-onboard` |
+| Debate a topic from every angle and decide | `/ca-brainstorm <topic>` |
+| Turn a feature/requirement into a plan + tasks | `/ca-plan <feature>` |
+| Build a task: implement → test → review | `/ca-build <task>` |
+| Fix a bug: reproduce → root cause → smallest fix → regression test | `/ca-debug <bug>` |
+| Investigate how something works today and document it | `/ca-research <feature/question>` |
+| Refresh project instruction/context understanding | `/ca-refresh [focus]` |
+| Map, refresh, or organize the codebase's knowledge graph | `/ca-knowledge [build\|refresh\|organize]` |
+| Learn from completed work, corrections, and repeated failures | `/ca-retro <task/session/correction>` |
+| Ship the whole backlog autonomously (plan → build → commit per task) | `/ca-ship [feature]` |
+| Review code, or stress-test a decision | `/ca-review <target>` |
+| Open a merge/pull request from a shipped branch | `/ca-mr [branch]` |
+| Review a merge/pull request — code **and** business | `/ca-review-mr <MR ref>` |
+| Ask about any decision, term, or topic | `/ca-ask <question>` |
+| Be interrogated on your own reasoning | `/ca-grill <idea>` |
+| Drop an abandoned plan: archive its requirement, decision & tasks | `/ca-drop <feature>` |
+| See the state of play — a read-only rollup of `.coagents/` memory | `/ca-status [area]` |
+| Hand any request to the Maestro to route | `/ca-delegate <request>` |
 
-Or skip the commands and just talk: pick the Maestro (or a specialist) and ask in plain language.
-In Copilot, choose the agent from the agents dropdown; in Claude Code, `@`-mention it
-(`@architect design the schema`, `@reviewer poke holes in this plan`).
+Or skip the commands and just talk: pick **ca-maestro** (or a specialist) from the agents dropdown
+and ask in plain language.
 
 ## How it works
 
 The **Maestro** is the conductor: it frames the problem, brings in the right specialists, runs the
 debate, synthesizes a decision, and records it. The six specialists do the focused work.
 
-**The marquee flow — `/team-brainstorm`:**
+**The marquee flow — `/ca-brainstorm`:**
 
 1. The Maestro frames the question and picks who belongs at the table.
 2. Those specialists give their views **independently** — each in character.
@@ -127,17 +132,14 @@ debate, synthesizes a decision, and records it. The six specialists do the focus
 specialist — or convenes the team if it's big. If a specialist gets something out of its lane,
 it names the right teammate and the Maestro re-routes.
 
-> **How the orchestration differs by tool:** in **Copilot**, the Maestro and specialists are
-> custom agents that hand off to each other natively, and a brainstorm is held in one chat where
-> the Maestro speaks as each persona in turn before synthesizing. In **Claude Code**, a subagent
-> can't spawn other subagents, so the main session plays Maestro — spawning specialists as
-> subagents, carrying handoffs and the debate state between them. Same team and commands; the
-> conductor's mechanics adapt to each tool.
+> **How orchestration works in Copilot:** the Maestro and specialists are custom agents that hand
+> off to each other natively. A brainstorm is held in one chat where the Maestro speaks as each
+> persona in turn before dropping the personas and synthesizing.
 
 ## Project memory (`.coagents/`)
 
-`/team-init` (new project) or `/team-onboard` (existing project) creates a committed folder that
-travels with your repo:
+`/ca-init` (new project) or `/ca-onboard` (existing project) creates a local, git-ignored folder
+that holds the team's working memory for the repo (it stays on your machine — never committed):
 
 ```
 .coagents/
@@ -148,10 +150,12 @@ travels with your repo:
   tasks/           task breakdowns + status
   research/        sourced findings
   reviews/         reviews + critiques
+  knowledge/       concept map of how the code works (graph.md + concepts/)
+  lessons/         reusable lessons from retrospectives and user corrections
 ```
 
 Durable, polished docs (architecture overviews, guides) live in `docs/` — one home per
-artifact, no duplicates. Conventions are documented in the bundled **team-memory** skill.
+artifact, no duplicates. Conventions are documented in the bundled **memory** skill.
 
 ## Skills
 
@@ -160,74 +164,74 @@ being copy-pasted into every persona:
 
 | Skill | What it encodes |
 |-------|-----------------|
-| **team-memory** | How the `.coagents/` memory works and who writes where |
-| **codebase-onboarding** | Understanding an unfamiliar repo without modifying it (powers `/team-onboard`) |
+| **loop-engineering** | The design principle — every unit of work is a loop that opens, then closes or is dropped, leaving a trace |
+| **memory** | How the `.coagents/` memory works and who writes where |
+| **codebase-onboarding** | Understanding an unfamiliar repo without modifying it (powers `/ca-onboard`) |
 | **decision-and-spec** | Testable requirements (given/when/then) and ADRs with real rationale |
 | **research-method** | Sourcing, confidence rating, and citation discipline |
+| **knowledge-graph** | Building, refreshing, and organizing the concept map of a codebase (powers `/ca-knowledge`) |
+| **feedback-loop** | Capturing lessons learned so future agents change behavior (powers `/ca-retro`) |
 | **facilitation** | Running a debate that ends in a decision (steelman, surface assumptions) |
+| **debugging** | Fixing a bug without breaking what works — root cause, smallest fix, regression test |
+| **mr-review** | Reviewing MRs/PRs/diffs on code and business axes, with a clear merge verdict |
 
-It also **leverages tools already at hand** rather than reinventing them — phrased as "if
-available", so it gracefully no-ops where they aren't:
-
-- **Claude Code built-ins** (loaded on demand): the reviewer uses `code-review` / `security-review`,
-  the tester uses `verify` / `run`, the engineer uses `simplify`.
-- **An optional companion skill:** the scribe uses [`humanizer`](https://github.com/blader/humanizer)
-  (a separate, MIT-licensed skill you install yourself — *not* a built-in) to make recorded prose
-  read naturally.
-
-**Tool differences.** The five bundled skills above are compiled into Copilot as always-apply
-instructions by `build.py`, so they work in both tools (which is why they're kept concise). The
-Claude built-ins and `humanizer` are **Claude Code only** — Copilot has no skill system. If you
-want humanizer-style cleanup in Copilot, port its `SKILL.md` into a VS Code prompt file
-(`humanizer.prompt.md` in your user `prompts/` folder) and invoke it with `/humanizer`.
+Most co-agents methods ship as `instructions/ca-*.instructions.md` files that Copilot loads **on demand**
+when the task matches their descriptions (so they don't burn context on every request). Standalone
+VS Code skills ship as `skills/<name>/SKILL.md`. The one exception is the team identity
+(`ca-core.instructions.md`), which is always on.
 
 ## Layout
 
-One canonical source; the Copilot bundle is generated.
+The repo **is** the plugin — the files are native VS Code Copilot customizations, no build step.
 
 ```
-agents/             the six specialist personas        (canonical)
-commands/           /team-* commands, tool-neutral     (canonical)
-skills/             the team's shared-method skills    (canonical)
-templates/          starting content for a project's .coagents/ (init/onboard)
-shared/doctrine/    conductor doctrine shared by both tools (team, challenge, routing, …)
-conductors/         per-tool conductor templates (include the shared doctrine)
-build.py            renders conductors + generates the Copilot bundle
-CLAUDE.md           the Claude conductor — GENERATED (do not edit by hand)
-.claude-plugin/     plugin.json + marketplace.json     (Claude Code plugin manifest)
-install.sh          builds + installs the Copilot bundle (global or per-project)
-.github/workflows/  CI: build + frontmatter/sync checks
-dist/copilot/       generated Copilot bundle (git-ignored)
+agents/                 ca-*.agent.md — the Maestro + six specialists (custom agents)
+prompts/                ca-*.prompt.md — the /ca-* commands
+instructions/           ca-core.instructions.md — team identity (always-on)
+                        ca-*.instructions.md — the method skills (on-demand via description)
+skills/                 SKILL.md workflows exposed as VS Code Copilot skills
+copilot-instructions.md project-scope conductor (installed to .github/ for a single repo)
+templates/coagents/     starting content for a project's .coagents/ memory (init/onboard)
+install.sh              installs / updates / uninstalls the managed bundle
+.github/workflows/      CI: frontmatter + installer validation
 ```
 
 ### Editing
 
-The conductor doctrine (team roster, challenge ethos, writing rules, routing, memory) lives **once**
-in `shared/doctrine/` and is included into each tool's conductor via `<!-- include: X -->` markers
-in `conductors/`. So:
+Edit the files directly — what you see is what installs. Conventions:
 
-- **Shared behavior** (applies to both tools) → edit `shared/doctrine/`.
-- **Tool-specific orchestration** → edit `conductors/CLAUDE.template.md` (Claude) or
-  `conductors/copilot-instructions.template.md` / `conductors/maestro.agent.template.md` (Copilot).
-- **Personas / commands / memory conventions** → edit `agents/`, `commands/`, `skills/`.
+- **A persona** → edit its `agents/ca-<name>.agent.md`. Names are the agent ids, so keep the
+  `ca-` prefix in filenames and mentions. Prompt frontmatter uses built-in `agent` mode so prompts
+  do not load an extra custom-agent body before their own workflow instructions. The `agents: ['*']` field lets the
+  persona use any available subagent; the body instructions still control routing discipline.
+- **A command** → edit its `prompts/ca-<name>.prompt.md`.
+- **The always-on team identity** (roster, challenge ethos, routing, memory) → edit
+  `instructions/ca-core.instructions.md`. The same roster is mirrored in `ca-maestro.agent.md`
+  — update both if the team changes.
+- **A method skill** → edit its `instructions/ca-<name>.instructions.md`. Keep the `description`
+  keyword-rich (the "Use when…" pattern) so Copilot loads it on demand.
+- **A reusable Copilot skill** → edit `skills/<name>/SKILL.md`. Keep the `name` equal to
+  the folder name and make the `description` trigger-rich for discovery.
 
-After **any** change, run `python3 build.py` (or `./install.sh`, which builds first). This
-regenerates `CLAUDE.md` and `dist/copilot/` — never edit those by hand. CI fails if `CLAUDE.md` is
-out of sync, so commit it alongside your source change.
+After editing, run `./install.sh --update` to refresh the managed install.
 
 ## Design principles
 
 - **Single-level orchestration.** One conductor (the Maestro) drives many specialists; specialists
-  don't drive each other. Delegation is conductor-mediated. This matches Claude Code's constraint
-  (subagents can't spawn subagents) and keeps control flow legible.
+  don't drive each other. This is enforced in config: only `ca-maestro` carries `agents: ['*']`;
+  each specialist is limited to the read-only **Explore** subagent, so it can gather context but
+  cannot spawn a peer. File-write lanes (e.g. the reviewer critiques, it doesn't rewrite code) are
+  a convention backed by version control — the tool model can't scope writes to a folder, so a
+  lane violation shows up in the diff rather than being blocked outright.
 - **Productive disagreement.** Personas carry deliberate, opposing biases so a brainstorm produces
   real tension, not consensus theater. The Maestro's job is to force a decision out of it.
-- **Memory is the product.** Decisions and their rationale are written to a committed `.coagents/`
-  folder, in plain language, for a human to read later. A conclusion that isn't written down
-  didn't happen.
+- **Memory is the product.** Decisions and their rationale are written to a local, git-ignored
+  `.coagents/` folder, in plain language, for a human to read later. A conclusion that isn't
+  written down didn't happen.
 - **Respect what's already there.** Onboarding reads existing context files (`CLAUDE.md`,
   `AGENTS.md`, `copilot-instructions.md`, …) and never modifies them — they're authoritative.
-- **One source, native targets.** Author once; generate each tool's native format.
+- **Native files, no build.** The repo files are the Copilot customizations you install — edit
+  `agents/`, `prompts/`, `instructions/` directly; nothing is generated.
 
 ## Known limitations
 

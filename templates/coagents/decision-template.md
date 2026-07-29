@@ -1,8 +1,14 @@
 # {NNNN}. {Short title of the decision}
 
 - **Date:** {YYYY-MM-DD}
-- **Status:** Proposed | Accepted | Superseded by {NNNN}
+- **Status:** Proposed | Accepted | Implemented | Rejected | Withdrawn | Superseded by {NNNN}
 - **Deciders:** {who / which agents}
+- **Implemented by:** {task / commit / `path/to/file.ext` — fill in when Status becomes Implemented; blank until then}
+- **Verified by:** {review / test / `.coagents/reviews/{slug}.md` — the evidence it works; blank until verified}
+
+> A decision is *intent* until it's Implemented. It does not enter the knowledge graph
+> (`.coagents/knowledge/`) until its code has landed and is verifiable — see the
+> **decision-and-spec** skill.
 
 ## Context
 

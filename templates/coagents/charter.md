@@ -27,7 +27,7 @@ budgets, "always do X / never do Y". Add language-specific rules here._
 
 ## Existing project context (authoritative — do not duplicate or override)
 
-_Filled in by `/team-onboard`. List any context/instruction files that already govern this
+_Filled in by `/ca-onboard`. List any context/instruction files that already govern this
 project; the team treats them as the source of truth and only references them here._
 
 - _e.g. `CLAUDE.md` — coding style + architecture rules (authoritative)._

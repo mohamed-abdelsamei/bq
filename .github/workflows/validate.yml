@@ -1,0 +1,129 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate agent/prompt/instruction/skill frontmatter
+        run: |
+          python3 - <<'PY'
+          import pathlib, sys
+
+          problems = []
+          root = pathlib.Path(".")
+
+          def frontmatter(text):
+              if not text.startswith("---\n") or "\n---" not in text:
+                  return None
+              return text[4:text.index("\n---", 4)]
+
+          # Agents and prompts must declare a description; instructions must have frontmatter
+          # (either applyTo for always-on, or a description for on-demand discovery).
+          checks = [
+              ("agents", "*.agent.md", True),
+              ("prompts", "*.prompt.md", True),
+              ("instructions", "*.instructions.md", False),
+          ]
+          for folder, glob, needs_desc in checks:
+              files = sorted((root / folder).glob(glob))
+              if not files:
+                  problems.append(f"{folder}/: no {glob} files found")
+              for f in files:
+                  fm = frontmatter(f.read_text())
+                  if fm is None:
+                      problems.append(f"{f}: missing frontmatter")
+                      continue
+                  if needs_desc and "description:" not in fm:
+                      problems.append(f"{f}: frontmatter missing description")
+                  if folder == "instructions" and "applyTo:" not in fm and "description:" not in fm:
+                      problems.append(f"{f}: instruction needs applyTo or description")
+
+                for f in sorted((root / "skills").glob("*/SKILL.md")):
+                  fm = frontmatter(f.read_text())
+                  if fm is None:
+                    problems.append(f"{f}: missing frontmatter")
+                    continue
+                  skill_name = f.parent.name
+                  if f"name: {skill_name}" not in fm:
+                    problems.append(f"{f}: skill name must match folder ({skill_name})")
+                  if "description:" not in fm:
+                    problems.append(f"{f}: frontmatter missing description")
+
+          if problems:
+              print("FAIL:")
+              for p in problems:
+                  print("  -", p)
+              sys.exit(1)
+                print("OK: all agent/prompt/instruction/skill frontmatter valid")
+          PY
+
+          - name: Validate command and template consistency
+          run: |
+            python3 - <<'PY'
+            import pathlib, sys
+
+            root = pathlib.Path(".")
+            problems = []
+
+            # Derive the command set from the filesystem so a new command that isn't
+            # documented is caught, not silently skipped.
+            commands = sorted(
+              p.name.removesuffix(".prompt.md")
+              for p in (root / "prompts").glob("ca-*.prompt.md")
+            )
+            if not commands:
+              problems.append("prompts/: no ca-*.prompt.md files found")
+
+            readme_texts = [
+              ("README.md", (root / "README.md").read_text()),
+              ("templates/coagents/README.md", (root / "templates" / "coagents" / "README.md").read_text()),
+            ]
+            for name, text in readme_texts:
+              for command in commands:
+                token = f"/{command}"
+                if token not in text:
+                  problems.append(f"{name}: missing command reference {token}")
+
+            required_templates = [
+              "README.md",
+              "charter.md",
+              "decision-template.md",
+              "discussions/discussion-template.md",
+              "knowledge/README.md",
+              "knowledge/graph.md",
+              "knowledge/concepts/CONCEPT-TEMPLATE.md",
+              "lessons/README.md",
+              "lessons/lesson-template.md",
+              "requirements/requirement-template.md",
+              "research/research-template.md",
+              "reviews/review-template.md",
+              "tasks/task-template.md",
+            ]
+            for rel in required_templates:
+              if not (root / "templates" / "coagents" / rel).exists():
+                problems.append(f"missing coagents template: templates/coagents/{rel}")
+
+            if problems:
+              print("FAIL:")
+              for problem in problems:
+                print("  -", problem)
+              sys.exit(1)
+            print("OK: command inventory and templates consistent")
+            PY
+
+      - name: Installer syntax
+        run: bash -n install.sh
+
+      - name: Dry-run install resolves cleanly
+        run: ./install.sh --dry-run --user-dir "$RUNNER_TEMP/vscode-user"
