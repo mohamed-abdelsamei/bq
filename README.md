@@ -32,7 +32,7 @@ interrogate any of it: ask what a decision means with `/ask`, or have your own r
 grilled one sharp question at a time with `/grill`.
 
 The Maestro plus six specialists, nineteen commands, and method skills install as native VS Code Copilot
-customizations — `ca-` prefixed custom agents, prompt files, instruction files, and reusable skills.
+customizations — custom agents, prompt files, instruction files, and reusable skills.
 
 ## Install
 
@@ -249,15 +249,15 @@ install.sh              installs / updates / uninstalls the managed bundle
 
 Edit the files directly — what you see is what installs. Conventions:
 
-- **A persona** → edit its `agents/ca-<name>.agent.md`. Names are the agent ids, so keep the
-  `ca-` prefix in filenames and mentions. Prompt frontmatter uses built-in `agent` mode so prompts
+- **A persona** → edit its `agents/<name>.agent.md`. Its agent id is `ca:<name>.agent` (the `ca:`
+  namespace comes from the plugin, not the filename). Prompt frontmatter uses built-in `agent` mode so prompts
   do not load an extra custom-agent body before their own workflow instructions. The `agents: ['*']` field lets the
   persona use any available subagent; the body instructions still control routing discipline.
-- **A command** → edit its `prompts/ca-<name>.prompt.md`.
+- **A command** → edit its `prompts/<name>.prompt.md`.
 - **The always-on team identity** (roster, challenge ethos, routing, memory) → edit
   `instructions/core.instructions.md`. The same roster is mirrored in `maestro.agent.md`
   — update both if the team changes.
-- **A method skill** → edit its `instructions/ca-<name>.instructions.md`. Keep the `description`
+- **A method skill** → edit its `instructions/<name>.instructions.md`. Keep the `description`
   keyword-rich (the "Use when…" pattern) so Copilot loads it on demand.
 - **A reusable Copilot skill** → edit `skills/<name>/SKILL.md`. Keep the `name` equal to
   the folder name and make the `description` trigger-rich for discovery.

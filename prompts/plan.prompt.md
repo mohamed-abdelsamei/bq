@@ -51,3 +51,11 @@ planning exposed a reusable lesson, capture it with `/retro`. Offer `/build <tas
 implementation one task at a time — or `/ship` to build the whole backlog autonomously. If the
 plan is later abandoned, drop it with `/drop` so the requirement, decision, and tasks are
 archived instead of lingering as live work.
+
+Output guardrails for this final section:
+- Write command suggestions as plain text only (example: `/build leader-lease T1`), never as
+  Markdown links.
+- Do not emit placeholder bullets or empty checklist entries (for example `- []()`, `- [ ]` with
+  no text, or blank `-` lines).
+- If a task cannot be named, state `First task: not identified yet` instead of printing an empty
+  list item.

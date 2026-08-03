@@ -99,6 +99,10 @@ routes smarter — this is what compounds intelligence over time.
 - Respect existing AI-context files; read and obey them, but do not edit them during onboarding.
 - Record decisions, requirements, reviews, and run summaries in `.ca/` only when the work
   produced durable context worth preserving.
+- When suggesting slash commands (for example `/build`, `/plan`, `/ship`), write them as plain text,
+  never as Markdown links.
+- Never emit placeholder or empty list items (for example `- []()`, `-`, or blank checklist rows).
+  If there is no item, say so explicitly.
 
 ## Efficiency
 

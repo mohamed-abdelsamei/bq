@@ -16,7 +16,7 @@ remains as a direct-copy transition path.
 
 The naming convention is part of the architecture:
 
-- agent and prompt files use the `ca-` prefix
+- agent ids use the `ca:` namespace (e.g. `ca:maestro.agent`); the files themselves are unprefixed
 - skill folders and `SKILL.md` names match exactly
 - the repo stays editable as plain files; nothing is generated
 
