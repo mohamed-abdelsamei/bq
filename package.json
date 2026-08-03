@@ -1,0 +1,156 @@
+{
+  "name": "ca",
+  "displayName": "Ca",
+  "description": "A publishable GitHub Copilot extension with reusable agents, prompts, instructions, and skills.",
+  "publisher": "mohamed-abdelsamei",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mohamed-abdelsamei/co-agents.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mohamed-abdelsamei/co-agents/issues"
+  },
+  "homepage": "https://github.com/mohamed-abdelsamei/co-agents#readme",
+  "categories": [
+    "AI"
+  ],
+  "keywords": [
+    "copilot",
+    "agents",
+    "prompts",
+    "instructions",
+    "skills"
+  ],
+  "engines": {
+    "vscode": "^1.102.0"
+  },
+  "contributes": {
+    "chatAgents": [
+      {
+        "path": "./agents/architect.agent.md"
+      },
+      {
+        "path": "./agents/engineer.agent.md"
+      },
+      {
+        "path": "./agents/maestro.agent.md"
+      },
+      {
+        "path": "./agents/researcher.agent.md"
+      },
+      {
+        "path": "./agents/reviewer.agent.md"
+      },
+      {
+        "path": "./agents/scribe.agent.md"
+      },
+      {
+        "path": "./agents/tester.agent.md"
+      }
+    ],
+    "chatPromptFiles": [
+      {
+        "path": "./prompts/ask.prompt.md"
+      },
+      {
+        "path": "./prompts/brainstorm.prompt.md"
+      },
+      {
+        "path": "./prompts/build.prompt.md"
+      },
+      {
+        "path": "./prompts/debug.prompt.md"
+      },
+      {
+        "path": "./prompts/delegate.prompt.md"
+      },
+      {
+        "path": "./prompts/drop.prompt.md"
+      },
+      {
+        "path": "./prompts/grill.prompt.md"
+      },
+      {
+        "path": "./prompts/init.prompt.md"
+      },
+      {
+        "path": "./prompts/knowledge.prompt.md"
+      },
+      {
+        "path": "./prompts/mr.prompt.md"
+      },
+      {
+        "path": "./prompts/onboard.prompt.md"
+      },
+      {
+        "path": "./prompts/plan.prompt.md"
+      },
+      {
+        "path": "./prompts/refresh.prompt.md"
+      },
+      {
+        "path": "./prompts/research.prompt.md"
+      },
+      {
+        "path": "./prompts/retro.prompt.md"
+      },
+      {
+        "path": "./prompts/review-mr.prompt.md"
+      },
+      {
+        "path": "./prompts/review.prompt.md"
+      },
+      {
+        "path": "./prompts/ship.prompt.md"
+      },
+      {
+        "path": "./prompts/status.prompt.md"
+      }
+    ],
+    "chatInstructions": [
+      {
+        "path": "./instructions/codebase-onboarding.instructions.md"
+      },
+      {
+        "path": "./instructions/core.instructions.md"
+      },
+      {
+        "path": "./instructions/debugging.instructions.md"
+      },
+      {
+        "path": "./instructions/decision-and-spec.instructions.md"
+      },
+      {
+        "path": "./instructions/facilitation.instructions.md"
+      },
+      {
+        "path": "./instructions/feedback-loop.instructions.md"
+      },
+      {
+        "path": "./instructions/knowledge-graph.instructions.md"
+      },
+      {
+        "path": "./instructions/loop-engineering.instructions.md"
+      },
+      {
+        "path": "./instructions/memory.instructions.md"
+      },
+      {
+        "path": "./instructions/mr-review.instructions.md"
+      },
+      {
+        "path": "./instructions/research-method.instructions.md"
+      }
+    ],
+    "chatSkills": [
+      {
+        "path": "./skills/rust/SKILL.md"
+      },
+      {
+        "path": "./skills/mr-review/SKILL.md"
+      }
+    ]
+  }
+}

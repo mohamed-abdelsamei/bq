@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ─── Co-Agents Installer (GitHub Copilot) ────────────────────────────────────
+# ─── Ca Installer (GitHub Copilot) ────────────────────────────────────
 # Installs the Copilot bundle (agents, prompts, instructions, skills) for VS Code.
 # The repo files ARE the payload — no build step.
 #
@@ -17,9 +17,9 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────────────────────
 
 REPO="mohamed-abdelsamei/co-agents"
-PLUGIN_NAME="co-agents"
-MANIFEST_NAME=".co-agents-plugin.json"
-MARKER_NAME=".co-agents-managed"
+PLUGIN_NAME="ca"
+MANIFEST_NAME=".ca-plugin.json"
+MARKER_NAME=".ca-managed"
 COPILOT_PREFIX="ca-"
 
 DRY_RUN=false
@@ -39,7 +39,7 @@ dry()  { echo -e "${YELLOW}[dry-run]${NC} $*"; }
 
 usage() {
   cat <<EOF
-${BOLD}Co-Agents Installer — GitHub Copilot (VS Code)${NC}
+${BOLD}Ca Installer — GitHub Copilot (VS Code)${NC}
 
 ${BOLD}Usage:${NC}
   ./install.sh [options]
@@ -81,7 +81,7 @@ done
 # ─── Locate repo + payload ────────────────────────────────────────────────────
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-[[ -d "$REPO_DIR/agents" ]] || { err "Run this from a clone of the co-agents repo."; exit 1; }
+[[ -d "$REPO_DIR/agents" ]] || { err "Run this from a clone of the ca repo."; exit 1; }
 command -v python3 >/dev/null 2>&1 || { err "python3 is required."; exit 1; }
 
 # The plugin payload is the repo itself — no build step; the files are the source of truth.
@@ -166,7 +166,7 @@ plugin_dir = Path(plugin_arg).resolve() if plugin_arg else None
 files = sys.argv[5:]
 
 data = {
-    "name": "co-agents",
+    "name": "ca",
     "type": "copilot-plugin",
     "managedBy": "install.sh",
     "repository": sys.argv[4],
@@ -197,7 +197,7 @@ manifest = Path(sys.argv[2]).resolve()
 dry_run = sys.argv[3] == "true"
 data = json.loads(manifest.read_text(encoding="utf-8"))
 
-if data.get("name") != "co-agents" or data.get("managedBy") != "install.sh":
+if data.get("name") != "ca" or data.get("managedBy") != "install.sh":
     raise SystemExit(f"Refusing to use unrecognized manifest: {manifest}")
 
 skill_root = Path.home() / ".copilot" / "skills"
@@ -227,7 +227,7 @@ plugin_rel = data.get("pluginDir")
 plugin_dir = None
 if plugin_rel:
     plugin_dir = inside_plugin_root(root / plugin_rel)
-    marker = plugin_dir / ".co-agents-managed"
+    marker = plugin_dir / ".ca-managed"
     if plugin_dir.exists():
         if not marker.exists():
             raise SystemExit(f"Refusing to remove unmarked plugin directory: {plugin_dir}")
@@ -289,7 +289,7 @@ PY
     remove_managed_install "$prompts_dir" "$manifest"
   elif [[ -e "$plugin_dir" ]] && [[ ! -f "$marker" ]] && ! $FORCE; then
     err "Refusing to replace unmarked directory: ${plugin_dir/#$HOME/\~}"
-    info "Move it aside or rerun with --force if it is an old co-agents install."
+    info "Move it aside or rerun with --force if it is an old ca install."
     exit 1
   elif [[ -e "$plugin_dir" ]]; then
     warn "Replacing ${plugin_dir/#$HOME/\~}"
@@ -303,7 +303,7 @@ PY
       safe_rm "$legacy_plugin_dir"
     else
       err "Refusing to replace unmarked legacy directory: ${legacy_plugin_dir/#$HOME/\~}"
-      info "Move it aside or rerun with --force if it is an old co-agents install."
+      info "Move it aside or rerun with --force if it is an old ca install."
       exit 1
     fi
   fi
@@ -403,7 +403,7 @@ default_vscode_user_dir() {
 }
 
 echo ""
-echo -e "${BOLD}Co-Agents → GitHub Copilot${NC}"
+echo -e "${BOLD}Ca → GitHub Copilot${NC}"
 echo -e "Scope: ${BLUE}$SCOPE${NC}   $($DRY_RUN && echo "${YELLOW}(dry-run)${NC}")"
 echo ""
 
@@ -417,7 +417,7 @@ if [[ "$SCOPE" == "global" ]]; then
   if $UNINSTALL; then
     log "Uninstalling managed plugin from ${DEST/#$HOME/\~}/ ..."
     if ! remove_managed_install "$DEST" "$DEST/$MANIFEST_NAME"; then
-      warn "No managed co-agents install manifest found at ${DEST/#$HOME/\~}/$MANIFEST_NAME"
+      warn "No managed ca install manifest found at ${DEST/#$HOME/\~}/$MANIFEST_NAME"
       info "For old flat installs, rerun ./install.sh --update once to adopt them, then ./install.sh --uninstall."
     fi
   else
@@ -427,10 +427,10 @@ if [[ "$SCOPE" == "global" ]]; then
   info "Managed plugin: ${USER_DIR/#$HOME/\~}/$PLUGIN_NAME/"
   info "Discovery shims: ${DEST/#$HOME/\~}/$COPILOT_PREFIX<name>.agent.md, .prompt.md, .instructions.md"
   info "Skills: ~/.copilot/skills/<name>"
-  info "Memory is per-project — run /ca-init inside a project to scaffold .coagents/."
+  info "Memory is per-project — run /init inside a project to scaffold .ca/."
 else
   # ── Project: install the team tooling into <path>/.github/.
-  #    Memory (.coagents/) is created later by /ca-init (new) or /ca-onboard (existing) —
+  #    Memory (.ca/) is created later by /init (new) or /onboard (existing) —
   #    those build a real, filled-in charter, so we don't pre-scaffold a blank one here.
   [[ -n "$PROJECT" ]] || { err "--project needs a path."; exit 1; }
   [[ -d "$PROJECT" ]] || { err "No such directory: $PROJECT"; exit 1; }
@@ -439,7 +439,7 @@ else
   if $UNINSTALL; then
     log "Uninstalling managed project files from ${PROJECT}/.github/ ..."
     if ! remove_managed_install "$PROJECT" "$GH/$MANIFEST_NAME"; then
-      warn "No managed co-agents install manifest found at ${GH/#$HOME/\~}/$MANIFEST_NAME"
+      warn "No managed ca install manifest found at ${GH/#$HOME/\~}/$MANIFEST_NAME"
     fi
   else
     if [[ -f "$GH/$MANIFEST_NAME" ]]; then
@@ -470,10 +470,10 @@ else
   echo ""
   if ! $UNINSTALL; then
     info "No project memory created yet. Inside this repo, run:"
-    info "  /ca-init      — new project (interview → charter)"
-    info "  /ca-onboard   — existing project (scan & understand, then build memory)"
-    info "  /ca-knowledge — build/refresh the local concept map"
-    info "  /ca-retro     — capture reusable lessons from experience"
+    info "  /init      — new project (interview → charter)"
+    info "  /onboard   — existing project (scan & understand, then build memory)"
+    info "  /knowledge — build/refresh the local concept map"
+    info "  /retro     — capture reusable lessons from experience"
   fi
 fi
 
@@ -485,5 +485,5 @@ elif $UNINSTALL; then
   echo -e "${GREEN}${BOLD}✓ Uninstalled.${NC}"
 else
   echo -e "${GREEN}${BOLD}✓ Installed.${NC}"
-  echo -e "Open Copilot Chat, pick the ${BOLD}ca-maestro${NC} agent (or a specialist), or run ${BOLD}/ca-brainstorm${NC}."
+  echo -e "Open Copilot Chat, pick the ${BOLD}maestro${NC} agent (or a specialist), or run ${BOLD}/brainstorm${NC}."
 fi

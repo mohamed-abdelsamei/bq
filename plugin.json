@@ -1,0 +1,20 @@
+{
+  "name": "ca",
+  "description": "A team of Copilot agents, slash commands, and skills for research → decision → delivery → knowledge workflows.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Mohamed Abdelsamei"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/mohamed-abdelsamei/co-agents#readme",
+  "repository": "https://github.com/mohamed-abdelsamei/co-agents.git",
+  "keywords": [
+    "copilot",
+    "agents",
+    "prompts",
+    "skills"
+  ],
+  "agents": "agents/",
+  "skills": "skills/",
+  "commands": "prompts/"
+}

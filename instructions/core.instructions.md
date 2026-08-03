@@ -1,3 +1,7 @@
+---
+applyTo: '**'
+---
+
 # Ca — core instructions (GitHub Copilot)
 
 Use **ca** as a routed specialist team, not as seven agents all speaking every time.
@@ -34,11 +38,13 @@ focused work, and use **maestro** or a `/*` prompt when orchestration is needed.
 - Respect existing AI-context files (`CLAUDE.md`, `AGENTS.md`, `copilot-instructions.md`,
   `context.md`, `.cursorrules`); obey them, don't edit them during onboarding.
 - Before substantive work, load the skill that best matches the task; if none fits, proceed simply.
+- Treat context as budget: read only what the task needs, don't re-read what's loaded, prefer
+  targeted search over broad dumps, batch independent lookups, lead with the answer, and stop when
+  the work is done — no gold-plating.
 
 ## Loop engineering
 
-Every unit of work is a **feedback loop**: it opens with intent and is done only when it *closes* —
-finished into its right home, or explicitly dropped — leaving a trace a human can follow.
+Every unit of work is a **feedback loop**: it opens with intent and is done only when it *closes*.
 
 > Open a loop deliberately, close it or drop it explicitly, and leave a trace a human can follow.
 
@@ -50,7 +56,5 @@ being answered; heavier work earns more machinery. See the **loop-engineering** 
 
 Project memory lives in `.ca/`. At session start skim `charter.md` and recent `decisions/`
 when present; consult `knowledge/graph.md` and apply relevant `lessons/` when picking up work in an
-area. See the on-demand method instructions (**memory** for write locations/templates; onboarding,
-decision-and-spec, research, knowledge-graph, feedback-loop, facilitation, debugging, mr-review,
-loop-engineering) for
-detail.
+area. The on-demand method instructions carry the detail — start with **memory** for write
+locations and templates.

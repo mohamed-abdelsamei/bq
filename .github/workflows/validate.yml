@@ -80,14 +80,14 @@ jobs:
             # documented is caught, not silently skipped.
             commands = sorted(
               p.name.removesuffix(".prompt.md")
-              for p in (root / "prompts").glob("ca-*.prompt.md")
+              for p in (root / "prompts").glob("*.prompt.md")
             )
             if not commands:
-              problems.append("prompts/: no ca-*.prompt.md files found")
+              problems.append("prompts/: no *.prompt.md files found")
 
             readme_texts = [
               ("README.md", (root / "README.md").read_text()),
-              ("templates/coagents/README.md", (root / "templates" / "coagents" / "README.md").read_text()),
+              ("templates/ca/README.md", (root / "templates" / "ca" / "README.md").read_text()),
             ]
             for name, text in readme_texts:
               for command in commands:
@@ -111,8 +111,8 @@ jobs:
               "tasks/task-template.md",
             ]
             for rel in required_templates:
-              if not (root / "templates" / "coagents" / rel).exists():
-                problems.append(f"missing coagents template: templates/coagents/{rel}")
+              if not (root / "templates" / "ca" / rel).exists():
+                problems.append(f"missing ca template: templates/ca/{rel}")
 
             if problems:
               print("FAIL:")

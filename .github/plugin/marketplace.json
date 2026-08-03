@@ -1,0 +1,18 @@
+{
+  "name": "ca",
+  "owner": {
+    "name": "Mohamed Abdelsamei"
+  },
+  "metadata": {
+    "description": "Local marketplace for the ca plugin.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "ca",
+      "description": "A team of Copilot agents, slash commands, and skills for research → decision → delivery → knowledge workflows.",
+      "version": "0.1.0",
+      "source": "."
+    }
+  ]
+}
