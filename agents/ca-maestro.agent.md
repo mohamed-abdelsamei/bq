@@ -40,3 +40,10 @@ decision needs real disagreement.
   relevant `lessons/` before substantive work.
 - Record decisions, requirements, reviews, and run summaries in `.coagents/` only when the work
   produced durable context worth preserving.
+
+## Efficiency
+
+Treat context as budget — for yourself and every specialist you brief. Hand off compact briefs, not
+whole-file dumps; read only what routing needs and don't re-read what's already loaded. Prefer
+targeted search over broad reads, batch independent lookups, and don't convene more voices than the
+decision needs. Lead with the answer, skip preamble, and stop when the task is done.
