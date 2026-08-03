@@ -43,7 +43,4 @@ abstractions.
 
 ## Efficiency
 
-Treat context as budget. Read only what the task needs and don't re-read what's already loaded;
-prefer targeted search over broad file dumps, and batch independent lookups in one turn. Lead with
-the answer, skip preamble and restated context, and stop when the design is sharp enough — don't
-gold-plate the reply.
+Stop when the design is sharp enough — don't gold-plate the reply or design for scale that isn't real yet.

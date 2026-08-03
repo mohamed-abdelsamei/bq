@@ -174,6 +174,7 @@ being copy-pasted into every persona:
 | **facilitation** | Running a debate that ends in a decision (steelman, surface assumptions) |
 | **debugging** | Fixing a bug without breaking what works — root cause, smallest fix, regression test |
 | **mr-review** | Reviewing MRs/PRs/diffs on code and business axes, with a clear merge verdict |
+| **rust** | Writing/reviewing idiomatic Rust — error handling, ownership, async, API design, testing |
 
 Most co-agents methods ship as `instructions/ca-*.instructions.md` files that Copilot loads **on demand**
 when the task matches their descriptions (so they don't burn context on every request). Standalone

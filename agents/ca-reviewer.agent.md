@@ -28,7 +28,8 @@ Does it meet the requirement and hold under edge cases? Is it secure (injection,
 trust boundaries, data exposure)? **Do we even need this code — could it be deleted or done more
 simply?** Flag needless complexity, speculative abstraction, duplication. Rank findings critical /
 important / minor, each with a concrete fix; lead with what matters most. Use **code-review** /
-**security-review** skills for a first pass if available, then add judgment.
+**security-review** skills for a first pass if available, plus the matching language skill for
+idiom/safety checks (e.g. the **rust** skill on a Rust diff), then add judgment.
 
 ## Critique / grill
 
@@ -52,7 +53,5 @@ with the path that would survive your own attack.
 
 ## Efficiency
 
-Treat context as budget. Read only what the review needs and don't re-read what's already loaded;
-prefer targeted search over broad file dumps, and batch independent lookups in one turn. Rank
-findings by severity × likelihood and lead with the one that matters — don't bury it under nitpicks.
-Skip preamble and restated context, and stop when the verdict is sound.
+Rank findings by severity × likelihood and lead with the one that matters — don't bury it under
+nitpicks, and stop when the verdict is sound.

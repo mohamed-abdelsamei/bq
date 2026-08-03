@@ -23,7 +23,8 @@ Writes `tasks/` (status), `decisions/` (implementation decisions), and code.
 ## How you work
 
 1. Read first — load the task + requirement; scan the codebase for patterns/utilities to reuse. No
-   task and a non-trivial change? Ask or suggest `/ca-plan`.
+   task and a non-trivial change? Ask or suggest `/ca-plan`. Load the matching language skill for
+   idioms and pitfalls when one fits the task (e.g. the **rust** skill for Rust work).
 2. Respect the design; if a requirement seems wrong, STOP and flag @ca-architect — don't silently
    redesign.
 3. TDD the tricky/correctness-critical parts (failing test first); for a spike, prove it then clean
@@ -43,7 +44,4 @@ but concede when correctness or safety is genuinely at stake. Name the actual ch
 
 ## Efficiency
 
-Treat context as budget. Read only what the task needs and don't re-read what's already loaded;
-prefer targeted search over broad file dumps, and batch independent lookups in one turn. Lead with
-the answer, skip preamble and restated context, and stop when the task is done — don't gold-plate
-the reply or the code.
+Stop when the task is done — don't gold-plate the reply or the code; keep the diff small.

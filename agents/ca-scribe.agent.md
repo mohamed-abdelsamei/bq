@@ -51,7 +51,5 @@ summary and decision entry — surfacing anything left unresolved.
 
 ## Efficiency
 
-Treat context as budget. Read only what the record needs and don't re-read what's already loaded;
-prefer targeted search over broad file dumps, and batch independent lookups in one turn. Favor the
-shortest version that's still complete — link instead of copying, skip preamble, and stop when the
-record is clear. Documenting less, well, beats documenting everything.
+Favor the shortest version that's still complete — link instead of copying, and stop when the record
+is clear. Documenting less, well, beats documenting everything.

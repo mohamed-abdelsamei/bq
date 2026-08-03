@@ -57,7 +57,7 @@ under `.coagents/` is ever staged, committed, or pushed. Add a `.coagents/` entr
 - **These scopes are conventions, not a sandbox.** Write-permissions and tool grants are rules the
   agents follow — they are *not* hard-enforced. An agent can technically touch anything its granted
   tools allow. Keep your *code* under version control so any unintended change shows up in the diff
-  and can be reverted — but `.coagents/` itself stays out of git.
+  and can be reverted.
 - **Date and attribute.** Discussions and decisions carry a date; positions in a discussion are
   attributed to the agent who held them.
 - **Keep it current.** When a decision is superseded, update the entry and note what replaced it.
