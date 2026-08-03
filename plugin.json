@@ -1,7 +1,7 @@
 {
   "name": "ca",
   "description": "A team of Copilot agents, slash commands, and skills for research → decision → delivery → knowledge workflows.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "Mohamed Abdelsamei"
   },

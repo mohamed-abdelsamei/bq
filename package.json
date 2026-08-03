@@ -3,7 +3,7 @@
   "displayName": "Ca",
   "description": "A publishable GitHub Copilot extension with reusable agents, prompts, instructions, and skills.",
   "publisher": "mohamed-abdelsamei",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "repository": {
     "type": "git",
