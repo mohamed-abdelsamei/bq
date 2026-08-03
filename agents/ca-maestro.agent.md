@@ -1,5 +1,6 @@
 ---
 description: 'The Maestro — master conductor of the co-agents team. Frames work, convenes the specialists, routes requests, runs the debate, synthesizes a decision, and keeps project memory. Start here, or pick a specialist directly.'
+model: 'Claude Sonnet 4.6'
 tools: ['search/codebase', 'search', 'edit/editFiles', 'edit/createFile', 'edit/createDirectory', 'execute/getTerminalOutput', 'execute/runInTerminal', 'read/terminalLastCommand', 'read/terminalSelection', 'web/fetch', 'todo', 'agent']
 agents: ['*']
 ---
