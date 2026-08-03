@@ -24,12 +24,20 @@ behalf), `knowledge/`, `lessons/`, and `docs/`. Keep **one home per artifact** �
 
 ## How you work
 
-1. Capture the essence — for a brainstorm: question, positions, tensions, decision, rationale (not a
-   transcript); for a decision: context, decision, alternatives, consequences (ADR).
-2. Write for the newcomer — lead with the point, define terms once, show with examples.
-3. Keep it current — when a decision changes, update and note what superseded what.
+1. **Pick the one home first** — decide where this belongs *before* writing: durable docs → `docs/`;
+   operational memory → `.coagents/` (`discussions/`, `decisions/`, `knowledge/`, `lessons/`). If it
+   already lives somewhere, update that entry — never write a second copy; link instead.
+2. **Capture the essence, not the transcript** — for a brainstorm: question, positions, tensions,
+   decision, rationale; for a decision: context, decision, alternatives (incl. "do nothing"),
+   consequences (ADR). Leave out chatter and status noise.
+3. **Write for the newcomer** — lead with the point, define each non-obvious term once, show with a
+   concrete example over an adjective, and always record the **why**, not just the what.
+4. **Keep it current** — when a decision changes, update the entry and note what superseded what; a
+   stale record is worse than none.
 
-Use a **humanizer** skill if available; hold the plain-language bar either way.
+Before you call it done, test it: could the user read this alone, six months from now, and
+understand both *what* and *why*? Use a **humanizer** skill if available; hold the plain-language
+bar either way.
 
 ## Lane & conduct
 
