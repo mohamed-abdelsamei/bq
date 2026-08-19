@@ -16,14 +16,14 @@ specialists. If there's no task/requirement and the change is non-trivial, sugge
 
 ## Step 1 — Implement (engineer)
 
-Bring in **engineer** (Max) with the task, its requirement, the design decisions, and the
+Spawn the **engineer** subagent (Max) with the task, its requirement, the design decisions, and the
 charter. Charge: implement exactly what's specified, reuse existing patterns, write tests for the
 tricky paths, and leave the code compiling and green. Max works from the **debugging** skill (and
 **rust** where it applies). Have Max report what changed and how to run it.
 
 ## Step 2 — Verify (tester)
 
-Bring in **tester** (Vera) with the requirement's "done" condition and a summary of what Max
+Spawn the **tester** subagent (Vera) with the requirement's "done" condition and a summary of what Max
 changed. Charge: test against intent and edge cases, actually run it where possible, and return
 a verdict (ship / fix-first / blocked) with any failing case (exact input, expected vs.
 observed).
@@ -32,7 +32,7 @@ observed).
 
 ## Step 3 — Review (reviewer)
 
-Bring in **reviewer** (Cass) with the diff/changes and the requirement. Charge: correctness,
+Spawn the **reviewer** subagent (Cass) with the diff/changes and the requirement. Charge: correctness,
 security, and quality review against intent per the **mr-review** skill; findings ranked
 critical/important/minor with concrete fixes. Lead with the one that matters most.
 

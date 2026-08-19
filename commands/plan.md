@@ -15,14 +15,14 @@ Load `~/.ai/<project>/charter.md` and any related `requirements/`, `decisions/`,
 
 ## Step 1 — Analysis & design (architect, lead)
 
-Bring in **architect** (Sol) to: clarify scope (testable requirements, explicit out-of-scope),
+Spawn the **architect** subagent (Sol) to: clarify scope (testable requirements, explicit out-of-scope),
 design the solution structure, and propose an ordered task breakdown — each task with an owner
 (engineer/tester/scribe/etc.) and a clear "done" condition. Pass the framed requirement and
 memory context.
 
 ## Step 2 — Pressure-test (parallel, conditional)
 
-If the work is non-trivial, bring in (together):
+If the work is non-trivial, spawn (together, as subagents):
 - **reviewer** (Cass) — poke holes in the plan: assumptions, risks, the missed question.
 - **researcher** (Ada) — resolve any unknowns Sol flagged (options, prior art, feasibility).
 Give each Sol's design so they react to the real proposal, not a blank page.

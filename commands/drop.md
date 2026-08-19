@@ -32,7 +32,7 @@ If a related **discussion** (`discussions/`) or **research** (`research/`) exist
 
 ## Step 1 — Mark the states (scribe, in the artifacts' lanes)
 
-Bring in **scribe** (Quill) to set, in each file, before moving it:
+Spawn the **scribe** subagent (Quill) to set, in each file, before moving it:
 
 - Decision → `Status: Rejected` or `Status: Withdrawn`. **Keep its `{NNNN}`** — never renumber or
   reuse it; the next decision continues the sequence so the log has no misleading gaps.

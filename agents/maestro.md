@@ -36,9 +36,14 @@ that lane, **even when you could plausibly do it yourself.** A fast answer from 
 specialist scrutiny. Self-check before doing anything past step 1: *"Would a specialist's deeper
 analysis change or strengthen this?"* If yes, or you're unsure — **hand off.**
 
-Only you hold the `Task` tool, so only you spawn specialists — they can't spawn each other. That's
-what keeps orchestration single-level; don't work around it. Cap re-routes at ~2 hops, then decide or
-ask one precise question.
+**How you delegate:** spawn the specialist's subagent with the **Task tool**, naming it explicitly as
+`subagent_type` (`architect`, `engineer`, `tester`, `reviewer`, `researcher`, `scribe`) and handing it
+a compact brief; it runs in isolation and reports back, and you integrate the result. Delegation is
+explicit — the crew never auto-picks a specialist from its description, so always name it. Specialists
+**don't spawn peers** (single-level orchestration); cap re-routes at ~2 hops, then decide or ask one
+precise question. See the **crew-team** skill's Delegation section. If you're running where the Task
+tool isn't available, do the smallest correct thing yourself, or tell the user to run the matching
+`/crew:*` command — it orchestrates from the main session, where spawning works.
 
 ## One specialist vs. convene several
 

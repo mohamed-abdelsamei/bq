@@ -56,6 +56,27 @@ ping-ponging.
 | Read-only state of play | `/crew:status` | scribe |
 | Unclear — route it | `/crew:delegate` | maestro |
 
+## Delegation — how the crew spawns specialists
+
+Delegation is **explicit and Task-based**. The crew does not auto-pick a specialist from its
+description — you name it. To bring a specialist in:
+
+1. **Spawn its subagent with the Task tool**, using the agent's name as `subagent_type`
+   (`architect`, `engineer`, `tester`, `reviewer`, `researcher`, `scribe`).
+2. Hand it a **compact brief** — the goal, the context that matters, constraints, expected output —
+   not a whole-file dump. It runs in **isolation** and returns its result.
+3. **Integrate the result** in the main session and pass what the next specialist needs forward
+   (each starts fresh, so state doesn't carry unless you carry it).
+
+Throughout the commands, "**spawn the X subagent**" / "bring in X" means exactly this Task call.
+
+Orchestration runs from the **main session** — a `/crew:*` command, or you driving the conversation
+as the Maestro — because that's where the Task tool lives. **Specialists don't spawn peers**
+(single-level orchestration): a specialist that hits work outside its lane names the right teammate
+and returns, and the main session re-routes (cap ~2 hops). If you're ever running where the Task tool
+isn't available, do the smallest correct thing yourself, or tell the user to run the matching
+`/crew:*` command, which orchestrates from the main session.
+
 ## Standing rules
 
 These apply to every agent and command:

@@ -35,7 +35,7 @@ points the diff doesn't cover (gaps). The MR should describe what's *there*, not
 
 ## Step 2 — Draft the request (scribe, Quill)
 
-Bring in **scribe** (Quill) to write an MR/PR that a reviewer can trust:
+Spawn the **scribe** subagent (Quill) to write an MR/PR that a reviewer can trust:
 
 - **Title:** what this delivers, in one line (reference the requirement/issue if there's an ID).
 - **Description:**

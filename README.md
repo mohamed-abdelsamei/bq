@@ -103,10 +103,11 @@ debate, synthesizes a decision, and records it. The six specialists do the focus
 or convenes the team if it's big. If a specialist gets something out of its lane, it names the right
 teammate and the Maestro re-routes.
 
-> **How orchestration works:** only the Maestro holds the `Task` tool, so only it spawns specialists —
-> orchestration stays single-level (specialists don't spawn peers). A brainstorm is held in one
-> session where the Maestro speaks as each persona in turn before dropping the personas and
-> synthesizing.
+> **How orchestration works:** the `/crew:*` commands run in the main session (which holds the `Task`
+> tool) and **spawn each specialist as an isolated subagent** with a compact brief. Delegation is
+> **explicit** — the specialist is named, never auto-picked from its description. Orchestration stays
+> single-level: specialists don't spawn peers; one that hits work outside its lane names the right
+> teammate and the main session re-routes.
 
 ### Bring the team onto your project (once)
 

@@ -12,16 +12,18 @@ memory or the description alone. If you can't fetch the diff, stop and say so.
 
 ## The casting
 
+Spawn each specialist below as a subagent (Task tool) with its axis and a compact brief:
+
 - **you** — resolve `$ARGUMENTS` to a concrete diff and capture the three things the skill needs:
   the diff, the stated intent (MR title + description, linked requirement/issue), and the target
   branch.
-- **architect** (Sol) — anchors intent: does the change match the intended design and scope? Pull
-  the linked requirement from `~/.ai/<project>/requirements/` if referenced, plus `charter.md`. Flag
-  scope creep and gaps.
-- **reviewer** (Cass) — owns the **code** axis: correctness against intent, security, quality, and
-  "do we even need this code — could it be simpler or smaller?"
-- **tester** (Vera) + **architect** (Sol) — own the **business** axis: would this work for a real
-  user, are the acceptance criteria met, does it serve the requirement and charter?
+- Spawn the **architect** subagent (Sol) — anchors intent: does the change match the intended design
+  and scope? Pull the linked requirement from `~/.ai/<project>/requirements/` if referenced, plus
+  `charter.md`. Flag scope creep and gaps.
+- Spawn the **reviewer** subagent (Cass) — owns the **code** axis: correctness against intent,
+  security, quality, and "do we even need this code — could it be simpler or smaller?"
+- Spawn the **tester** (Vera) and **architect** (Sol) subagents — own the **business** axis: would
+  this work for a real user, are the acceptance criteria met, does it serve the requirement and charter?
 
 ## Close
 

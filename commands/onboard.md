@@ -21,7 +21,7 @@ or contradict them.
    `~/.ai/<project>/` already exists, report it and stop unless asked to refresh — to refresh the
    team's understanding after teammate changes, run `/crew:refresh`; if code structure changed too,
    follow with `/crew:knowledge refresh`.
-2. **Understand the project — bring in the specialists** (read-only), following the
+2. **Understand the project — spawn the specialists as subagents** (read-only), following the
    **codebase-onboarding** skill's method:
    - **architect (Sol)** — map the architecture: structure, main components, data flow, the
      conventions and patterns already in use, and the stack. Read, don't change.

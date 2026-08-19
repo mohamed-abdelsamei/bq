@@ -26,7 +26,7 @@ If the input is too vague to extract a lesson, ask one sharp question. Otherwise
 
 ## Step 1 — Extract lessons (reviewer)
 
-Bring in **reviewer** (Cass) to analyze what happened and extract candidate lessons — separating
+Spawn the **reviewer** subagent (Cass) to analyze what happened and extract candidate lessons — separating
 facts observed, inferred causes, recommended future behavior, and the evidence a lesson is worth
 keeping. Keep the list short: a good retro usually produces 1-3 lessons. If a lesson is only useful
 once, don't record it.
@@ -41,7 +41,7 @@ accepted decision, surface that conflict instead of recording it as active.
 
 ## Step 3 — Record lessons (scribe)
 
-Bring in **scribe** (Quill) to write each accepted lesson to
+Spawn the **scribe** subagent (Quill) to write each accepted lesson to
 `~/.ai/<project>/lessons/{YYYY-MM-DD}-{slug}.md` **per the feedback-loop skill** — it owns the lesson
 fields and the status vocabulary. When a lesson plausibly **generalizes beyond this project**, offer
 to nominate it as a promotion candidate (the skill defines the bar); nomination is only a flag.

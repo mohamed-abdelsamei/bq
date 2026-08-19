@@ -25,11 +25,17 @@ manifest in [.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json
 
 ## Orchestration model
 
-- Only the **maestro** subagent holds the `Task` tool, so only it spawns specialists — orchestration
-  stays single-level (specialists don't spawn peers). Lane discipline (e.g. the reviewer critiques,
-  it doesn't rewrite code) is a convention backed by version control, not a hard permission.
-- Commands run in the main session with the Maestro's instructions inline (the body opens with
-  "You are the Maestro"), and dispatch to specialists via the `Task` tool as needed.
+- **Orchestration runs from the main session.** The `/crew:*` commands inject Maestro instructions
+  into the main loop (their bodies open with "You are the Maestro"), and the main loop holds the
+  `Task` tool — so it spawns specialists as isolated subagents. Delegation is **explicit**: the
+  command names the `subagent_type` (`architect`, `engineer`, …); the crew never auto-picks a
+  specialist from its description. The delegation protocol lives in the `crew-team` skill.
+- **Single-level.** Specialists don't spawn peers; a specialist that hits work outside its lane names
+  the right teammate and the main session re-routes (cap ~2 hops). Note that Claude Code restricts a
+  plugin-shipped agent from spawning subagents, which is why orchestration is command-driven; the
+  `maestro` agent carries a fallback (do the smallest correct thing, or point to the matching command).
+- Lane discipline (e.g. the reviewer critiques, it doesn't rewrite code) is a convention backed by
+  version control, not a hard permission.
 
 ## Always-on identity
 

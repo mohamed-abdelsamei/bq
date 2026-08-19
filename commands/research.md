@@ -15,9 +15,9 @@ This is research: understand and document, do not implement.
 - Load relevant `~/.ai/<project>/` context (the charter, related `decisions/`, `requirements/`, and
   `lessons/`) so the research builds on what the team already knows instead of rediscovering it.
 
-## Step 1 — Investigate — bring in the researcher
+## Step 1 — Investigate — spawn the researcher subagent
 
-Bring in **researcher** (Ada), who works the investigation **following the research-method skill** —
+Spawn the **researcher** subagent (Ada), who works the investigation **following the research-method skill** —
 it owns preferring primary sources, separating fact from inference from speculation, comparing
 options honestly, and rating confidence.
 

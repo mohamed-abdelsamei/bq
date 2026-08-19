@@ -19,7 +19,7 @@ Decide what kind of work this is and how big:
 | Understand how the codebase works / map its concepts / refresh understanding after teammate changes | `/crew:knowledge` |
 | Learn from a completed task, user correction, or repeated failure | `/crew:retro` |
 | Review or stress-test something existing | `/crew:review` |
-| One clearly-scoped specialist job | bring in that **one** specialist directly |
+| One clearly-scoped specialist job | spawn that **one** specialist's subagent directly |
 
 Map single jobs to owners:
 - design / architecture / scope / task breakdown → **architect** (Sol)
@@ -31,16 +31,16 @@ Map single jobs to owners:
 
 ## Step 2 — Route
 
-- **Single job:** bring in the one specialist with full context (request + relevant `~/.ai/<project>/`
-  memory). Don't over-orchestrate a simple ask.
+- **Single job:** spawn the one specialist's subagent with full context (request + relevant
+  `~/.ai/<project>/` memory). Don't over-orchestrate a simple ask.
 - **Multi-step or ambiguous:** ask 1–2 clarifying questions if needed, then hand off to the
   matching workflow command above.
 
 ## Step 3 — Handle handoffs
 
 A specialist may report the request is **out of its lane** ("this is really the engineer's job").
-When that happens, you execute the re-route: bring in the correct specialist with the original
-request plus what the first agent established. Keep the user informed of who's handling it and
+When that happens, you execute the re-route: spawn the correct specialist's subagent with the
+original request plus what the first agent established. Keep the user informed of who's handling it and
 why — but keep it light; they came to you so they wouldn't have to manage this.
 
 Follow the **crew-team** skill for the routing rules and the handoff cap (~2 hops); if the request

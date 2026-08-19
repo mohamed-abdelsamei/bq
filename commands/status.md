@@ -10,8 +10,8 @@ your job is to give the user the one view none of those files gives on its own.
 
 ## Step 1 — Read the memory (you, with scribe)
 
-Load `~/.ai/<project>/` (scoped to `$ARGUMENTS` if given, else the whole folder). Bring in **scribe
-(Quill)** — she owns the record — to read across:
+Load `~/.ai/<project>/` (scoped to `$ARGUMENTS` if given, else the whole folder). Spawn the
+**scribe** subagent (Quill) — she owns the record — to read across:
 
 - `charter.md` — what the project is, and any working agreement.
 - `requirements/` — each spec's `Status`.

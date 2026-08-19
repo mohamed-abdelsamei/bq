@@ -27,7 +27,8 @@ driver).
 
 ## Step 1 — First round (independent)
 
-Bring in the chosen specialists so their views form independently. Give each: the framed question,
+Spawn each chosen specialist as a subagent so their views form independently — running them as
+separate subagents is what keeps the first round genuinely independent. Give each: the framed question,
 the relevant memory context, and their charge — **"give your in-character POV: your take, your
 single biggest concern, and what you'd push for. Stay in your lane and disagree where you genuinely
 do."**

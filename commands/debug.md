@@ -17,13 +17,13 @@ sharp clarifying question, then go.
 
 ## Step 1 — Reproduce and fix (engineer, Max)
 
-Bring in **engineer** to work the bug by the **debugging** skill: reproduce it (ideally a failing
+Spawn the **engineer** subagent to work the bug by the **debugging** skill: reproduce it (ideally a failing
 test), trace the real root cause, make the smallest safe fix, and add a regression test. The skill
 owns each of those moves — no repro, no fix.
 
 ## Step 2 — Verify nothing else broke (tester, Vera)
 
-Bring in **tester**: run the **full existing suite** (not just the new test) to confirm the fix
+Spawn the **tester** subagent: run the **full existing suite** (not just the new test) to confirm the fix
 didn't turn a green test red, check the fix holds at the boundary, and hunt the nearby edge cases
 the bug hints at. Return a verdict: fixed / not-fixed / regression-introduced, with the failing
 case if any.

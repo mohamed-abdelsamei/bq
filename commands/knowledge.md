@@ -28,10 +28,10 @@ If the mode is ambiguous, infer it from whether the graph exists, and say which 
 
 Breadth first, then distill, then record:
 
-- **Explore** subagent (read-only) maps the ground — entry points, components, data flow. Trace the
-  real code; don't guess concepts from names.
-- **researcher** (Ada) distills what Explore found into concepts, evidence, and relationships.
-- **scribe** (Quill) writes the concept files and updates `knowledge/graph.md` (Mermaid diagram +
+- Spawn the **Explore** subagent (read-only) to map the ground — entry points, components, data flow.
+  Trace the real code; don't guess concepts from names.
+- Spawn the **researcher** subagent (Ada) to distill what Explore found into concepts, evidence, and relationships.
+- Spawn the **scribe** subagent (Quill) to write the concept files and update `knowledge/graph.md` (Mermaid diagram +
   index + the "last refreshed" stamp).
 
 ## The work

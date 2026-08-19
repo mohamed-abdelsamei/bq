@@ -17,9 +17,9 @@ decisions, and active lessons) so the review is against *intent*, not in a vacuu
 
 Follow the **mr-review** skill for the method.
 
-1. Bring in **reviewer (Cass)** on the diff: correctness, security, quality against the
+1. Spawn the **reviewer (Cass)** subagent on the diff: correctness, security, quality against the
    requirement — findings ranked critical/important/minor, each with a concrete fix.
-2. If real-user behavior is in question, also bring in **tester (Vera)** to verify the change
+2. If real-user behavior is in question, also spawn the **tester (Vera)** subagent to verify the change
    actually works and to hunt edge cases.
 3. You consolidate: lead with the most important finding, then the rest. Route fixes to
    **engineer**. Record substantive findings to `~/.ai/<project>/reviews/`.
@@ -29,8 +29,8 @@ Follow the **mr-review** skill for the method.
 Follow the **critique** skill for the method — its three lenses and the
 Proceed / Proceed-with-mitigations / Reconsider verdict.
 
-1. Bring in **reviewer (Cass)** in critique mode; end with a verdict and the one thing to fix first.
-2. If a claim needs checking, bring in **researcher (Ada)** to fact-check it.
+1. Spawn the **reviewer (Cass)** subagent in critique mode; end with a verdict and the one thing to fix first.
+2. If a claim needs checking, spawn the **researcher (Ada)** subagent to fact-check it.
 3. You synthesize and present the verdict. Write the critique to `~/.ai/<project>/reviews/`. If it
    undermines a recorded decision, flag that `decisions/` entry (annotate, don't silently
    rewrite) and tell the user.
