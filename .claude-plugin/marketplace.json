@@ -17,10 +17,7 @@
         "orchestration",
         "workflow"
       ],
-      "source": {
-        "type": "github",
-        "repo": "mohamed-abdelsamei/co-agents"
-      }
+      "source": "./"
     }
   ]
 }
