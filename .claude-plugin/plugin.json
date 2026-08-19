@@ -1,0 +1,19 @@
+{
+  "name": "crew",
+  "displayName": "Crew",
+  "description": "A team of AI agents — a Maestro conductor plus six specialists — that run a real feature lifecycle: brainstorm, decide, plan, build, test, review, and document, with durable per-project memory in ~/.ai/<project>/.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Mohamed Abdelsamei"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/mohamed-abdelsamei/co-agents#readme",
+  "repository": "https://github.com/mohamed-abdelsamei/co-agents.git",
+  "keywords": [
+    "agents",
+    "orchestration",
+    "commands",
+    "skills",
+    "workflow"
+  ]
+}

@@ -1,49 +1,54 @@
-# Ca Architecture
+# Crew Architecture
 
-This repository is a publishable GitHub Copilot extension for VS Code. The extension manifest in
-[package.json](../package.json) contributes the workspace payload directly, and the legacy installer
-remains as a direct-copy transition path.
+This repository is a native **Claude Code plugin**. The manifest in
+[.claude-plugin/plugin.json](../.claude-plugin/plugin.json) declares the plugin; the marketplace
+manifest in [.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json) lets it install via
+`/plugin`. There is no build step — the files are the plugin.
 
-## What the extension contains
+## What the plugin contains
 
-- `agents/*.agent.md` for custom agents
-- `prompts/*.prompt.md` for slash commands
-- `instructions/*.instructions.md` for on-demand method instructions
-- `skills/*/SKILL.md` for reusable skills
-- `copilot-instructions.md` for the project-scope always-on conductor when installed into a repo via
-  the legacy project install (an extension cannot contribute an always-on workspace instruction)
-- `package.json` as the extension manifest that publishes the payload
+- `agents/*.md` — subagents (the Maestro conductor + six specialists)
+- `commands/*.md` — the `/crew:*` slash commands
+- `skills/*/SKILL.md` — method skills loaded on demand by their `description`, plus the `rust`
+  language skill and the `crew-team` overview skill
+- `templates/crew/` — starter content for a project's `~/.ai/<project>/` memory, used by `/crew:init` and
+  `/crew:onboard`
+- `.claude-plugin/plugin.json` — the plugin manifest
+- `.claude-plugin/marketplace.json` — the marketplace listing
 
-The naming convention is part of the architecture:
+## Naming and namespacing
 
-- agent ids use the `ca:` namespace (e.g. `ca:maestro.agent`); the files themselves are unprefixed
-- skill folders and `SKILL.md` names match exactly
-- the repo stays editable as plain files; nothing is generated
+- The plugin `name` is `crew`. Commands are invoked as `/crew:<command>`; subagents are referenced by
+  name (`maestro`, `architect`, …).
+- Skill folders and their `SKILL.md` `name` field match exactly.
+- The repo stays editable as plain files; nothing is generated.
 
-## Install scopes
+## Orchestration model
 
-The installer supports two modes:
+- Only the **maestro** subagent holds the `Task` tool, so only it spawns specialists — orchestration
+  stays single-level (specialists don't spawn peers). Lane discipline (e.g. the reviewer critiques,
+  it doesn't rewrite code) is a convention backed by version control, not a hard permission.
+- Commands run in the main session with the Maestro's instructions inline (the body opens with
+  "You are the Maestro"), and dispatch to specialists via the `Task` tool as needed.
 
-- **Marketplace / VSIX** — installs the published extension, which contributes the agents,
-  prompts, on-demand instructions, and skills directly. It does not install the always-on
-  project conductor; use a legacy project install for that.
-- **Legacy global** — uses the installer to copy the bundle into the VS Code user profile as a
-  managed directory, then exposes discovery shims so Copilot can find the customizations in every
-  workspace.
-- **Legacy project** — uses the installer to copy the files into a target repository's `.github/`
-  folder and tracks the files with a manifest.
+## Always-on identity
 
-All modes install the same customization payload; they differ only in how the files are delivered.
+A Claude Code plugin **cannot** inject an always-on instruction (there is no equivalent to Copilot's
+always-on `copilot-instructions.md`). The team identity, roster, routing, and standing rules ship as
+the on-demand `skills/crew-team/SKILL.md`, which `agents/maestro.md` points to (rather than
+duplicating), so there is one home for the conventions and no always-on file is required. Load the
+`crew-team` skill (or talk to `maestro`) to bring the conventions into context.
 
 ## Source of truth
 
-- The repo files are the extension source of truth.
-- `.ca/` is local project memory for a specific workspace. It is not the plugin and is not
-  tracked in git.
+- The repo files are the plugin source of truth.
+- Project memory lives in the central `~/.ai/<project>/` store (root `$AI_HOME` or `~/.ai`;
+  `<project>` = the project dir basename), with cross-project lessons in `~/.ai/shared/`. It lives
+  outside the repo — not the plugin, never in git.
 - `README.md` explains the public layout at a high level and links back here.
 
 ## Operating rules
 
 - Keep the architecture lean and direct-editable.
-- Keep the publishable extension manifest aligned with the payload files.
-- Keep the tracked doc, README, and installer wording aligned when the architecture changes.
+- Keep `plugin.json` / `marketplace.json` aligned with the payload files.
+- Keep the tracked doc, README, and `CLAUDE.md` wording aligned when the architecture changes.

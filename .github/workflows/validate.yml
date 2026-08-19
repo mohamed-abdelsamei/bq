@@ -15,7 +15,48 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Validate agent/prompt/instruction/skill frontmatter
+      - name: Validate plugin manifests
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, sys
+
+          problems = []
+          root = pathlib.Path(".")
+
+          def load_json(rel, required):
+              p = root / rel
+              if not p.exists():
+                  problems.append(f"{rel}: missing")
+                  return None
+              try:
+                  data = json.loads(p.read_text())
+              except json.JSONDecodeError as e:
+                  problems.append(f"{rel}: invalid JSON ({e})")
+                  return None
+              for key in required:
+                  if key not in data:
+                      problems.append(f"{rel}: missing required key '{key}'")
+              return data
+
+          plugin = load_json(".claude-plugin/plugin.json", ["name"])
+          market = load_json(".claude-plugin/marketplace.json", ["name", "plugins"])
+
+          if plugin and plugin.get("name") != "crew":
+              problems.append(".claude-plugin/plugin.json: name must be 'crew'")
+          if market:
+              names = [p.get("name") for p in market.get("plugins", [])]
+              if "crew" not in names:
+                  problems.append(".claude-plugin/marketplace.json: plugins must list 'crew'")
+
+          if problems:
+              print("FAIL:")
+              for p in problems:
+                  print("  -", p)
+              sys.exit(1)
+          print("OK: plugin.json and marketplace.json valid")
+          PY
+
+      - name: Validate agent/command/skill frontmatter
         run: |
           python3 - <<'PY'
           import pathlib, sys
@@ -28,74 +69,67 @@ jobs:
                   return None
               return text[4:text.index("\n---", 4)]
 
-          # Agents and prompts must declare a description; instructions must have frontmatter
-          # (either applyTo for always-on, or a description for on-demand discovery).
-          checks = [
-              ("agents", "*.agent.md", True),
-              ("prompts", "*.prompt.md", True),
-              ("instructions", "*.instructions.md", False),
-          ]
-          for folder, glob, needs_desc in checks:
-              files = sorted((root / folder).glob(glob))
-              if not files:
-                  problems.append(f"{folder}/: no {glob} files found")
-              for f in files:
-                  fm = frontmatter(f.read_text())
-                  if fm is None:
-                      problems.append(f"{f}: missing frontmatter")
-                      continue
-                  if needs_desc and "description:" not in fm:
-                      problems.append(f"{f}: frontmatter missing description")
-                  if folder == "instructions" and "applyTo:" not in fm and "description:" not in fm:
-                      problems.append(f"{f}: instruction needs applyTo or description")
+          agents = sorted((root / "agents").glob("*.md"))
+          if not agents:
+              problems.append("agents/: no *.md files found")
+          for f in agents:
+              fm = frontmatter(f.read_text())
+              if fm is None:
+                  problems.append(f"{f}: missing frontmatter")
+                  continue
+              if "name:" not in fm:
+                  problems.append(f"{f}: frontmatter missing name")
+              if "description:" not in fm:
+                  problems.append(f"{f}: frontmatter missing description")
 
-                for f in sorted((root / "skills").glob("*/SKILL.md")):
-                  fm = frontmatter(f.read_text())
-                  if fm is None:
-                    problems.append(f"{f}: missing frontmatter")
-                    continue
-                  skill_name = f.parent.name
-                  if f"name: {skill_name}" not in fm:
-                    problems.append(f"{f}: skill name must match folder ({skill_name})")
-                  if "description:" not in fm:
-                    problems.append(f"{f}: frontmatter missing description")
+          commands = sorted((root / "commands").glob("*.md"))
+          if not commands:
+              problems.append("commands/: no *.md files found")
+          for f in commands:
+              fm = frontmatter(f.read_text())
+              if fm is None:
+                  problems.append(f"{f}: missing frontmatter")
+                  continue
+              if "description:" not in fm:
+                  problems.append(f"{f}: frontmatter missing description")
+
+          skills = sorted((root / "skills").glob("*/SKILL.md"))
+          if not skills:
+              problems.append("skills/: no */SKILL.md files found")
+          for f in skills:
+              fm = frontmatter(f.read_text())
+              if fm is None:
+                  problems.append(f"{f}: missing frontmatter")
+                  continue
+              skill_name = f.parent.name
+              if f"name: {skill_name}" not in fm:
+                  problems.append(f"{f}: skill name must match folder ({skill_name})")
+              if "description:" not in fm:
+                  problems.append(f"{f}: frontmatter missing description")
 
           if problems:
               print("FAIL:")
               for p in problems:
                   print("  -", p)
               sys.exit(1)
-                print("OK: all agent/prompt/instruction/skill frontmatter valid")
+          print("OK: all agent/command/skill frontmatter valid")
           PY
 
-          - name: Validate command and template consistency
-          run: |
-            python3 - <<'PY'
-            import pathlib, sys
+      - name: Validate command docs and memory templates
+        run: |
+          python3 - <<'PY'
+          import pathlib, sys
 
-            root = pathlib.Path(".")
-            problems = []
+          root = pathlib.Path(".")
+          problems = []
 
-            # Derive the command set from the filesystem so a new command that isn't
-            # documented is caught, not silently skipped.
-            commands = sorted(
-              p.name.removesuffix(".prompt.md")
-              for p in (root / "prompts").glob("*.prompt.md")
-            )
-            if not commands:
-              problems.append("prompts/: no *.prompt.md files found")
+          commands = sorted(p.stem for p in (root / "commands").glob("*.md"))
+          readme = (root / "README.md").read_text()
+          for command in commands:
+              if f"/crew:{command}" not in readme:
+                  problems.append(f"README.md: missing command reference /crew:{command}")
 
-            readme_texts = [
-              ("README.md", (root / "README.md").read_text()),
-              ("templates/ca/README.md", (root / "templates" / "ca" / "README.md").read_text()),
-            ]
-            for name, text in readme_texts:
-              for command in commands:
-                token = f"/{command}"
-                if token not in text:
-                  problems.append(f"{name}: missing command reference {token}")
-
-            required_templates = [
+          required_templates = [
               "README.md",
               "charter.md",
               "decision-template.md",
@@ -109,21 +143,15 @@ jobs:
               "research/research-template.md",
               "reviews/review-template.md",
               "tasks/task-template.md",
-            ]
-            for rel in required_templates:
-              if not (root / "templates" / "ca" / rel).exists():
-                problems.append(f"missing ca template: templates/ca/{rel}")
+          ]
+          for rel in required_templates:
+              if not (root / "templates" / "crew" / rel).exists():
+                  problems.append(f"missing memory template: templates/crew/{rel}")
 
-            if problems:
+          if problems:
               print("FAIL:")
               for problem in problems:
-                print("  -", problem)
+                  print("  -", problem)
               sys.exit(1)
-            print("OK: command inventory and templates consistent")
-            PY
-
-      - name: Installer syntax
-        run: bash -n install.sh
-
-      - name: Dry-run install resolves cleanly
-        run: ./install.sh --dry-run --user-dir "$RUNNER_TEMP/vscode-user"
+          print("OK: command docs and memory templates consistent")
+          PY

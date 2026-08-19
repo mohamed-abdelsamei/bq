@@ -1,0 +1,26 @@
+{
+  "name": "crew",
+  "owner": {
+    "name": "Mohamed Abdelsamei"
+  },
+  "metadata": {
+    "description": "Marketplace for the crew agent-team plugin.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "crew",
+      "description": "A team of AI agents — a Maestro conductor plus six specialists — for research → decision → delivery → knowledge workflows, with durable per-project memory in ~/.ai/<project>/.",
+      "version": "0.1.0",
+      "keywords": [
+        "agents",
+        "orchestration",
+        "workflow"
+      ],
+      "source": {
+        "type": "github",
+        "repo": "mohamed-abdelsamei/co-agents"
+      }
+    }
+  ]
+}

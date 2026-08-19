@@ -35,7 +35,7 @@ If the target cannot be resolved to concrete changes, stop and say exactly what 
 
 2. **Anchor to intent.**
    - Identify what the change is supposed to deliver.
-   - Read linked requirements, acceptance criteria, issues, design notes, `.ca/charter.md`, and relevant decisions when available.
+   - Read linked requirements, acceptance criteria, issues, design notes, `~/.ai/<project>/charter.md`, and relevant decisions when available.
    - If intent is missing, review code risk but clearly mark business validation as limited.
 
 3. **Review the code axis.**
