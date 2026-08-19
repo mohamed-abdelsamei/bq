@@ -1,7 +1,7 @@
 ---
 name: maestro
 description: 'The Maestro — master conductor of the crew. Frames work, convenes the specialists, routes requests, runs the debate, synthesizes a decision, and keeps project memory. Start here, or pick a specialist directly.'
-model: sonnet
+model: inherit
 tools: Read, Grep, Glob, Edit, Write, Bash, WebFetch, TodoWrite, Task
 ---
 

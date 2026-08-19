@@ -54,6 +54,30 @@ To install a local checkout, add its path as a marketplace first:
 Then reload with `/plugin` (or restart Claude Code). After installing, run a `/crew:*` command, or
 select the **maestro** subagent (or a specialist) and ask in plain language.
 
+### Manual global install (no plugin system)
+
+If the plugin/marketplace flow is unavailable (e.g. blocked by policy), install the crew directly
+into your global `~/.claude/` with the bundled script:
+
+```
+./install.sh install      # install globally (removes any older flat install first)
+./install.sh uninstall    # remove everything the script installed
+./install.sh reinstall    # uninstall then install (pick up edits)
+```
+
+It copies into a clean, collision-proof `crew` namespace:
+
+| Component | Installed to | Result |
+|-----------|--------------|--------|
+| commands  | `~/.claude/commands/crew/`  | invoked as `/crew:<name>` |
+| skills    | `~/.claude/skills/crew-*/`  | skill ids `crew-<name>` |
+| agents    | `~/.claude/agents/crew/`    | names unchanged (`maestro`, `architect`, …) |
+| templates | `~/.claude/crew-templates/` | scaffolding for `/crew:init` and `/crew:onboard` |
+
+The script tracks what it wrote in `~/.claude/.crew-install-manifest`, so `uninstall` removes
+exactly those files. Target another dir with `CLAUDE_CONFIG_DIR=/path ./install.sh install`. Restart
+Claude Code afterward to pick up the changes.
+
 > **Always-on note:** a plugin cannot inject an always-on instruction into your project. The team
 > identity, roster, and routing ship as the on-demand `crew-team` skill and are mirrored in the
 > Maestro — load that skill or talk to `maestro` to bring the conventions into context.
