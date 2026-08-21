@@ -43,7 +43,8 @@ both reports together for one consolidated fix pass — not two separate loop-ba
 re-checks only the touched diff — don't re-run the full chain.
 
 - If a blocking issue survives this one reconciliation round, **stop and surface it to the user**
-  instead of looping again — a second round usually means the design is wrong, not the fix.
+  instead of looping again — the **loop-engineering** skill's fix-loop cap applies: one retry, then
+  stop, since a second round usually means the design is wrong, not the fix.
 
 ## Step 4 — Close out
 

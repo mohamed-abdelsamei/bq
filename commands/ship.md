@@ -18,8 +18,8 @@ Stop the loop, report where things stand, and ask the user **only** when one of 
 1. **Genuine decision or ambiguity** — a real fork that's the user's to make (scope, a tradeoff
    with no clear winner, a missing requirement you'd otherwise have to guess). Don't invent an
    answer to keep moving; surface it.
-2. **Review keeps failing** — a task can't pass **tester**/**reviewer** after **~2 fix attempts**.
-   Stop looping on it; report the failing case and what you tried.
+2. **Review keeps failing** — a task can't pass **tester**/**reviewer** within the **loop-engineering**
+   skill's fix-loop cap (~2 attempts). Stop looping on it; report the failing case and what you tried.
 3. **Charter or decision violation** — shipping a task would contradict `charter.md` or an accepted
    `decisions/` entry. Halt and flag the conflict; don't quietly override a settled call.
 4. **Destructive or outward action** — anything hard to reverse (push, deploy, deleting files,

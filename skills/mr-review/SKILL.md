@@ -83,7 +83,9 @@ If the target cannot be resolved to concrete changes, stop and say exactly what 
    - Each finding must include the concrete risk, the evidence, and a practical fix.
    - Prefer file and line references for local workspace files when available.
 
-7. **Give a verdict.**
+7. **Give a verdict.** This scale is deliberately its own — a diff is reviewed for whether to *merge*,
+   not stress-tested for whether to *proceed*. Decisions/plans use the **critique** skill's Proceed /
+   Proceed-with-mitigations / Reconsider scale instead; the two aren't meant to converge.
    - **Approve:** no blocking findings; residual risks are acceptable or clearly noted.
    - **Approve with changes:** only minor or straightforward non-blocking fixes remain.
    - **Request changes:** any critical or important issue that can break correctness, security, acceptance criteria, data integrity, or user value.

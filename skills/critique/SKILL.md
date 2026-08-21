@@ -24,6 +24,10 @@ only attacks a strawman is worthless.
 
 ## Verdict
 
+This scale is deliberately its own — a decision/plan is stress-tested for whether to *proceed*, not
+reviewed for whether to *merge*. Code diffs use the **mr-review** skill's Approve /
+Approve-with-changes / Request-changes scale instead; the two aren't meant to converge.
+
 End with a clear call and the single most important thing to address first:
 
 - **Proceed** — no blocking concerns; residual risks named and acceptable.

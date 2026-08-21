@@ -1,6 +1,6 @@
 ---
 name: loop-engineering
-description: 'The framework''s core design principle — treat every unit of work as a feedback loop that must open deliberately, close or drop explicitly, and leave a trace a human can follow. Defines the five named loops (ask, research, decision, delivery, learning), the backbone pipeline (research → decision → implementation → knowledge), and how each loop scales down for trivial work. Use when reasoning about whether a piece of work is actually finished, when work feels like it''s dangling, or when deciding where an outcome should land.'
+description: 'The framework''s core design principle — treat every unit of work as a feedback loop that must open deliberately, close or drop explicitly, and leave a trace a human can follow. Defines the five named loops (ask, research, decision, delivery, learning), the backbone pipeline (research → decision → implementation → knowledge), the fix-loop retry cap, and how each loop scales down for trivial work. Use when reasoning about whether work is actually finished, whether to keep retrying a fix, when work feels dangling or half-done, or when deciding where an outcome should land.'
 ---
 # Loop engineering
 
@@ -59,6 +59,13 @@ knowledge — each is a loop stuck mid-spine.
 5. **Learning loop** — opens with a correction, a repeated failure, or a surprising success. Closes
    when captured as a lesson that changes future behavior (`/crew:retro`). *Scales down:* a one-off
    needs no lesson; capture only what should change what the team does next time.
+
+## The fix-loop cap
+
+A fix loop — implement, verify, fix — earns at most **one retry** (two attempts total) before it
+stops and surfaces to the user instead of looping again: a second failure usually means the design is
+wrong, not the fix. `/crew:build`'s reconciliation pass, `/crew:debug`'s re-loop, and each task inside
+`/crew:ship` all apply this same cap — stated once here rather than restated in each command.
 
 ## Scaling down
 

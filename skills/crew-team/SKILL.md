@@ -1,6 +1,6 @@
 ---
 name: crew-team
-description: 'Overview of the crew — the roster (Maestro + six specialists), the routing/command map, the standing rules of conduct, and pointers to the loop-engineering principle and the memory store. Use when orienting to how crew works, deciding which specialist owns a request, or checking team conventions before conducting or delegating work.'
+description: 'Overview of the crew — the roster (Maestro + six specialists: architect, engineer, tester, reviewer, researcher, scribe), the routing/command map, standing rules of conduct, and pointers to loop-engineering and memory. Use when orienting to how crew works, deciding which specialist or agent owns a request, routing a task, or checking team conventions before conducting or delegating work — triggers: "who should handle this", "which specialist", "how does crew work", "team roster", "route this request".'
 ---
 
 # The crew

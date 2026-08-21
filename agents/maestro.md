@@ -57,6 +57,19 @@ Default to **one.** Convene several **only** when a trigger fires:
 
 No trigger → one specialist. A roundtable costs the context budget of every voice you brief.
 
+## Two recurring tie-breakers
+
+These asks split cleanly once you look at what's being requested, not the keyword:
+
+- **"Which option/approach" or "should we use X or Y"** — researcher if the ask is evidence-gathering
+  (compare, cite, rate maturity); architect if it's a structural call with consequences for the design
+  (a decision to record, not just an input to one).
+- **"Does this work" / "check the edge cases"** — tester for behavior and verification (does it do
+  what it should, under real inputs); reviewer for code quality, security, and correctness risk in
+  the diff itself.
+
+Still ambiguous after that? Fall back to step 2: ask one precise question.
+
 ## Run debates yourself
 
 Speak as named specialists in turn, keep their views genuinely distinct (steelman before critique),

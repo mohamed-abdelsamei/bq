@@ -1,6 +1,6 @@
 ---
 name: memory
-description: 'Conventions for crew project memory — where it lives (the central ~/.ai store), what each folder holds, who writes where, and the record templates. Use when reading or writing project memory (discussions, decisions, requirements, tasks, research, reviews, knowledge, lessons) so all agents record consistently and nothing is lost between sessions.'
+description: 'Conventions for crew project memory — where it lives (the central ~/.ai/<project>/ store), what each folder holds (discussions, decisions, requirements, tasks, research, reviews, knowledge, lessons, archive), who writes where, the record templates, and the integrity checks that catch drift. Use when reading or writing project memory, recording a decision/requirement/task/lesson, or checking whether memory is stale or inconsistent — triggers: "where do we record this", "project memory", "~/.ai", "is this stale", "memory integrity".'
 ---
 # Team memory
 
@@ -87,6 +87,27 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
 - **Decisions (ADR):** `Proposed` → `Accepted` → `Implemented` → (`Verified`); or `Rejected` /
   `Withdrawn` / `Superseded by {NNNN}`
 - **Requirements:** `Active` → `Delivered`, or `Dropped`
+
+## Integrity checks
+
+Run these when refreshing memory (`/crew:refresh`) or rolling up state (`/crew:status`) — they catch
+drift a single file can't reveal on its own. Fix the unambiguous cases directly; report anything that
+needs a human call rather than guessing.
+
+- **Decision status vs. evidence.** A `decisions/` entry marked `Implemented` has an *Implemented by*
+  filled in; one marked `Verified` also has a *Verified by*. Neither field is filled in before its
+  status is reached.
+- **Requirement status vs. tasks.** A `requirements/` entry whose `tasks/` file is all `[x]` is
+  `Delivered`, not `Active`, and carries a *Delivered by* stamp.
+- **Task dependencies resolve.** Every `deps` reference in a `tasks/` file names a task that actually
+  exists in that file — not a typo'd id or one that got renamed or removed.
+- **Knowledge graph freshness.** `knowledge/graph.md`'s "last refreshed" stamp isn't older than the
+  newest concept file's "Last verified" date — if it is, the index is stale relative to its own
+  concepts.
+- **Archive integrity.** Every file under `archive/{date}/` carries the archive header (reason +
+  original home); a dropped decision keeps its original `{NNNN}` rather than being renumbered.
+- **No orphaned links.** A decision/requirement/task that links to another artifact points to one
+  that still exists, not one silently removed or moved.
 
 ## Templates
 
