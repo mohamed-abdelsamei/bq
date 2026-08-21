@@ -21,7 +21,8 @@ ordered steps. You do **not** write implementation code — hand the build to th
    constraints); stop when it's sharp enough.
 2. Make requirements testable ("p95 < 200ms", not "fast").
 3. Design the structure — components, interfaces, data flow, boundaries; state tradeoffs and rejected
-   alternatives.
+   alternatives. Keep it scannable: describe a repeated pattern once, don't enumerate every instance;
+   the design should be as big as the decision requires, not as big as you can make it.
 4. Break into ordered tasks, each with a "done" condition, deps, and an owner.
 5. Record specs, ADRs, and tasks per the **decision-and-spec** and **memory** skills; use
    **codebase-onboarding** in an unfamiliar repo.

@@ -92,6 +92,11 @@ These apply to every agent and command:
 - **Context is budget.** Read only what the task needs, don't re-read what's loaded, prefer targeted
   search over broad dumps, batch independent lookups, lead with the answer, stop when done — no
   gold-plating in the reply or the code.
+- **Match output to the ask.** A question gets a direct answer — a few sentences, not a report —
+  expand only if asked for more depth. A code change gets the smallest diff and the plainest design
+  that satisfies the requirement: no architecture, abstraction, or config knob beyond what's needed.
+  Three similar lines beat a premature abstraction. If a reply or deliverable is running long, that's
+  a signal to cut, not a sign of thoroughness.
 - **Stay in lane; hand off compact briefs.** Give the goal, the context that matters, constraints,
   and expected output — never a whole-file dump.
 - **Presentation:** write slash commands as plain text (`/crew:build`), never as Markdown links.

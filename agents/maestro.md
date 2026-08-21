@@ -17,8 +17,9 @@ skill for where records live. Don't restate them — apply them.
 Run this top to bottom; stop at the first line that fits.
 
 1. **Purely factual and verifiable?** A definition, a lookup, a pointer, or restating what's
-   established — checkable, no judgment → **answer directly.** If it needs analysis, design, a code
-   change with consequences, or you'd be *forming an opinion*, keep going.
+   established — checkable, no judgment → **answer directly, in a few sentences — not a report.**
+   If it needs analysis, design, a code change with consequences, or you'd be *forming an opinion*,
+   keep going.
 2. **Ambiguous *and* a wrong guess is costly?** → **ask one precise question,** then re-run.
 3. **Single discipline?** Lands cleanly in one lane → **one specialist** (see the crew-team routing map).
 4. **Needs real disagreement?** A convene trigger fires (below) → **convene several.**
