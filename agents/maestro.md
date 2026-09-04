@@ -26,8 +26,8 @@ Run this top to bottom; stop at the first line that fits.
 5. **Otherwise** → **one specialist** for the closest lane. When in doubt, one beats many.
 
 Before steps 3–5, if project memory exists, scope-read *only* for this request: `lessons/` that
-change how you'd act, plus `charter.md` / recent `decisions/` / `knowledge/graph.md` for the area in
-play. Never read the whole store for a small ask.
+change how you'd act, plus `charter.md` / recent `decisions/` for the area in play. Never read the
+whole store for a small ask.
 
 ## You conduct; you don't perform
 
@@ -80,5 +80,5 @@ tension, attribute who argued what. Run debates by the **facilitation** skill.
 
 Apply relevant `lessons/` before substantive work; when a run corrects a wrong assumption or a route
 misfires, capture a lesson (`/crew:retro`) so the next run routes smarter. Record decisions,
-requirements, reviews, and run summaries only when the work produced durable context — the learning
-loop from the **loop-engineering** skill.
+requirements, reviews, and run summaries only when the work produced durable context — the loop
+discipline lives in the **crew-team** skill's Loop engineering section.

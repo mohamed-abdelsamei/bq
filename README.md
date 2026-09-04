@@ -94,7 +94,6 @@ Claude Code afterward to pick up the changes.
 | Build a task: implement → test → review | `/crew:build <task>` |
 | Fix a bug: reproduce → root cause → smallest fix → regression test | `/crew:debug <bug>` |
 | Investigate how something works today and document it | `/crew:research <feature/question>` |
-| Map, refresh, or organize the codebase's knowledge graph | `/crew:knowledge [build\|refresh\|organize]` |
 | Learn from completed work, corrections, and repeated failures | `/crew:retro <task/session/correction>` |
 | Ship the whole backlog autonomously (plan → build → commit per task) | `/crew:ship [feature]` |
 | Review code, or stress-test a decision | `/crew:review <target>` |
@@ -104,9 +103,9 @@ Claude Code afterward to pick up the changes.
 | Be interrogated on your own reasoning | `/crew:grill <idea>` |
 | Drop an abandoned plan: archive its requirement, decision & tasks | `/crew:drop <feature>` |
 | See the state of play — a read-only rollup of `~/.ai/<project>/` memory | `/crew:status [area]` |
-| Hand any request to the Maestro to route | `/crew:delegate <request>` |
 
-Or skip the commands and just talk: pick **maestro** (or a specialist) and ask in plain language.
+Or skip the commands and just talk: pick **maestro** (or a specialist) and ask in plain language —
+the Maestro classifies anything you hand it and routes it to the right lane.
 
 ## How it works
 
@@ -158,7 +157,6 @@ across projects live in `~/.ai/shared/lessons/`.
   tasks/           task breakdowns + status
   research/        sourced findings
   reviews/         reviews + critiques
-  knowledge/       concept map of how the code works (graph.md + concepts/)
   lessons/         reusable lessons from retrospectives and user corrections
 ```
 
@@ -172,19 +170,16 @@ copy-pasted into every persona. Claude loads each on demand when the task matche
 
 | Skill | What it encodes |
 |-------|-----------------|
-| **crew-team** | The roster, routing, standing rules, and loop-engineering principle (team overview) |
-| **loop-engineering** | Every unit of work is a loop that opens, then closes or is dropped, leaving a trace |
+| **crew-team** | The roster, routing, standing rules, and the loop-engineering principle — every unit of work opens, then closes or is dropped, leaving a trace (team overview) |
 | **memory** | How the `~/.ai/<project>/` memory works and who writes where |
 | **codebase-onboarding** | Understanding an unfamiliar repo without modifying it (powers `/crew:onboard`) |
 | **decision-and-spec** | Testable requirements (given/when/then) and ADRs with real rationale |
 | **research-method** | Sourcing, confidence rating, and citation discipline |
-| **knowledge-graph** | Building, refreshing, and organizing the concept map of a codebase (powers `/crew:knowledge`) |
 | **feedback-loop** | Capturing lessons learned so future agents change behavior (powers `/crew:retro`) |
 | **facilitation** | Running a debate that ends in a decision (steelman, surface assumptions) |
 | **critique** | Red-teaming a decision/plan/idea — three lenses + a verdict (powers `/crew:review`, `/crew:grill`) |
 | **debugging** | Fixing a bug without breaking what works — root cause, smallest fix, regression test |
 | **mr-review** | Reviewing MRs/PRs/diffs on code and business axes, with a clear merge verdict |
-| **rust** | Writing/reviewing idiomatic Rust — error handling, ownership, async, API design, testing |
 
 ## Layout
 
@@ -195,7 +190,7 @@ The repo **is** the plugin — the files are native Claude Code plugin component
 .claude-plugin/marketplace.json marketplace listing for /plugin install
 agents/                 *.md — the Maestro + six specialists (subagents)
 commands/               *.md — the /crew:* commands
-skills/                 <name>/SKILL.md — method skills loaded on demand, + rust + crew-team
+skills/                 <name>/SKILL.md — method skills loaded on demand (incl. the crew-team overview)
 templates/crew/         starting content for a project's ~/.ai/<project>/ memory (init/onboard)
 docs/architecture.md    tracked architecture overview
 CLAUDE.md               contributor notes for editing the plugin

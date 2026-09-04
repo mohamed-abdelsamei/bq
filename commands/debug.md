@@ -28,8 +28,8 @@ didn't turn a green test red, check the fix holds at the boundary, and hunt the 
 the bug hints at. Return a verdict: fixed / not-fixed / regression-introduced, with the failing
 case if any.
 
-- If not fixed or a regression appears, loop back to **engineer** — the **loop-engineering** skill's
-  fix-loop cap applies (~2 attempts, then stop and report what you tried).
+- If not fixed or a regression appears, loop back to **engineer** — the crew's fix-loop cap applies
+  (~2 attempts, then stop and report what you tried; see the **crew-team** skill).
 
 ## Step 3 — Close (you)
 

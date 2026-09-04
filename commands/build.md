@@ -21,9 +21,9 @@ Spawn the **engineer** subagent (Max) with the task, its requirement, the design
 charter. Charge: implement exactly what's specified and nothing more — no changes outside the
 task's scope, no incidental refactors or renames along the way; reuse existing patterns over new
 abstractions; work test-first from the requirement's done-condition (failing test, then
-implement), and leave the code compiling and green. Max works
-from the **debugging** skill (and **rust** where it applies). Have Max report back briefly — what
-changed, what was deliberately left alone, and how to run it — not a walkthrough.
+implement), and leave the code compiling and green. Max works from the **debugging** skill (and the
+project's language skill where it applies). Have Max report back briefly — what changed, what was
+deliberately left alone, and how to run it — not a walkthrough.
 
 ## Step 2 — Verify & review (tester + reviewer, parallel)
 
@@ -43,18 +43,16 @@ both reports together for one consolidated fix pass — not two separate loop-ba
 re-checks only the touched diff — don't re-run the full chain.
 
 - If a blocking issue survives this one reconciliation round, **stop and surface it to the user**
-  instead of looping again — the **loop-engineering** skill's fix-loop cap applies: one retry, then
-  stop, since a second round usually means the design is wrong, not the fix.
+  instead of looping again — the crew's fix-loop cap applies (see the **crew-team** skill): one
+  retry, then stop, since a second round usually means the design is wrong, not the fix.
 
 ## Step 4 — Close out
 
 Update the task status in `~/.ai/<project>/tasks/`. Write the verification/review notes to
 `~/.ai/<project>/reviews/` if substantive. If this task implemented a design decision, flip that ADR in
-`~/.ai/<project>/decisions/` to `Status: Implemented` and stamp *Implemented by* with the task/commit —
-only now is it eligible for the knowledge graph. If this task was the **last open one** for its
-requirement (all tasks now `[x]`), mark that requirement `Status: Delivered` and stamp *Delivered
-by* — don't leave a shipped spec reading as `Active`. If the change added, renamed, or reshaped a component or flow
-that the knowledge graph tracks, update the affected concept file(s) in `~/.ai/<project>/knowledge/`
-(sources + "last verified") — or flag it for `/crew:knowledge` if it's broader. If the task exposed a
-repeated failure, user correction, or reusable pattern, run or offer `/crew:retro` to capture the
-lesson. Report to the user: what was built, test result, review verdict, and anything still open.
+`~/.ai/<project>/decisions/` to `Status: Implemented` and stamp *Implemented by* with the task/commit.
+If this task was the **last open one** for its requirement (all tasks now `[x]`), mark that
+requirement `Status: Delivered` and stamp *Delivered by* — don't leave a shipped spec reading as
+`Active`. If the task exposed a repeated failure, user correction, or reusable pattern, run or offer
+`/crew:retro` to capture the lesson. Report to the user: what was built, test result, review verdict,
+and anything still open.

@@ -1,6 +1,6 @@
 ---
 name: memory
-description: 'Conventions for crew project memory — where it lives (the central ~/.ai/<project>/ store), what each folder holds (discussions, decisions, requirements, tasks, research, reviews, knowledge, lessons, archive), who writes where, the record templates, and the integrity checks that catch drift. Use when reading or writing project memory, recording a decision/requirement/task/lesson, or checking whether memory is stale or inconsistent — triggers: "where do we record this", "project memory", "~/.ai", "is this stale", "memory integrity".'
+description: 'Conventions for crew project memory — where it lives (the central ~/.ai/<project>/ store), what each folder holds (discussions, decisions, requirements, tasks, research, reviews, lessons, archive), who writes where, the record templates, and the integrity checks that catch drift. Use when reading or writing project memory, recording a decision/requirement/task/lesson, or checking whether memory is stale or inconsistent — triggers: "where do we record this", "project memory", "~/.ai", "is this stale", "memory integrity".'
 ---
 # Team memory
 
@@ -28,7 +28,7 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
 
 > Sibling skills own *what* to write: **decision-and-spec** (specs + ADRs), **research-method**
 > (findings), **facilitation** (discussion summaries), **codebase-onboarding** (the charter on a new
-> repo), **knowledge-graph** (the concept map in `knowledge/`), **feedback-loop** (lessons).
+> repo), **feedback-loop** (lessons).
 
 ## Layout
 
@@ -42,7 +42,6 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
   tasks/            task breakdowns:        {slug}.md  (checklist with owners + status)
   research/         sourced findings:       {slug}.md  (with sources, dates, confidence)
   reviews/          review & critique reports: {slug}.md
-  knowledge/        concept map of the codebase — graph.md (Mermaid index) + concepts/{slug}.md
   lessons/          feedback loop:          {YYYY-MM-DD}-{slug}.md
   archive/          dropped plans moved aside by /crew:drop:
                       {YYYY-MM-DD}/{requirements|decisions|tasks}/{file} (with an archive header)
@@ -58,8 +57,8 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
   - **engineer** → code, `tasks/` (status), `decisions/` (implementation decisions)
   - **tester** → `reviews/` (test plans/verification), test code, `tasks/` (status)
   - **reviewer** → `reviews/`, `lessons/`; may *flag* a `decisions/` entry (annotate, never rewrite)
-  - **researcher** → `research/`, `knowledge/` (concept extraction), reference material in `docs/`
-  - **scribe** → `discussions/`, `decisions/` (recording for the team), `knowledge/`, `lessons/`, `docs/`
+  - **researcher** → `research/`, reference material in `docs/`
+  - **scribe** → `discussions/`, `decisions/` (recording for the team), `lessons/`, `docs/`
 - **Everyone reads everything.** Memory is shared context, not siloed.
 - **Scopes are conventions, not enforced.** Write-permissions and tool grants are rules agents
   follow, not a hard sandbox. Keep *code* under version control so any unintended change shows in the
@@ -101,9 +100,6 @@ needs a human call rather than guessing.
   `Delivered`, not `Active`, and carries a *Delivered by* stamp.
 - **Task dependencies resolve.** Every `deps` reference in a `tasks/` file names a task that actually
   exists in that file — not a typo'd id or one that got renamed or removed.
-- **Knowledge graph freshness.** `knowledge/graph.md`'s "last refreshed" stamp isn't older than the
-  newest concept file's "Last verified" date — if it is, the index is stale relative to its own
-  concepts.
 - **Archive integrity.** Every file under `archive/{date}/` carries the archive header (reason +
   original home); a dropped decision keeps its original `{NNNN}` rather than being renumbered.
 - **No orphaned links.** A decision/requirement/task that links to another artifact points to one
@@ -120,8 +116,8 @@ needs a human call rather than guessing.
 - **Implemented by:** {task / commit / file — filled in when Status becomes Implemented}
 - **Verified by:** {review / test — the evidence it works; filled in when verified}
 
-> A decision is intent until Implemented; it enters `knowledge/` only after its code lands and is
-> verifiable (see the **decision-and-spec** and **knowledge-graph** skills).
+> A decision is intent until Implemented; only once its code lands and is verifiable does it describe
+> the real system (see the **decision-and-spec** skill).
 
 ## Context
 What's the situation and the forces at play?
@@ -174,7 +170,6 @@ Requirement: ../requirements/{slug}.md
 > Original home: <mem>/{folder}/{filename}
 ```
 
-### Knowledge graph and lessons
-The concept map (`knowledge/`) and lessons (`lessons/`) have their own formats — see the
-**knowledge-graph** and **feedback-loop** skills. Build/refresh them with `/crew:knowledge` and
+### Lessons
+Lessons (`lessons/`) have their own format — see the **feedback-loop** skill. Capture them with
 `/crew:retro`.

@@ -32,13 +32,11 @@ guessing or rabbit-holing. See the **memory** skill for where findings are recor
 
 ## Where research sits in the pipeline
 
-Research feeds a decision; it is not knowledge on its own. The flow is
-**research → decision → implementation → knowledge**: findings and options inform an ADR, the ADR is
-implemented in code, and only then does the result become a concept in the knowledge graph. Don't
-fold research findings or an unbuilt option directly into `knowledge/` — the graph records what the
-code *is*, not what was investigated. Record findings in `research/`, and let the decision and its
-implementation carry them forward.
+Research feeds a decision; it is not the record on its own. The flow is
+**research → decision → implementation**: findings and options inform an ADR, and the ADR is
+implemented in code. Record findings in `research/`, and let the decision and its implementation
+carry them forward — don't treat an unbuilt option as if it were the shipped system.
 
 In loop terms this is the **research loop**: it opens with an unknown and closes only when the
 findings feed a decision or plan — research that changes nothing is an open loop. See the
-**loop-engineering** skill.
+**crew-team** skill's Loop engineering section.

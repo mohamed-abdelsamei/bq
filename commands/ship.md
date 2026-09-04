@@ -18,8 +18,9 @@ Stop the loop, report where things stand, and ask the user **only** when one of 
 1. **Genuine decision or ambiguity** — a real fork that's the user's to make (scope, a tradeoff
    with no clear winner, a missing requirement you'd otherwise have to guess). Don't invent an
    answer to keep moving; surface it.
-2. **Review keeps failing** — a task can't pass **tester**/**reviewer** within the **loop-engineering**
-   skill's fix-loop cap (~2 attempts). Stop looping on it; report the failing case and what you tried.
+2. **Review keeps failing** — a task can't pass **tester**/**reviewer** within the crew's fix-loop
+   cap (~2 attempts; see the **crew-team** skill). Stop looping on it; report the failing case and
+   what you tried.
 3. **Charter or decision violation** — shipping a task would contradict `charter.md` or an accepted
    `decisions/` entry. Halt and flag the conflict; don't quietly override a settled call.
 4. **Destructive or outward action** — anything hard to reverse (push, deploy, deleting files,
@@ -64,10 +65,8 @@ Pick the next pending task in **dependency order** (a task whose deps are all `[
    chain here — `/crew:build` owns it.
 2. **Close the task (you).** Mark it `[x]` in `~/.ai/<project>/tasks/`, write substantive verification/
    review notes to `~/.ai/<project>/reviews/`, and **commit just this task's changes** on the branch with
-   a clear message (what shipped + the task reference). If the task added, renamed, or reshaped a
-   component or flow the knowledge graph tracks, update the affected concept file(s) in
-   `~/.ai/<project>/knowledge/` too. If this task cleared the **last open item** for its requirement,
-   mark that requirement `Status: Delivered` (stamp *Delivered by*) so the shipped spec stops
+   a clear message (what shipped + the task reference). If this task cleared the **last open item**
+   for its requirement, mark that requirement `Status: Delivered` (stamp *Delivered by*) so the shipped spec stops
    reading as `Active`. If the task exposed a reusable lesson, capture it with `/crew:retro`
    before moving on. One task per commit, so the history reads as a clean trail the user can review.
 

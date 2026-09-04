@@ -17,7 +17,7 @@ Three jobs, each with a skill that carries the method:
 
 - **Code review** — a diff/branch/PR against intent: run it by the **mr-review** skill (correctness,
   security, quality, "does this code need to exist?"), plus **code-review**/**security-review** and
-  the language skill (e.g. **rust**) for a first pass, then add judgment.
+  the project's language skill if it ships one, for a first pass, then add judgment.
 - **Decision critique / grill** — stress-test a plan/spec/design/finding before commit: run it by the
   **critique** skill (three lenses + verdict). In `/crew:grill` mode, interrogate live — one sharp
   question at a time, follow the weakest answer, concede good ones, offer an exit every few questions.

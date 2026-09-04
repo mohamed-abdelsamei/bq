@@ -58,18 +58,16 @@ Match the command to what you're actually trying to do:
 | Clear a whole backlog hands-off | `/crew:ship [feature]` | Each task built + committed on a branch, autonomously |
 | Fix a bug | `/crew:debug <bug>` | reproduce → root cause → smallest fix → regression test |
 | Understand how something works | `/crew:research <question>` | A sourced, confidence-rated findings doc |
-| Map the codebase's concepts | `/crew:knowledge [build\|refresh\|organize]` | A concept graph you can reason over |
 | Review code or a decision | `/crew:review <target>` | Findings + a clear verdict |
 | Open / review an MR | `/crew:mr` / `/crew:review-mr <ref>` | A drafted request / a two-axis review |
 | Understand a past decision | `/crew:ask <question>` | A plain-language answer from the record |
 | Pressure-test your own thinking | `/crew:grill <idea>` | Cass interrogates you, one sharp question at a time |
 | Capture a lesson | `/crew:retro <what happened>` | A reusable lesson that changes future behavior |
 | See where things stand | `/crew:status [area]` | A read-only rollup of memory (changes nothing) |
-| Just hand it over | `/crew:delegate <request>` | The Maestro classifies and routes it |
 | Drop an abandoned plan | `/crew:drop <feature>` | Its spec/decision/tasks archived with a reason |
 
-Not sure which to use? Just describe the work in plain language, or use `/crew:delegate` — routing is
-the Maestro's job.
+Not sure which to use? Just describe the work in plain language and hand it to the **maestro** —
+routing is its job.
 
 ## A typical feature, start to finish
 
@@ -119,7 +117,6 @@ Everything the team decides lands in `~/.ai/<project>/`. You can open and read a
   tasks/          task lists + status
   research/       sourced findings
   reviews/        code reviews + critiques
-  knowledge/      concept map of how the code works
   lessons/        what to do differently next time
 ```
 
@@ -128,17 +125,16 @@ Everything the team decides lands in `~/.ai/<project>/`. You can open and read a
 - `/crew:ask "why did we choose X?"` answers from the record, in plain language.
 - Lessons that generalize across projects can be shared (with your approval) to
   `~/.ai/shared/lessons/`, so they apply everywhere — captured via `/crew:retro`.
-- After a teammate merges changes, run `/crew:knowledge refresh` (concept map) and `/crew:refresh`
-  (project rules) so the team's understanding re-syncs with reality.
+- After a teammate merges changes, run `/crew:refresh` so the team's understanding of the project's
+  rules re-syncs with reality.
 
 ## How the team extends itself
 
 The specialists share deep *method* through **skills** that load only when relevant (debugging,
-research-method, mr-review, critique, decision-and-spec, knowledge-graph, facilitation,
-feedback-loop, memory, and the `rust` language skill). You rarely invoke these directly — the
-commands and agents pull them in. When a lesson from `/crew:retro` proves out across projects, you
-can promote it into the plugin itself (an agent/command/skill edit) — always with your explicit
-approval, never silently.
+research-method, mr-review, critique, decision-and-spec, facilitation, feedback-loop, memory, and the
+crew-team overview). You rarely invoke these directly — the commands and agents pull them in. When a
+lesson from `/crew:retro` proves out across projects, you can promote it into the plugin itself (an
+agent/command/skill edit) — always with your explicit approval, never silently.
 
 ## Gotchas
 

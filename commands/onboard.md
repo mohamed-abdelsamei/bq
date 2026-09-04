@@ -19,8 +19,7 @@ or contradict them.
 1. **Find the existing context.** Scan for the AI-context files and entry points named in the
    **codebase-onboarding** skill (manifests, `README`, `docs/`). List what you found. If
    `~/.ai/<project>/` already exists, report it and stop unless asked to refresh — to refresh the
-   team's understanding after teammate changes, run `/crew:refresh`; if code structure changed too,
-   follow with `/crew:knowledge refresh`.
+   team's understanding after teammate changes, run `/crew:refresh`.
 2. **Understand the project — spawn the specialists as subagents** (read-only), following the
    **codebase-onboarding** skill's method:
    - **architect (Sol)** — map the architecture: structure, main components, data flow, the
@@ -44,9 +43,7 @@ or contradict them.
 
 ## After onboarding
 
-The team is ready and now works with the project's existing conventions. Once the charter is
-confirmed, offer to run `/crew:knowledge build` to map the codebase's concepts and how they relate
-into `~/.ai/<project>/knowledge/` — so the next feature starts from understanding, not rediscovery. If
-you spotted something in the existing context files that looks wrong or risky, **raise it**
-(challenge by default) — but as a flagged observation for the user to decide on, never a unilateral
-edit. To act on it, the user can run `/crew:review` or `/crew:brainstorm`.
+The team is ready and now works with the project's existing conventions. If you spotted something in
+the existing context files that looks wrong or risky, **raise it** (challenge by default) — but as a
+flagged observation for the user to decide on, never a unilateral edit. To act on it, the user can
+run `/crew:review` or `/crew:brainstorm`.

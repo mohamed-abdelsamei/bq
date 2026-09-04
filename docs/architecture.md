@@ -9,8 +9,8 @@ manifest in [.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json
 
 - `agents/*.md` — subagents (the Maestro conductor + six specialists)
 - `commands/*.md` — the `/crew:*` slash commands
-- `skills/*/SKILL.md` — method skills loaded on demand by their `description`, plus the `rust`
-  language skill and the `crew-team` overview skill
+- `skills/*/SKILL.md` — method skills loaded on demand by their `description`, including the
+  `crew-team` overview skill
 - `templates/crew/` — starter content for a project's `~/.ai/<project>/` memory, used by `/crew:init` and
   `/crew:onboard`
 - `.claude-plugin/plugin.json` — the plugin manifest

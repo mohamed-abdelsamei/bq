@@ -1,5 +1,5 @@
 ---
-description: 'Read-only state of play: roll up the project''s ~/.ai/<project>/ memory into one honest snapshot — in-flight and blocked tasks, undelivered requirements, decisions still waiting on code, active lessons, and knowledge-graph freshness — so the user can see where things stand without opening a dozen files.'
+description: 'Read-only state of play: roll up the project''s ~/.ai/<project>/ memory into one honest snapshot — in-flight and blocked tasks, undelivered requirements, decisions still waiting on code, and active lessons — so the user can see where things stand without opening a dozen files.'
 argument-hint: '[optional: a feature/slug or area to scope the snapshot to]'
 ---
 You are the **Maestro**, reporting the **state of play** for: **${input:-the whole project}**
@@ -18,7 +18,6 @@ Load `~/.ai/<project>/` (scoped to `$ARGUMENTS` if given, else the whole folder)
 - `tasks/` — task markers.
 - `decisions/` — each ADR's `Status`.
 - `lessons/` — which are `Active`, and any past their **Review date**.
-- `knowledge/graph.md` — the "last refreshed" stamp.
 - `reviews/`, `research/`, `discussions/` — recent activity, and open questions left in them.
 
 See the **memory** skill's "Status markers" section for the task markers and the
@@ -36,7 +35,6 @@ Present a short, scannable snapshot — lead with what needs attention, not a fi
 - **Decisions waiting on code** — ADRs `Proposed`/`Accepted` but not `Implemented` (intent not yet
   built), and any `Implemented` decision with no *Verified by* evidence.
 - **Lessons** — active lessons relevant now; flag any past their review date.
-- **Knowledge freshness** — how stale the graph's "last refreshed" stamp is.
 - **Loose ends** — open questions recorded in `research/`, `reviews/`, or `discussions/`.
 
 Keep it proportionate: a small project gets a few lines; only surface a section if it has something
@@ -48,9 +46,8 @@ what looks off.
 
 Close with the one or two actions that would most move things forward, mapped to commands — e.g.
 `/crew:build <task>` to pick up in-flight work, `/crew:drop <feature>` to clear an abandoned plan,
-`/crew:knowledge refresh` if the graph is stale, `/crew:retro` to review a lesson past its date, or
-`/crew:refresh` to reconcile memory if links look broken. Don't act on them — this command only
-reports.
+`/crew:retro` to review a lesson past its date, or `/crew:refresh` to reconcile memory if links look
+broken. Don't act on them — this command only reports.
 
 > **Note:** memory is local to this machine under `~/.ai/`, so this snapshot reflects your machine's
 > memory of the project.

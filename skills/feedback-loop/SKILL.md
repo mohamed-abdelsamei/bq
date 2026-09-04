@@ -30,8 +30,8 @@ Record a lesson when it changes future behavior:
 - **Workflow retro** — a build/debug/review/ship run reveals what to do differently next time.
 - **Positive pattern** — an approach worked well and should be repeated.
 
-Do not record trivia, one-off task details, status updates, or facts better captured in `knowledge/`,
-`decisions/`, `research/`, or `reviews/`.
+Do not record trivia, one-off task details, status updates, or facts better captured in `decisions/`,
+`research/`, or `reviews/`.
 
 ## Lesson file format
 

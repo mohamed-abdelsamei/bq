@@ -45,9 +45,8 @@ Following the **decision-and-spec** skill (testable requirements + ADR craft), w
 - The task list → `~/.ai/<project>/tasks/{slug}.md` — ordered, owned, with done-conditions and
   dependencies.
 
-End by showing the user the task list and the first task to pick up. If the spec introduced new
-domain concepts worth mapping, note that `/crew:knowledge` can fold them into the concept graph. If
-planning exposed a reusable lesson, capture it with `/crew:retro`. Offer `/crew:build <task>` to start
+End by showing the user the task list and the first task to pick up. If planning exposed a reusable
+lesson, capture it with `/crew:retro`. Offer `/crew:build <task>` to start
 implementation one task at a time — or `/crew:ship` to build the whole backlog autonomously. If the
 plan is later abandoned, drop it with `/crew:drop` so the requirement, decision, and tasks are
 archived instead of lingering as live work.

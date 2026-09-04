@@ -10,10 +10,9 @@ them go as deep as they want. Treat them as a smart person who simply wasn't in 
 ## Step 1 — Find the answer in memory
 
 Search `~/.ai/<project>/` using the **memory** skill to find the relevant record. For "what did we
-learn / why do agents do X now" questions, check `lessons/` first — it's the feedback loop. For
-"what is X / how does X work / how do these pieces fit" questions, check the knowledge graph
-(`knowledge/`) first — it's the concept map. If the question is about something recorded, ground
-your answer in it and point to the file so they can read more.
+learn / why do agents do X now" questions, check `lessons/` first — it's the feedback loop. If the
+question is about something recorded, ground your answer in it and point to the file so they can read
+more.
 
 ## Step 2 — Answer in plain language
 

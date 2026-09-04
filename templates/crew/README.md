@@ -16,7 +16,6 @@ between sessions. `<project>` is this project directory's basename; the root is 
 | `tasks/` | Task breakdowns with owners and status. |
 | `research/` | Sourced findings and options comparisons. |
 | `reviews/` | Code reviews and decision critiques. |
-| `knowledge/` | The concept map of how this codebase works and how the pieces relate. |
 | `lessons/` | Reusable lessons from user corrections, retrospectives, and repeated failures. |
 
 Cross-project lessons that generalize beyond this repo live in `~/.ai/shared/lessons/`.
@@ -39,7 +38,6 @@ Durable, polished documentation (architecture overview, guides, API references) 
 - `/crew:build <task>` — implement → test → review.
 - `/crew:debug <bug>` — reproduce → root cause → smallest fix → regression test.
 - `/crew:research <feature/question>` — investigate how something works and document the findings.
-- `/crew:knowledge [build|refresh|organize]` — map, refresh, or deduplicate the knowledge graph.
 - `/crew:retro <task/session/correction>` — capture lessons so future agents change behavior.
 - `/crew:ship [feature]` — work through a backlog autonomously.
 - `/crew:review <target>` — review code or stress-test a decision.
@@ -49,6 +47,5 @@ Durable, polished documentation (architecture overview, guides, API references) 
 - `/crew:grill <idea>` — be interrogated on your own reasoning, one sharp question at a time.
 - `/crew:drop <feature>` — archive an abandoned plan so it stops reading as live work.
 - `/crew:status [area]` — read-only rollup of this project's memory.
-- `/crew:delegate <request>` — let the Maestro route it.
 - Or talk to any specialist directly: **architect**, **engineer**, **tester**, **reviewer**,
-  **researcher**, **scribe**.
+  **researcher**, **scribe** — or the **maestro** to route anything.

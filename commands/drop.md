@@ -50,15 +50,6 @@ Then fix the breadcrumbs: in any **active** file that linked an archived one (a 
 `Requirement:` line, a discussion's decision link, a `References` entry), update the link to the new
 archive path and note it was dropped — don't rewrite the history, just keep the pointers honest.
 
-## Step 3 — Handle anything that already shipped (you)
-
-Usually a dropped plan never landed in code, so the knowledge graph is untouched (only `Implemented`
-decisions ever enter it). But if part of this plan *was* built and is now being reverted or
-abandoned, the graph may still describe code that's changing:
-
-- Flag the affected concept(s) in `~/.ai/<project>/knowledge/` as `needs-reverification`, and
-- suggest `/crew:knowledge refresh` so the graph re-syncs against the real code.
-
 ## Close
 
 Report in a few plain lines: which artifacts were archived, where they now live

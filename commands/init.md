@@ -38,6 +38,5 @@ conventions; draw the charter's shape from **decision-and-spec** and **codebase-
 - `~/.ai/<project>/` is **operational/working memory**. Durable, polished docs (architecture
   overview, guides) live in `docs/` — keep one home per artifact, no duplicates.
 - After init, the team is ready: `/crew:brainstorm`, `/crew:plan`, `/crew:build`, `/crew:review`, or talk to any
-  specialist directly (architect, engineer, …). Once code starts to exist, `/crew:knowledge build`
-  maps its concepts into the knowledge graph. After a task, correction, or repeated failure,
+  specialist directly (architect, engineer, …). After a task, correction, or repeated failure,
   `/crew:retro` captures reusable lessons.

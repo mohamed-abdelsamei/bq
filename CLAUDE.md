@@ -10,7 +10,7 @@ Edit them directly; what you see is what installs.
 .claude-plugin/marketplace.json marketplace listing for /plugin install
 agents/<name>.md                the Maestro + six specialists (subagents)
 commands/<name>.md              the /crew:<name> slash commands
-skills/<name>/SKILL.md          method skills (loaded on demand by description) + rust
+skills/<name>/SKILL.md          method skills (loaded on demand by description)
 templates/crew/                 starter content for a project's ~/.ai/<project>/ memory (init/onboard)
 docs/architecture.md            architecture overview
 ```

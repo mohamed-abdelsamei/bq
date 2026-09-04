@@ -1,6 +1,6 @@
 ---
 name: crew-team
-description: 'Overview of the crew — the roster (Maestro + six specialists: architect, engineer, tester, reviewer, researcher, scribe), the routing/command map, standing rules of conduct, and pointers to loop-engineering and memory. Use when orienting to how crew works, deciding which specialist or agent owns a request, routing a task, or checking team conventions before conducting or delegating work — triggers: "who should handle this", "which specialist", "how does crew work", "team roster", "route this request".'
+description: 'Overview of the crew — the roster (Maestro + six specialists: architect, engineer, tester, reviewer, researcher, scribe), the routing/command map, the standing rules of conduct, and the loop-engineering principle (every unit of work opens, then closes or is dropped, leaving a trace). Use when orienting to how crew works, deciding which specialist or agent owns a request, routing a task, or checking team conventions before conducting or delegating work — triggers: "who should handle this", "which specialist", "how does crew work", "team roster", "route this request", "is this work finished".'
 ---
 
 # The crew
@@ -32,7 +32,8 @@ keeps it honest. Each agent file carries its own persona; this is the team-level
 Match a request to the lane it lands in, not the nearest keyword. Only the **maestro** holds the
 `Task` tool, so **only the maestro spawns specialists** — specialists stay in their lane and don't
 spawn peers. Cap re-routes at **~2 hops**; then decide or ask one precise question rather than
-ping-ponging.
+ping-ponging. When a request doesn't name a lane, the maestro classifies and routes it — talk to
+`maestro` (or just describe the work).
 
 | The ask is about… | Command | Owner |
 |---|---|---|
@@ -44,7 +45,6 @@ ping-ponging.
 | Build a task: implement → test → review | `/crew:build` | maestro chains engineer/tester/reviewer |
 | Fix a bug | `/crew:debug` | engineer, tester |
 | Investigate how something works | `/crew:research` | researcher |
-| Map/refresh the knowledge graph | `/crew:knowledge` | researcher, scribe |
 | Learn from experience | `/crew:retro` | reviewer, scribe |
 | Ship the backlog autonomously | `/crew:ship` | maestro |
 | Review code or stress-test a decision | `/crew:review` | reviewer, tester |
@@ -54,7 +54,6 @@ ping-ponging.
 | Be interrogated on your reasoning | `/crew:grill` | reviewer |
 | Drop an abandoned plan | `/crew:drop` | maestro |
 | Read-only state of play | `/crew:status` | scribe |
-| Unclear — route it | `/crew:delegate` | maestro |
 
 ## Delegation — how the crew spawns specialists
 
@@ -104,10 +103,36 @@ These apply to every agent and command:
 
 ## Loop engineering
 
-Every unit of work is a **feedback loop**: open it deliberately, close it or drop it explicitly, and
-leave a trace a human can follow. The named loops (ask, research, decision, delivery, learning) ride
-one backbone — research → decision → implementation → knowledge — and each scales down. See the
-**loop-engineering** skill for the model.
+Work in crew is a set of **feedback loops**. Every unit of work opens a loop, and is done only when
+the loop **closes**: the outcome lands in its right home, the system is left consistent, and anything
+learned folds back in. An open loop left dangling is unfinished work wearing the costume of progress
+— an answer that lives only in chat, research that informs no decision, an `Accepted` decision never
+implemented, a requirement whose work is done but still reads `Active`.
+
+> **The one rule:** open a loop deliberately, close it or drop it explicitly, and leave a trace a
+> human can follow.
+
+Two ways to close: **finish** it (the outcome reaches its home) or **drop** it (abandon on purpose,
+archived with a reason via `/crew:drop`). What you must not do is leave it half-open and walk away.
+
+**The backbone.** Loops ride a single spine: **research → decision → implementation**. Research that
+never reaches a decision, or a decision that never reaches code, is a loop stuck mid-spine. The
+durable trace is the `decisions/` record plus the shipped code, and any `lessons/` learned along the
+way.
+
+**The five loops** — each scales down to almost nothing when the stakes are low:
+
+1. **Ask** (`/crew:ask`, `/crew:grill`) — closes when answered *and*, if durable, captured in its home.
+2. **Research** (`/crew:research`) — closes when findings (sources + confidence) feed a decision or plan.
+3. **Decision** (an ADR) — closes at `Implemented` (verified), or when dropped. `Accepted`-but-never-built is open.
+4. **Delivery** (a requirement) — closes at `Delivered` (evidence stamped) or `Dropped`. Never left `Active`-but-done.
+5. **Learning** (`/crew:retro`) — closes when a correction or repeated failure becomes a lesson that changes future behavior.
+
+**Fix-loop cap.** A fix loop — implement, verify, fix — earns at most **one retry** (two attempts
+total) before it stops and surfaces to the user: a second failure usually means the design is wrong,
+not the fix. `/crew:build`, `/crew:debug`, and each task in `/crew:ship` all apply this same cap.
+
+The test is always the same: **is this loop closed or dropped, and can a human see how it ended?**
 
 ## Memory
 

@@ -28,4 +28,4 @@ _What user or system problem are we solving?_
 
 ## References
 
-- _Related decisions, research, tasks, or knowledge concepts._
+- _Related decisions, research, or tasks._

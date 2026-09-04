@@ -159,7 +159,7 @@ do_install() {
 
   step "Done"
   ok "Installed $n_agent agents, $n_cmd commands, $n_skill skills"
-  info "Commands are namespaced: /crew:build, /crew:status, /crew:delegate …"
+  info "Commands are namespaced: /crew:build, /crew:status, /crew:brainstorm …"
   info "Restart Claude Code (or reload) to pick them up."
 }
 
