@@ -46,6 +46,16 @@ A review is only useful if its findings are trusted — protect that trust.
 - **Correctness** against the stated intent — edge cases, boundaries, failure modes, off-by-ones.
 - **Security** — injection, auth/authz, secrets, unsafe deserialization, trust boundaries,
   sensitive-data exposure, dependency risk, unsafe defaults.
+- **Failure scope & blast radius** — when this fails, *what else* fails with it? A feature that
+  fails closed must fail closed **narrowly**: a broken dependency (upstream down, one corrupt file,
+  a transient disk error) for feature X must not take down unrelated plane Y. Watch for an error
+  path that is `?`-propagated where only the *success* value was meant to gate — the guard is
+  discarded but the error still escapes, so an outage in an optional check becomes a hard failure
+  for every request. Trace each new error return to the widest caller it can reach.
+- **Enablement & rollout transitions** — what happens the day a new flag flips on, or the migration
+  runs, against **existing** data and identities? Existing sessions, tokens (PATs/API keys/service
+  creds), cached state, and records predating the change. A gate that is correct for new users can
+  lock out or silently break every existing automation the moment it activates.
 - **Errors & observability** — failures surfaced not swallowed, errors actionable, no secrets in
   logs, enough logging/metrics to debug this in production.
 - **Performance & concurrency** — hot-path cost, N+1 queries, unbounded growth, blocking calls on
@@ -63,6 +73,15 @@ A review is only useful if its findings are trusted — protect that trust.
 - Watch for scope creep, gaps against the requirement, and second-order costs (operational, support, scale).
 - Flag a change that is technically clean but doesn't solve the requested problem.
 
+**Process & convention** (repo rules are often the real blockers)
+- Honor the repo's own contract — read `AGENTS.md` / `CONTRIBUTING` / `CLAUDE.md` and any skill they
+  reference. Many repos make changelog fragments, doc/instruction sync ("instruction drift is a
+  blocker"), and commit-message format **mandatory**; a diff can be flawless code and still be
+  un-mergeable because it skipped one. These are as blocking as the repo declares them — surface
+  them explicitly, don't bury them under code nits.
+- Check that user-visible / config / permission / UI changes carry their required paperwork
+  (changelog entry in the *right* place, updated docs, new feature flags documented).
+
 ## Procedure
 
 1. **Resolve the real diff — never review from the description alone.** Accept any target: an MR/PR
@@ -77,13 +96,22 @@ A review is only useful if its findings are trusted — protect that trust.
 2. **Anchor to intent.** Read the linked requirement, acceptance criteria, design notes, and — when
    present — `~/.ai/<project>/charter.md` and relevant `decisions/`. If intent is missing, review
    code risk and mark business validation as *limited*.
-3. **Review both axes.** Read the whole diff first, then **size effort to risk** — a security
+3. **Triage the existing conversation — don't start from zero, and don't parrot it.** Fetch the MR's
+   existing threads: prior human reviews, and automated scanners (security bots, linters, CI
+   annotations). Then add signal the bots can't:
+   - **Independently verify** each open finding against the code. Automated security findings carry
+     false positives — confirm or **refute** each with evidence, and say which. Refuting a wrong
+     finding with a concrete reason is as valuable as raising a real one; it unblocks the author.
+   - **Don't re-report** a finding an existing thread already covers unless you're adding evidence,
+     confirming, or disputing it. Your job is the delta, not an echo.
+   - Note which prior findings are already **fixed** in the current diff so stale threads don't block.
+4. **Review both axes.** Read the whole diff first, then **size effort to risk** — a security
    boundary or a migration earns deeper scrutiny than a rename. For a large or cross-cutting diff,
    summarize the changed areas first and review by risk area, not file order.
-4. **Validate when it's cheap and telling.** Prefer a narrow test/typecheck/lint/build that exercises
-   the changed slice. If validation is unavailable or too costly, say so. **Never claim a command
-   passed unless you actually ran it and it succeeded.**
-5. **Report findings first, then the verdict** (format below).
+5. **Validate when it's cheap and telling.** Prefer a narrow test/typecheck/lint/build that
+   exercises the changed slice. If CI is already green on the reviewed SHA, say so and lean on it
+   rather than re-running everything. **Never claim a command passed unless you actually ran it.**
+6. **Report findings first, then the verdict** (format below).
 
 ## Edge cases
 
@@ -95,6 +123,9 @@ A review is only useful if its findings are trusted — protect that trust.
   flow changed.
 - **Generated or vendored code** → skip deep style review; check provenance, necessity, security, and
   integration points.
+- **Already reviewed (human or bot threads present)** → don't restate the thread. Verify its open
+  findings against the code, refute the false positives with evidence, note what's since fixed, and
+  spend your effort on what it missed.
 - **Only nits found** → don't inflate them; Approve and list them as optional.
 
 ## Verdict
@@ -122,8 +153,15 @@ Use this structure unless the user asked for another:
 ## Business findings
 - [critical|important|minor|nit] Title — evidence and requirement/user impact. Fix: concrete action.
 
+## Process & convention findings
+- [critical|important|minor|nit] Title — which repo rule (changelog, doc/instruction sync, commit
+  format) and how to satisfy it. Omit this section if the repo has no such rules or all are met.
+
+## Prior findings triaged
+- Confirmed / Refuted (with reason) / Already fixed — one line each. Omit if there were none.
+
 ## Validation
-- Commands run, with pass/fail. Checks skipped, with why.
+- Commands run, with pass/fail. CI status on the reviewed SHA. Checks skipped, with why.
 
 ## Verdict
 Approve | Approve with changes | Request changes
