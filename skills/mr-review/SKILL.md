@@ -59,13 +59,22 @@ A review is only useful if its findings are trusted — protect that trust.
 - **Errors & observability** — failures surfaced not swallowed, errors actionable, no secrets in
   logs, enough logging/metrics to debug this in production.
 - **Performance & concurrency** — hot-path cost, N+1 queries, unbounded growth, blocking calls on
-  async paths, data races, lock/transaction scope.
+  async paths, data races, lock/transaction scope. For any check-then-act sequence (validate a
+  condition, then perform the effect that depends on it), name the exact shared state, which writers
+  can change it unsynchronized, and the window between check and act: a guard is real only if the
+  mutation side takes the *same* lock — moving the check next to the act shrinks a TOCTOU window but
+  does not close it on a concurrent runtime, and a comment claiming an atomicity the code doesn't
+  hold is itself a finding.
 - **Compatibility & migrations** — API/schema/config/contract changes, data migrations and their
   rollback, impact on existing callers and persisted data.
 - **Necessity & fit** — does this code need to exist, can it be smaller, does it follow local patterns?
 - **Tests** — meaningful coverage for the *changed* behavior, failure paths included, not just the
   happy path.
-- **Honesty** — the diff does what the title and description claim; flag undisclosed changes riding along.
+- **Honesty & drift** — the diff does what the title and description claim; flag undisclosed changes
+  riding along. Treat the description, any "acceptance criteria met" claim, spec/contract docs,
+  in-code doc comments, and changelog entries as assertions to diff against the code, and when one is
+  wrong fix **every parallel copy** — the same statement is often repeated across a doc file, an
+  architecture note, and an inline comment. (See "Drift and the re-review loop".)
 
 **Business**
 - Walk the user-facing flow against the acceptance criteria.
@@ -81,6 +90,36 @@ A review is only useful if its findings are trusted — protect that trust.
   them explicitly, don't bury them under code nits.
 - Check that user-visible / config / permission / UI changes carry their required paperwork
   (changelog entry in the *right* place, updated docs, new feature flags documented).
+- A changelog / release note must describe the behavior that will **ship**, not the branch's history
+  of reversed decisions: flag entries that still describe a superseded state (a default later
+  flipped, an approach later abandoned) and ask to collapse them into the final behavior.
+
+## Drift and the re-review loop — two high-yield passes
+
+On mature code the sharpest findings are rarely bugs the author never saw. They are **drift between
+what the code promises and what it does**, and the **residual gap a first fix leaves behind**. Work
+both deliberately:
+
+- **Diff every written claim against the code.** A spec value, a versioned contract, a description
+  line, an acceptance-criteria "all met" claim, an in-code doc comment, and a changelog entry are all
+  assertions — read each, then find the line that must honor it. A value the spec pins exactly but
+  the code accepts loosely, a doc comment describing behavior the code no longer has, a description
+  that overstates what shipped — each is a real finding even when the code in isolation looks fine.
+  Flag the mismatch in **either** direction: code moved and the doc didn't, or the claim overstates
+  what the code actually does.
+- **Guard the load-bearing invariant by name.** Where the change touches a correctness or security
+  boundary (identity, authorization, ordering, uniqueness, an equality/versioning check), know which
+  fields and conditions the invariant depends on, and object the moment a convenience change relaxes
+  one — a generalization that is harmless on an incidental field can be a correctness breach on a
+  load-bearing one. Don't accept a broadened rule without confirming the boundary still holds.
+- **Offer a fork, not an order.** For a mismatch either side can be the source of truth: ask to *fix
+  the code to match the spec* **or** *update and version the spec to match intended behavior* —
+  phrased as a question. It unblocks faster and respects that you may not know which was intended.
+- **Re-review as a loop: credit the fix, then name the residual.** When a prior finding was
+  addressed, state what the fix achieved, then pinpoint the exact gap it leaves rather than
+  re-raising the whole issue. Narrow the severity to the residual instead of re-blocking at full
+  weight, and verify the fix's own **new** comment, doc, or changelog line is itself accurate —
+  fixes introduce fresh drift.
 
 ## Procedure
 
@@ -170,4 +209,5 @@ Most important fix first: …
 
 Order findings by severity. Keep `[nit]`s visually distinct from blockers so the verdict is
 actionable at a glance. If there are no findings, say so plainly and still note what you validated and
-the residual risk.
+the residual risk. For a contract/spec mismatch, phrase `Fix:` as a fork — correct the code *or*
+update-and-version the spec — since either side may be the intended source of truth.
