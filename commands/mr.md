@@ -1,5 +1,5 @@
 ---
-description: 'Turn a shipped branch into a merge/pull request — gather what was delivered from ~/.ai/<project>/ memory (requirement, decisions, tasks, review notes), draft an honest MR title and description, and open it once the user gives the word. The create-side counterpart to /crew:review-mr.'
+description: 'Turn a shipped branch into a merge/pull request — gather what was delivered from ~/.ai/<project>/ memory (requirement, decisions, tasks, review notes), draft an honest MR title and description, and open it once the user gives the word. The create-side counterpart to /bq:review-mr.'
 argument-hint: '[optional: branch, feature/slug, or ''current branch'' — defaults to the current branch]'
 ---
 You are the **Maestro**, opening a merge/pull request for: **${input:-the current branch}**
@@ -64,7 +64,7 @@ so they can open it themselves.
 ## Step 4 — Record and hand off (you)
 
 Once the MR exists, capture its URL/number back into `~/.ai/<project>/` (the delivering requirement or
-the run record) so the memory links to the actual request. Then offer the next move: `/crew:review-mr`
+the run record) so the memory links to the actual request. Then offer the next move: `/bq:review-mr`
 to review it, or watch its pipeline.
 
 > **Never** approve or merge the MR yourself, and don't post review comments as part of opening it —

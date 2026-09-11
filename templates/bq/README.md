@@ -1,6 +1,6 @@
 # Project memory (`~/.ai/<project>/`)
 
-This folder is the **crew's memory** for this project. It lives in the central `~/.ai/` store
+This folder is **bq's memory** for this project. It lives in the central `~/.ai/` store
 **outside the repo** (so it never enters git history), holding your working context and rationale
 between sessions. `<project>` is this project directory's basename; the root is `$AI_HOME`, or
 `~/.ai` if that's unset.
@@ -32,20 +32,20 @@ Durable, polished documentation (architecture overview, guides, API references) 
 
 ## Commands
 
-- `/crew:init` — start on a new project · `/crew:onboard` — onboard to an existing one · `/crew:refresh` — re-sync context.
-- `/crew:brainstorm <topic>` — convene the team to debate and decide.
-- `/crew:plan <feature>` — turn a requirement into a design and tasks.
-- `/crew:build <task>` — implement → test → review.
-- `/crew:debug <bug>` — reproduce → root cause → smallest fix → regression test.
-- `/crew:research <feature/question>` — investigate how something works and document the findings.
-- `/crew:retro <task/session/correction>` — capture lessons so future agents change behavior.
-- `/crew:ship [feature]` — work through a backlog autonomously.
-- `/crew:review <target>` — review code or stress-test a decision.
-- `/crew:mr [branch]` — open a merge/pull request from a shipped branch.
-- `/crew:review-mr <MR ref>` — review a merge/pull request for code quality and business fit.
-- `/crew:ask <question>` — ask about any decision, term, or topic; get a plain explanation.
-- `/crew:grill <idea>` — be interrogated on your own reasoning, one sharp question at a time.
-- `/crew:drop <feature>` — archive an abandoned plan so it stops reading as live work.
-- `/crew:status [area]` — read-only rollup of this project's memory.
+- `/bq:init` — start on a new project · `/bq:onboard` — onboard to an existing one · `/bq:refresh` — re-sync context.
+- `/bq:brainstorm <topic>` — convene the team to debate and decide.
+- `/bq:plan <feature>` — turn a requirement into a design and tasks.
+- `/bq:build <task>` — implement → test → review.
+- `/bq:debug <bug>` — reproduce → root cause → smallest fix → regression test.
+- `/bq:research <feature/question>` — investigate how something works and document the findings.
+- `/bq:retro <task/session/correction>` — capture lessons so future agents change behavior.
+- `/bq:ship [feature]` — work through a backlog autonomously.
+- `/bq:review <target>` — review code or stress-test a decision.
+- `/bq:mr [branch]` — open a merge/pull request from a shipped branch.
+- `/bq:review-mr <MR ref>` — review a merge/pull request for code quality and business fit.
+- `/bq:ask <question>` — ask about any decision, term, or topic; get a plain explanation.
+- `/bq:grill <idea>` — be interrogated on your own reasoning, one sharp question at a time.
+- `/bq:drop <feature>` — archive an abandoned plan so it stops reading as live work.
+- `/bq:status [area]` — read-only rollup of this project's memory.
 - Or talk to any specialist directly: **architect**, **engineer**, **tester**, **reviewer**,
   **researcher**, **scribe** — or the **maestro** to route anything.

@@ -1,6 +1,6 @@
 ---
 name: memory
-description: 'Conventions for crew project memory — where it lives (the central ~/.ai/<project>/ store), what each folder holds (discussions, decisions, requirements, tasks, research, reviews, lessons, archive), who writes where, the record templates, and the integrity checks that catch drift. Use when reading or writing project memory, recording a decision/requirement/task/lesson, or checking whether memory is stale or inconsistent — triggers: "where do we record this", "project memory", "~/.ai", "is this stale", "memory integrity".'
+description: 'Conventions for bq project memory — where it lives (the central ~/.ai/<project>/ store), what each folder holds (discussions, decisions, requirements, tasks, research, reviews, lessons, archive), who writes where, the record templates, and the integrity checks that catch drift. Use when reading or writing project memory, recording a decision/requirement/task/lesson, or checking whether memory is stale or inconsistent — triggers: "where do we record this", "project memory", "~/.ai", "is this stale", "memory integrity".'
 ---
 # Team memory
 
@@ -43,7 +43,7 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
   research/         sourced findings:       {slug}.md  (with sources, dates, confidence)
   reviews/          review & critique reports: {slug}.md
   lessons/          feedback loop:          {YYYY-MM-DD}-{slug}.md
-  archive/          dropped plans moved aside by /crew:drop:
+  archive/          dropped plans moved aside by /bq:drop:
                       {YYYY-MM-DD}/{requirements|decisions|tasks}/{file} (with an archive header)
 ```
 
@@ -68,17 +68,17 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
 - **Keep it current.** When a decision is superseded, update the entry and note what replaced it. A
   stale decision is worse than none.
 - **Close plans that shipped.** A requirement whose tasks are all `[x]` is `Delivered`, not `Active`
-  — mark it `Delivered` and stamp *Delivered by* at the close of `/crew:build` or `/crew:ship`. A
+  — mark it `Delivered` and stamp *Delivered by* at the close of `/bq:build` or `/bq:ship`. A
   `Delivered` requirement stays in `requirements/` (it's the record of what shipped); only *dropped*
   plans move to `archive/`.
-- **Drop abandoned plans, don't leave them in place.** `/crew:drop` marks the decision
+- **Drop abandoned plans, don't leave them in place.** `/bq:drop` marks the decision
   `Rejected`/`Withdrawn`, the requirement `Dropped`, open tasks `[-]`, and archives the trio under
   `archive/{YYYY-MM-DD}/` with an archive header. Keep ADR numbers stable — an archived decision
   keeps its `{NNNN}`; the sequence continues with no misleading gaps.
 - **Write for the user to read alone, later.** Every artifact must be understandable without the team
   present: plain language, lead with the point, **define non-obvious terms** on first use, and always
   record the **why**, not just the what. A decision with no rationale is unreviewable — this is what
-  lets `/crew:ask` answer "what does this mean / why did we decide this" from the record.
+  lets `/bq:ask` answer "what does this mean / why did we decide this" from the record.
 
 ## Status markers
 
@@ -89,7 +89,7 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
 
 ## Integrity checks
 
-Run these when refreshing memory (`/crew:refresh`) or rolling up state (`/crew:status`) — they catch
+Run these when refreshing memory (`/bq:refresh`) or rolling up state (`/bq:status`) — they catch
 drift a single file can't reveal on its own. Fix the unambiguous cases directly; report anything that
 needs a human call rather than guessing.
 
@@ -163,7 +163,7 @@ Requirement: ../requirements/{slug}.md
 ```
 
 ### Archive header — `archive/{YYYY-MM-DD}/{folder}/{file}`
-`/crew:drop` moves a dropped plan's requirement, decision(s), and task list here and prepends:
+`/bq:drop` moves a dropped plan's requirement, decision(s), and task list here and prepends:
 ```markdown
 > Archived {YYYY-MM-DD} — Rejected | Withdrawn | Dropped: {one-line reason}
 > Superseded by {link to the replacement plan} — or "not replaced"
@@ -172,4 +172,4 @@ Requirement: ../requirements/{slug}.md
 
 ### Lessons
 Lessons (`lessons/`) have their own format — see the **feedback-loop** skill. Capture them with
-`/crew:retro`.
+`/bq:retro`.

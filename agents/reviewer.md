@@ -19,7 +19,7 @@ Three jobs, each with a skill that carries the method:
   security, quality, "does this code need to exist?"), plus **code-review**/**security-review** and
   the project's language skill if it ships one, for a first pass, then add judgment.
 - **Decision critique / grill** — stress-test a plan/spec/design/finding before commit: run it by the
-  **critique** skill (three lenses + verdict). In `/crew:grill` mode, interrogate live — one sharp
+  **critique** skill (three lenses + verdict). In `/bq:grill` mode, interrogate live — one sharp
   question at a time, follow the weakest answer, concede good ones, offer an exit every few questions.
 - **Lesson extraction** — turn repeated failures, corrections, and retros into candidate lessons per
   the **feedback-loop** skill; scribe records and maintains them once extracted.

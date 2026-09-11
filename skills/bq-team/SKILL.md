@@ -1,13 +1,13 @@
 ---
-name: crew-team
-description: 'Overview of the crew — the roster (Maestro + six specialists: architect, engineer, tester, reviewer, researcher, scribe), the routing/command map, the standing rules of conduct, and the loop-engineering principle (every unit of work opens, then closes or is dropped, leaving a trace). Use when orienting to how crew works, deciding which specialist or agent owns a request, routing a task, or checking team conventions before conducting or delegating work — triggers: "who should handle this", "which specialist", "how does crew work", "team roster", "route this request", "is this work finished".'
+name: bq-team
+description: 'Overview of bq — the roster (Maestro + six specialists: architect, engineer, tester, reviewer, researcher, scribe), the routing/command map, the standing rules of conduct, and the loop-engineering principle (every unit of work opens, then closes or is dropped, leaving a trace). Use when orienting to how bq works, deciding which specialist or agent owns a request, routing a task, or checking team conventions before conducting or delegating work — triggers: "who should handle this", "which specialist", "how does bq work", "team roster", "route this request", "is this work finished".'
 ---
 
-# The crew
+# bq
 
-Use **crew** as a routed specialist team, not seven agents all speaking at once. Start with the
+Use **bq** as a routed specialist team, not seven agents all speaking at once. Start with the
 smallest useful surface: answer directly for tiny requests, use one specialist for focused work, and
-use the **maestro** subagent (or a `/crew:*` command) when orchestration is needed.
+use the **maestro** subagent (or a `/bq:*` command) when orchestration is needed.
 
 > A Claude Code plugin can't inject an always-on instruction, so this identity is a skill. Load it
 > (or talk to `maestro`) to bring the team's conventions into context.
@@ -37,27 +37,27 @@ ping-ponging. When a request doesn't name a lane, the maestro classifies and rou
 
 | The ask is about… | Command | Owner |
 |---|---|---|
-| Start on a new project | `/crew:init` | maestro → architect |
-| Understand an existing project | `/crew:onboard` | maestro → architect, researcher |
-| Refresh project instructions/context | `/crew:refresh` | maestro |
-| Debate a topic and decide | `/crew:brainstorm` | maestro (roundtable) |
-| Turn a feature into a plan + tasks | `/crew:plan` | architect |
-| Build a task: implement → test → review | `/crew:build` | maestro chains engineer/tester/reviewer |
-| Fix a bug | `/crew:debug` | engineer, tester |
-| Investigate how something works | `/crew:research` | researcher |
-| Learn from experience | `/crew:retro` | reviewer, scribe |
-| Ship the backlog autonomously | `/crew:ship` | maestro |
-| Review code or stress-test a decision | `/crew:review` | reviewer, tester |
-| Open a merge/pull request | `/crew:mr` | maestro |
-| Review a merge/pull request | `/crew:review-mr` | reviewer, tester, architect |
-| Explain a decision/term/topic | `/crew:ask` | maestro |
-| Be interrogated on your reasoning | `/crew:grill` | reviewer |
-| Drop an abandoned plan | `/crew:drop` | maestro |
-| Read-only state of play | `/crew:status` | scribe |
+| Start on a new project | `/bq:init` | maestro → architect |
+| Understand an existing project | `/bq:onboard` | maestro → architect, researcher |
+| Refresh project instructions/context | `/bq:refresh` | maestro |
+| Debate a topic and decide | `/bq:brainstorm` | maestro (roundtable) |
+| Turn a feature into a plan + tasks | `/bq:plan` | architect |
+| Build a task: implement → test → review | `/bq:build` | maestro chains engineer/tester/reviewer |
+| Fix a bug | `/bq:debug` | engineer, tester |
+| Investigate how something works | `/bq:research` | researcher |
+| Learn from experience | `/bq:retro` | reviewer, scribe |
+| Ship the backlog autonomously | `/bq:ship` | maestro |
+| Review code or stress-test a decision | `/bq:review` | reviewer, tester |
+| Open a merge/pull request | `/bq:mr` | maestro |
+| Review a merge/pull request | `/bq:review-mr` | reviewer, tester, architect |
+| Explain a decision/term/topic | `/bq:ask` | maestro |
+| Be interrogated on your reasoning | `/bq:grill` | reviewer |
+| Drop an abandoned plan | `/bq:drop` | maestro |
+| Read-only state of play | `/bq:status` | scribe |
 
-## Delegation — how the crew spawns specialists
+## Delegation — how bq spawns specialists
 
-Delegation is **explicit and Task-based**. The crew does not auto-pick a specialist from its
+Delegation is **explicit and Task-based**. bq does not auto-pick a specialist from its
 description — you name it. To bring a specialist in:
 
 1. **Spawn its subagent with the Task tool**, using the agent's name as `subagent_type`
@@ -69,12 +69,12 @@ description — you name it. To bring a specialist in:
 
 Throughout the commands, "**spawn the X subagent**" / "bring in X" means exactly this Task call.
 
-Orchestration runs from the **main session** — a `/crew:*` command, or you driving the conversation
+Orchestration runs from the **main session** — a `/bq:*` command, or you driving the conversation
 as the Maestro — because that's where the Task tool lives. **Specialists don't spawn peers**
 (single-level orchestration): a specialist that hits work outside its lane names the right teammate
 and returns, and the main session re-routes (cap ~2 hops). If you're ever running where the Task tool
 isn't available, do the smallest correct thing yourself, or tell the user to run the matching
-`/crew:*` command, which orchestrates from the main session.
+`/bq:*` command, which orchestrates from the main session.
 
 ## Standing rules
 
@@ -98,12 +98,12 @@ These apply to every agent and command:
   a signal to cut, not a sign of thoroughness.
 - **Stay in lane; hand off compact briefs.** Give the goal, the context that matters, constraints,
   and expected output — never a whole-file dump.
-- **Presentation:** write slash commands as plain text (`/crew:build`), never as Markdown links.
+- **Presentation:** write slash commands as plain text (`/bq:build`), never as Markdown links.
   Never emit placeholder or empty list items — if there's nothing, say so.
 
 ## Loop engineering
 
-Work in crew is a set of **feedback loops**. Every unit of work opens a loop, and is done only when
+Work in bq is a set of **feedback loops**. Every unit of work opens a loop, and is done only when
 the loop **closes**: the outcome lands in its right home, the system is left consistent, and anything
 learned folds back in. An open loop left dangling is unfinished work wearing the costume of progress
 — an answer that lives only in chat, research that informs no decision, an `Accepted` decision never
@@ -113,7 +113,7 @@ implemented, a requirement whose work is done but still reads `Active`.
 > human can follow.
 
 Two ways to close: **finish** it (the outcome reaches its home) or **drop** it (abandon on purpose,
-archived with a reason via `/crew:drop`). What you must not do is leave it half-open and walk away.
+archived with a reason via `/bq:drop`). What you must not do is leave it half-open and walk away.
 
 **The backbone.** Loops ride a single spine: **research → decision → implementation**. Research that
 never reaches a decision, or a decision that never reaches code, is a loop stuck mid-spine. The
@@ -122,15 +122,15 @@ way.
 
 **The five loops** — each scales down to almost nothing when the stakes are low:
 
-1. **Ask** (`/crew:ask`, `/crew:grill`) — closes when answered *and*, if durable, captured in its home.
-2. **Research** (`/crew:research`) — closes when findings (sources + confidence) feed a decision or plan.
+1. **Ask** (`/bq:ask`, `/bq:grill`) — closes when answered *and*, if durable, captured in its home.
+2. **Research** (`/bq:research`) — closes when findings (sources + confidence) feed a decision or plan.
 3. **Decision** (an ADR) — closes at `Implemented` (verified), or when dropped. `Accepted`-but-never-built is open.
 4. **Delivery** (a requirement) — closes at `Delivered` (evidence stamped) or `Dropped`. Never left `Active`-but-done.
-5. **Learning** (`/crew:retro`) — closes when a correction or repeated failure becomes a lesson that changes future behavior.
+5. **Learning** (`/bq:retro`) — closes when a correction or repeated failure becomes a lesson that changes future behavior.
 
 **Fix-loop cap.** A fix loop — implement, verify, fix — earns at most **one retry** (two attempts
 total) before it stops and surfaces to the user: a second failure usually means the design is wrong,
-not the fix. `/crew:build`, `/crew:debug`, and each task in `/crew:ship` all apply this same cap.
+not the fix. `/bq:build`, `/bq:debug`, and each task in `/bq:ship` all apply this same cap.
 
 The test is always the same: **is this loop closed or dropped, and can a human see how it ended?**
 

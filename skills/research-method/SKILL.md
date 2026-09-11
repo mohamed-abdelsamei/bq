@@ -39,4 +39,4 @@ carry them forward — don't treat an unbuilt option as if it were the shipped s
 
 In loop terms this is the **research loop**: it opens with an unknown and closes only when the
 findings feed a decision or plan — research that changes nothing is an open loop. See the
-**crew-team** skill's Loop engineering section.
+**bq-team** skill's Loop engineering section.

@@ -8,7 +8,7 @@ working memory for this project, never part of git history.
 
 ## When to add a lesson
 
-Run `/crew:retro` when:
+Run `/bq:retro` when:
 
 - the user corrects how the team should work;
 - a review or test failure repeats;
@@ -26,4 +26,4 @@ not conflict with the charter or accepted decisions.
 Capturing a lesson makes **this project** better; **sharing** a proven, general lesson to
 `~/.ai/shared/lessons/` makes the **next project** better too. Sharing happens only with explicit
 user approval and is gated on evidence quality, not frequency. See the **feedback-loop** skill for
-the gate, and run `/crew:retro` to capture and share.
+the gate, and run `/bq:retro` to capture and share.

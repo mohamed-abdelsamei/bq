@@ -1,6 +1,6 @@
 ---
 name: feedback-loop
-description: 'How the team learns from experience: capture user corrections, repeated failures, surprising successes, and retrospectives as reusable lessons, and share proven ones across projects via ~/.ai/shared/lessons/. Use during /crew:retro and whenever a build, debug, review, ship run, or user correction should change future behavior.'
+description: 'How the team learns from experience: capture user corrections, repeated failures, surprising successes, and retrospectives as reusable lessons, and share proven ones across projects via ~/.ai/shared/lessons/. Use during /bq:retro and whenever a build, debug, review, ship run, or user correction should change future behavior.'
 ---
 # Feedback loop
 
@@ -70,7 +70,7 @@ At the start of substantive work, after the charter and decisions:
 2. Prefer **Active** (and shared) lessons that match the current workflow or owning specialist.
 3. Apply only lessons still consistent with the charter and accepted decisions.
 4. If a lesson conflicts with the code, charter, or a newer decision, don't follow it blindly — flag
-   it for `/crew:retro`.
+   it for `/bq:retro`.
 
 Don't paste all lessons into every answer; use them as a filter for decisions and implementation
 choices.
@@ -88,7 +88,7 @@ poor general rule. Before sharing:
 - copy it to `~/.ai/shared/lessons/`, then set the source lesson's Status to
   `Shared → ~/.ai/shared/lessons/{file}` so it isn't shared twice.
 
-A rarer, heavier step is **promoting a proven lesson into the crew plugin itself** — editing an
+A rarer, heavier step is **promoting a proven lesson into the bq plugin itself** — editing an
 agent, command, or skill so the behavior ships to everyone. That, too, is user-approved: name the
 exact file, draft the concrete edit, and show it before applying. Never let agents silently rewrite
 their own behavior from one local experience.

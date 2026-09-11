@@ -12,7 +12,7 @@ needs the other's output. Each specialist starts fresh, so pass results forward 
 
 Find the task in `~/.ai/<project>/tasks/`. Load its requirement (`requirements/`) and any relevant
 `decisions/`, `lessons/`, and `charter.md`. Apply relevant active lessons before handing work to
-specialists. If there's no task/requirement and the change is non-trivial, suggest `/crew:plan` first
+specialists. If there's no task/requirement and the change is non-trivial, suggest `/bq:plan` first
 — or, for a genuinely small change, proceed and note that.
 
 ## Step 1 — Implement (engineer)
@@ -43,7 +43,7 @@ both reports together for one consolidated fix pass — not two separate loop-ba
 re-checks only the touched diff — don't re-run the full chain.
 
 - If a blocking issue survives this one reconciliation round, **stop and surface it to the user**
-  instead of looping again — the crew's fix-loop cap applies (see the **crew-team** skill): one
+  instead of looping again — bq's fix-loop cap applies (see the **bq-team** skill): one
   retry, then stop, since a second round usually means the design is wrong, not the fix.
 
 ## Step 4 — Close out
@@ -54,5 +54,5 @@ Update the task status in `~/.ai/<project>/tasks/`. Write the verification/revie
 If this task was the **last open one** for its requirement (all tasks now `[x]`), mark that
 requirement `Status: Delivered` and stamp *Delivered by* — don't leave a shipped spec reading as
 `Active`. If the task exposed a repeated failure, user correction, or reusable pattern, run or offer
-`/crew:retro` to capture the lesson. Report to the user: what was built, test result, review verdict,
+`/bq:retro` to capture the lesson. Report to the user: what was built, test result, review verdict,
 and anything still open.

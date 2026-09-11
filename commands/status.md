@@ -22,7 +22,7 @@ Load `~/.ai/<project>/` (scoped to `$ARGUMENTS` if given, else the whole folder)
 
 See the **memory** skill's "Status markers" section for the task markers and the
 requirement/decision status vocabulary. If `~/.ai/<project>/` doesn't exist, say so and point to
-`/crew:init` or `/crew:onboard`.
+`/bq:init` or `/bq:onboard`.
 
 ## Step 2 — Roll it up (you)
 
@@ -45,8 +45,8 @@ what looks off.
 ## Step 3 — Point to the next move (you)
 
 Close with the one or two actions that would most move things forward, mapped to commands — e.g.
-`/crew:build <task>` to pick up in-flight work, `/crew:drop <feature>` to clear an abandoned plan,
-`/crew:retro` to review a lesson past its date, or `/crew:refresh` to reconcile memory if links look
+`/bq:build <task>` to pick up in-flight work, `/bq:drop <feature>` to clear an abandoned plan,
+`/bq:retro` to review a lesson past its date, or `/bq:refresh` to reconcile memory if links look
 broken. Don't act on them — this command only reports.
 
 > **Note:** memory is local to this machine under `~/.ai/`, so this snapshot reflects your machine's

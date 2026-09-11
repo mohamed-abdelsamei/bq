@@ -55,4 +55,4 @@ archive path and note it was dropped — don't rewrite the history, just keep th
 Report in a few plain lines: which artifacts were archived, where they now live
 (`~/.ai/<project>/archive/{date}/…`), the state applied (Rejected/Withdrawn/Dropped) and the reason, and
 anything left in place (discussion/research) or flagged for re-verification. Offer the natural next
-step — `/crew:plan` to start a fresh plan, or `/crew:ask` to look back at *why* this one was dropped.
+step — `/bq:plan` to start a fresh plan, or `/bq:ask` to look back at *why* this one was dropped.

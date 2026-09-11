@@ -1,6 +1,6 @@
 ---
 name: decision-and-spec
-description: 'How to write testable requirements and record decisions well — measurable acceptance criteria (given/when/then), explicit scope, and ADRs that capture context, the decision, the alternatives rejected, and the consequences. Use when writing a spec (/crew:plan) or recording a decision, so the record is reviewable later by a human alone.'
+description: 'How to write testable requirements and record decisions well — measurable acceptance criteria (given/when/then), explicit scope, and ADRs that capture context, the decision, the alternatives rejected, and the consequences. Use when writing a spec (/bq:plan) or recording a decision, so the record is reviewable later by a human alone.'
 ---
 # Decisions & specs
 
@@ -53,11 +53,11 @@ any point before implementation:
 
 In loop terms this is the **decision loop**: it opens at `Proposed`/`Accepted` (intent) and *closes*
 only when the code lands (`Implemented`, verified) — or when the plan is dropped. An `Accepted`
-decision never implemented is an open loop. See the **crew-team** skill's Loop engineering section.
+decision never implemented is an open loop. See the **bq-team** skill's Loop engineering section.
 
 Keep the status current — a stale status is worse than none. `Proposed` and `Accepted` are *intent*;
 only `Implemented` describes something that actually exists. When you walk away from a plan, mark it
-`Rejected` or `Withdrawn` and archive it with `/crew:drop` so it stops reading as live work — don't
+`Rejected` or `Withdrawn` and archive it with `/bq:drop` so it stops reading as live work — don't
 leave it looking active, and don't silently delete it (see the **memory** skill for the archive
 discipline).
 

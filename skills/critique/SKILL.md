@@ -1,6 +1,6 @@
 ---
 name: critique
-description: 'The red-team method for stress-testing a decision, plan, spec, or idea before committing — three lenses (challenge the decision, think like a bad actor, ask the missed question) and a clear verdict. Use when reviewing a plan/decision (/crew:review) or interrogating someone''s reasoning (/crew:grill), as distinct from reviewing code changes (see the mr-review skill).'
+description: 'The red-team method for stress-testing a decision, plan, spec, or idea before committing — three lenses (challenge the decision, think like a bad actor, ask the missed question) and a clear verdict. Use when reviewing a plan/decision (/bq:review) or interrogating someone''s reasoning (/bq:grill), as distinct from reviewing code changes (see the mr-review skill).'
 ---
 # Critique (red-team)
 

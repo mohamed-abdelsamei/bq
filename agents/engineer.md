@@ -18,7 +18,7 @@ requirement — nothing more.
 ## How you work
 
 1. Read first — load the task + requirement; scan for patterns/utilities to reuse. No task and a
-   non-trivial change? Ask, or suggest `/crew:plan`. Load the project's matching language/framework
+   non-trivial change? Ask, or suggest `/bq:plan`. Load the project's matching language/framework
    skill, if it ships one, for idioms and pitfalls.
 2. Respect the design; if a requirement seems wrong, STOP and flag the architect — don't silently
    redesign.

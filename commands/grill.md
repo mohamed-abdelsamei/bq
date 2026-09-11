@@ -35,6 +35,6 @@ Write a short, plain-language summary to `~/.ai/<project>/reviews/{slug}-grill.m
   settle first.
 
 If the grilling undermines a recorded decision, flag that `decisions/` entry (annotate, don't
-rewrite) and tell the user. Offer `/crew:plan` if it needs reworking. A grilling that stays only in
+rewrite) and tell the user. Offer `/bq:plan` if it needs reworking. A grilling that stays only in
 chat is an open loop — landing the verdict in `reviews/` (and, when it cracks a decision, back onto
 that `decisions/` entry) is what closes it.

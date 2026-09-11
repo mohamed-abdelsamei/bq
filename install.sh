@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# install.sh — install the "crew" agent team globally into ~/.claude,
+# install.sh — install the "bq" agent team globally into ~/.claude,
 # for environments where the Claude Code plugin/marketplace flow is unavailable.
 #
 # Namespacing (collision-proof, cleanly removable):
-#   commands/<name>.md   -> ~/.claude/commands/crew/<name>.md   (invoked as /crew:<name>)
-#   skills/<name>/       -> ~/.claude/skills/crew-<name>/        (skill id crew-<name>)
-#   agents/<name>.md     -> ~/.claude/agents/crew/<name>.md      (name unchanged; delegation intact)
-#   templates/           -> ~/.claude/crew-templates/            (home for init/onboard scaffolding)
+#   commands/<name>.md   -> ~/.claude/commands/bq/<name>.md   (invoked as /bq:<name>)
+#   skills/<name>/       -> ~/.claude/skills/bq-<name>/        (skill id bq-<name>)
+#   agents/<name>.md     -> ~/.claude/agents/bq/<name>.md      (name unchanged; delegation intact)
+#   templates/           -> ~/.claude/bq-templates/            (home for init/onboard scaffolding)
 #
 # Usage:
 #   ./install.sh install      Install (removes any legacy flat install first)
@@ -22,12 +22,12 @@ set -euo pipefail
 # --- paths -------------------------------------------------------------------
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-MANIFEST="$CLAUDE_DIR/.crew-install-manifest"
+MANIFEST="$CLAUDE_DIR/.bq-install-manifest"
 
-CMD_DIR="$CLAUDE_DIR/commands/crew"
-AGENT_DIR="$CLAUDE_DIR/agents/crew"
+CMD_DIR="$CLAUDE_DIR/commands/bq"
+AGENT_DIR="$CLAUDE_DIR/agents/bq"
 SKILL_ROOT="$CLAUDE_DIR/skills"
-TEMPLATE_DIR="$CLAUDE_DIR/crew-templates"
+TEMPLATE_DIR="$CLAUDE_DIR/bq-templates"
 
 # --- pretty output -----------------------------------------------------------
 info()  { printf '  %s\n' "$*"; }
@@ -66,20 +66,20 @@ clean_legacy() {
     if [[ -f "$legacy" ]]; then rm -f "$legacy"; info "removed $legacy"; removed=1; fi
   done
 
-  # mis-nested skills: ~/.claude/skills/crew/<skill>/
-  if [[ -d "$SKILL_ROOT/crew" ]]; then
-    rm -rf "$SKILL_ROOT/crew"; info "removed $SKILL_ROOT/crew"; removed=1
+  # mis-nested skills: ~/.claude/skills/bq/<skill>/
+  if [[ -d "$SKILL_ROOT/bq" ]]; then
+    rm -rf "$SKILL_ROOT/bq"; info "removed $SKILL_ROOT/bq"; removed=1
   fi
 
   [[ "$removed" -eq 1 ]] && ok "Legacy install removed" || info "No legacy install found"
 }
 
 # --- skill name prefixing ----------------------------------------------------
-# crew-team -> crew-team ; memory -> crew-memory
-crew_name() {
+# bq-team -> bq-team ; memory -> bq-memory
+bq_name() {
   case "$1" in
-    crew-*) printf 'crew-%s' "${1#crew-}" ;;  # normalize, no double prefix
-    *)      printf 'crew-%s' "$1" ;;
+    bq-*) printf 'bq-%s' "${1#bq-}" ;;  # normalize, no double prefix
+    *)      printf 'bq-%s' "$1" ;;
   esac
 }
 
@@ -100,10 +100,10 @@ do_install() {
   require_claude_dir
   clean_legacy
 
-  step "Installing crew into $CLAUDE_DIR"
+  step "Installing bq into $CLAUDE_DIR"
   : > "$MANIFEST"   # fresh manifest
 
-  # commands -> commands/crew/
+  # commands -> commands/bq/
   mkdir -p "$CMD_DIR"; record "$CMD_DIR"
   local n_cmd=0
   for f in "$REPO_DIR"/commands/*.md; do
@@ -111,9 +111,9 @@ do_install() {
     local dest="$CMD_DIR/$(basename "$f")"
     cp "$f" "$dest"; record "$dest"; n_cmd=$((n_cmd+1))
   done
-  ok "$n_cmd commands -> $CMD_DIR  (/crew:<name>)"
+  ok "$n_cmd commands -> $CMD_DIR  (/bq:<name>)"
 
-  # agents -> agents/crew/  (names unchanged)
+  # agents -> agents/bq/  (names unchanged)
   mkdir -p "$AGENT_DIR"; record "$AGENT_DIR"
   local n_agent=0
   for f in "$REPO_DIR"/agents/*.md; do
@@ -123,23 +123,23 @@ do_install() {
   done
   ok "$n_agent agents -> $AGENT_DIR"
 
-  # skills -> skills/crew-<name>/  (rewrite name: field)
+  # skills -> skills/bq-<name>/  (rewrite name: field)
   mkdir -p "$SKILL_ROOT"
   local n_skill=0
   for d in "$REPO_DIR"/skills/*/; do
     [[ -d "$d" ]] || continue
     local base newname dest
     base="$(basename "$d")"
-    newname="$(crew_name "$base")"
+    newname="$(bq_name "$base")"
     dest="$SKILL_ROOT/$newname"
     rm -rf "$dest"
     cp -R "$d" "$dest"
     [[ -f "$dest/SKILL.md" ]] && set_skill_name "$dest/SKILL.md" "$newname"
     record "$dest"; n_skill=$((n_skill+1))
   done
-  ok "$n_skill skills -> $SKILL_ROOT/crew-*"
+  ok "$n_skill skills -> $SKILL_ROOT/bq-*"
 
-  # templates -> crew-templates/
+  # templates -> bq-templates/
   if [[ -d "$REPO_DIR/templates" ]]; then
     rm -rf "$TEMPLATE_DIR"
     cp -R "$REPO_DIR/templates" "$TEMPLATE_DIR"
@@ -151,7 +151,7 @@ do_install() {
       local cf="$CMD_DIR/$c.md"
       [[ -f "$cf" ]] || continue
       local tmp; tmp="$(mktemp)"
-      sed "s#this plugin's \`templates/crew/\`#\`$TEMPLATE_DIR/crew/\`#g" "$cf" > "$tmp"
+      sed "s#this plugin's \`templates/bq/\`#\`$TEMPLATE_DIR/bq/\`#g" "$cf" > "$tmp"
       mv "$tmp" "$cf"
     done
     info "rewrote template path in init/onboard"
@@ -159,13 +159,13 @@ do_install() {
 
   step "Done"
   ok "Installed $n_agent agents, $n_cmd commands, $n_skill skills"
-  info "Commands are namespaced: /crew:build, /crew:status, /crew:brainstorm …"
+  info "Commands are namespaced: /bq:build, /bq:status, /bq:brainstorm …"
   info "Restart Claude Code (or reload) to pick them up."
 }
 
 # --- uninstall ---------------------------------------------------------------
 do_uninstall() {
-  step "Uninstalling crew from $CLAUDE_DIR"
+  step "Uninstalling bq from $CLAUDE_DIR"
   local removed=0
 
   if [[ -f "$MANIFEST" ]]; then
@@ -183,7 +183,7 @@ do_uninstall() {
   [[ -d "$CMD_DIR" ]]      && { rm -rf "$CMD_DIR";      info "removed $CMD_DIR";      removed=1; }
   [[ -d "$AGENT_DIR" ]]    && { rm -rf "$AGENT_DIR";    info "removed $AGENT_DIR";    removed=1; }
   [[ -d "$TEMPLATE_DIR" ]] && { rm -rf "$TEMPLATE_DIR"; info "removed $TEMPLATE_DIR"; removed=1; }
-  for d in "$SKILL_ROOT"/crew-*/; do
+  for d in "$SKILL_ROOT"/bq-*/; do
     [[ -d "$d" ]] || continue
     rm -rf "$d"; info "removed $d"; removed=1
   done
@@ -191,7 +191,7 @@ do_uninstall() {
   # tidy now-empty parent dirs we may have created
   rmdir "$CLAUDE_DIR/commands" "$CLAUDE_DIR/agents" 2>/dev/null || true
 
-  [[ "$removed" -eq 1 ]] && ok "crew uninstalled" || info "Nothing to uninstall"
+  [[ "$removed" -eq 1 ]] && ok "bq uninstalled" || info "Nothing to uninstall"
 }
 
 # --- main --------------------------------------------------------------------

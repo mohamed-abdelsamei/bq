@@ -1,6 +1,6 @@
 ---
 name: facilitation
-description: 'How to run a productive multi-perspective debate that ends in a decision — steelman before critique, surface the unstated assumption, keep viewpoints genuinely distinct (anti-groupthink), force a call, and right-size the session. Use when conducting /crew:brainstorm or any roundtable where the team must reason together and decide.'
+description: 'How to run a productive multi-perspective debate that ends in a decision — steelman before critique, surface the unstated assumption, keep viewpoints genuinely distinct (anti-groupthink), force a call, and right-size the session. Use when conducting /bq:brainstorm or any roundtable where the team must reason together and decide.'
 ---
 # Facilitation
 

@@ -19,7 +19,7 @@ or contradict them.
 1. **Find the existing context.** Scan for the AI-context files and entry points named in the
    **codebase-onboarding** skill (manifests, `README`, `docs/`). List what you found. If
    `~/.ai/<project>/` already exists, report it and stop unless asked to refresh — to refresh the
-   team's understanding after teammate changes, run `/crew:refresh`.
+   team's understanding after teammate changes, run `/bq:refresh`.
 2. **Understand the project — spawn the specialists as subagents** (read-only), following the
    **codebase-onboarding** skill's method:
    - **architect (Sol)** — map the architecture: structure, main components, data flow, the
@@ -38,7 +38,7 @@ or contradict them.
    in a few plain-language lines. Ask the user to correct anything you got wrong — you inferred it
    from the code, so verify before relying on it.
 5. **Scaffold the rest of memory.** Create the `~/.ai/<project>/` folders and `README.md` per the
-   **memory** skill's layout. Use this plugin's `templates/crew/` as the starting content if
+   **memory** skill's layout. Use this plugin's `templates/bq/` as the starting content if
    available; otherwise generate them directly.
 
 ## After onboarding
@@ -46,4 +46,4 @@ or contradict them.
 The team is ready and now works with the project's existing conventions. If you spotted something in
 the existing context files that looks wrong or risky, **raise it** (challenge by default) — but as a
 flagged observation for the user to decide on, never a unilateral edit. To act on it, the user can
-run `/crew:review` or `/crew:brainstorm`.
+run `/bq:review` or `/bq:brainstorm`.

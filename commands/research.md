@@ -38,6 +38,6 @@ user and offer to promote a polished version into `docs/` instead.
 
 Report the headline finding in a few plain-language lines and point to the `research/` file. Research
 isn't done when it's written — it's done when it **feeds a decision or plan** (that's where the
-research loop closes), so always land it on a next step: `/crew:plan` to turn the findings into a
-spec, `/crew:brainstorm` to debate an option the research surfaced, or `/crew:build` if the path
+research loop closes), so always land it on a next step: `/bq:plan` to turn the findings into a
+spec, `/bq:brainstorm` to debate an option the research surfaced, or `/bq:build` if the path
 forward is already clear.

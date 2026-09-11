@@ -24,7 +24,7 @@ more.
 - **Show, don't just assert** — a concrete example or "here's what that looks like" beats
   abstractions.
 - If the honest answer is "we never decided that" or "it's not recorded," say so — and offer to
-  convene the team (`/crew:brainstorm`) or research it (**researcher**, Ada).
+  convene the team (`/bq:brainstorm`) or research it (**researcher**, Ada).
 
 ## Step 3 — Route to the expert when authority matters
 
@@ -42,7 +42,7 @@ If the question needs the owning specialist's depth, get it from them rather tha
 
 End by offering to go deeper: "Want the full rationale, the alternatives we rejected, or how it's
 implemented?" Keep answering follow-ups at the depth they want. If, in explaining, you uncover
-that a decision was actually weak, say so — and offer `/crew:grill` or `/crew:review` to
+that a decision was actually weak, say so — and offer `/bq:grill` or `/bq:review` to
 pressure-test it.
 
 Most questions close simply by being answered — that's the ask loop, and it scales down. But if the

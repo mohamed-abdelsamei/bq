@@ -46,13 +46,13 @@ Following the **decision-and-spec** skill (testable requirements + ADR craft), w
   dependencies.
 
 End by showing the user the task list and the first task to pick up. If planning exposed a reusable
-lesson, capture it with `/crew:retro`. Offer `/crew:build <task>` to start
-implementation one task at a time — or `/crew:ship` to build the whole backlog autonomously. If the
-plan is later abandoned, drop it with `/crew:drop` so the requirement, decision, and tasks are
+lesson, capture it with `/bq:retro`. Offer `/bq:build <task>` to start
+implementation one task at a time — or `/bq:ship` to build the whole backlog autonomously. If the
+plan is later abandoned, drop it with `/bq:drop` so the requirement, decision, and tasks are
 archived instead of lingering as live work.
 
 Output guardrails for this final section:
-- Write command suggestions as plain text only (example: `/crew:build leader-lease T1`), never as
+- Write command suggestions as plain text only (example: `/bq:build leader-lease T1`), never as
   Markdown links.
 - Do not emit placeholder bullets or empty checklist entries (for example `- []()`, `- [ ]` with
   no text, or blank `-` lines).

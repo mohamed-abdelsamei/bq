@@ -1,6 +1,6 @@
 ---
 name: codebase-onboarding
-description: 'A systematic method to understand an unfamiliar codebase before working in it — locate entry points, build/run, dependencies, data flow, and conventions, and read existing context files without modifying them. Use during /crew:onboard or whenever you (or architect/researcher) are dropped into a repo you don''t know yet.'
+description: 'A systematic method to understand an unfamiliar codebase before working in it — locate entry points, build/run, dependencies, data flow, and conventions, and read existing context files without modifying them. Use during /bq:onboard or whenever you (or architect/researcher) are dropped into a repo you don''t know yet.'
 ---
 # Codebase onboarding
 

@@ -1,6 +1,6 @@
 {
-  "name": "crew",
-  "displayName": "Crew",
+  "name": "bq",
+  "displayName": "bq",
   "description": "A team of AI agents — a Maestro conductor plus six specialists — that run a real feature lifecycle: brainstorm, decide, plan, build, test, review, and document, with durable per-project memory in ~/.ai/<project>/.",
   "version": "0.2.0",
   "author": {
