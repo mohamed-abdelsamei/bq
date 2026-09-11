@@ -37,7 +37,6 @@ Never modify them. Only refresh `~/.ai/<project>/` memory artifacts.
      the controlling source.
 6. **Close with next action**
    - Summarize what changed in plain language and cite files.
-   - If code structure likely changed too, suggest `/crew:knowledge refresh` next.
 
 ## Output format
 

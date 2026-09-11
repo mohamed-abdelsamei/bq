@@ -1,6 +1,6 @@
 ---
 name: critique
-description: 'The red-team method for stress-testing a decision, plan, spec, or idea before committing — three lenses (challenge the decision, think like a bad actor, ask the missed question) and a clear verdict. Use when reviewing a plan/decision (/crew:review) or interrogating someone''s reasoning (/crew:grill), as distinct from reviewing code changes (see the mr-review skill).'
+description: 'The red-team method for stress-testing a decision, plan, spec, or idea before committing — three lenses (challenge the decision, think like a bad actor, ask the missed question) and a clear verdict. Use when reviewing a plan/decision (/bq:review) or interrogating someone''s reasoning (/bq:grill), as distinct from reviewing code changes (see the mr-review skill).'
 ---
 # Critique (red-team)
 
@@ -23,6 +23,10 @@ Steelman the target first — state its best version — then press on the weak 
 only attacks a strawman is worthless.
 
 ## Verdict
+
+This scale is deliberately its own — a decision/plan is stress-tested for whether to *proceed*, not
+reviewed for whether to *merge*. Code diffs use the **mr-review** skill's Approve /
+Approve-with-changes / Request-changes scale instead; the two aren't meant to converge.
 
 End with a clear call and the single most important thing to address first:
 

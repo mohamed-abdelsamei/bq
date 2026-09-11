@@ -41,12 +41,12 @@ jobs:
           plugin = load_json(".claude-plugin/plugin.json", ["name"])
           market = load_json(".claude-plugin/marketplace.json", ["name", "plugins"])
 
-          if plugin and plugin.get("name") != "crew":
-              problems.append(".claude-plugin/plugin.json: name must be 'crew'")
+          if plugin and plugin.get("name") != "bq":
+              problems.append(".claude-plugin/plugin.json: name must be 'bq'")
           if market:
               names = [p.get("name") for p in market.get("plugins", [])]
-              if "crew" not in names:
-                  problems.append(".claude-plugin/marketplace.json: plugins must list 'crew'")
+              if "bq" not in names:
+                  problems.append(".claude-plugin/marketplace.json: plugins must list 'bq'")
 
           if problems:
               print("FAIL:")
@@ -126,17 +126,14 @@ jobs:
           commands = sorted(p.stem for p in (root / "commands").glob("*.md"))
           readme = (root / "README.md").read_text()
           for command in commands:
-              if f"/crew:{command}" not in readme:
-                  problems.append(f"README.md: missing command reference /crew:{command}")
+              if f"/bq:{command}" not in readme:
+                  problems.append(f"README.md: missing command reference /bq:{command}")
 
           required_templates = [
               "README.md",
               "charter.md",
               "decision-template.md",
               "discussions/discussion-template.md",
-              "knowledge/README.md",
-              "knowledge/graph.md",
-              "knowledge/concepts/CONCEPT-TEMPLATE.md",
               "lessons/README.md",
               "lessons/lesson-template.md",
               "requirements/requirement-template.md",
@@ -145,8 +142,8 @@ jobs:
               "tasks/task-template.md",
           ]
           for rel in required_templates:
-              if not (root / "templates" / "crew" / rel).exists():
-                  problems.append(f"missing memory template: templates/crew/{rel}")
+              if not (root / "templates" / "bq" / rel).exists():
+                  problems.append(f"missing memory template: templates/bq/{rel}")
 
           if problems:
               print("FAIL:")

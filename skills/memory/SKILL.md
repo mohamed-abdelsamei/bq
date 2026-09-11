@@ -1,6 +1,6 @@
 ---
 name: memory
-description: 'Conventions for crew project memory — where it lives (the central ~/.ai store), what each folder holds, who writes where, and the record templates. Use when reading or writing project memory (discussions, decisions, requirements, tasks, research, reviews, knowledge, lessons) so all agents record consistently and nothing is lost between sessions.'
+description: 'Conventions for bq project memory — where it lives (the central ~/.ai/<project>/ store), what each folder holds (discussions, decisions, requirements, tasks, research, reviews, lessons, archive), who writes where, the record templates, and the integrity checks that catch drift. Use when reading or writing project memory, recording a decision/requirement/task/lesson, or checking whether memory is stale or inconsistent — triggers: "where do we record this", "project memory", "~/.ai", "is this stale", "memory integrity".'
 ---
 # Team memory
 
@@ -28,7 +28,7 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
 
 > Sibling skills own *what* to write: **decision-and-spec** (specs + ADRs), **research-method**
 > (findings), **facilitation** (discussion summaries), **codebase-onboarding** (the charter on a new
-> repo), **knowledge-graph** (the concept map in `knowledge/`), **feedback-loop** (lessons).
+> repo), **feedback-loop** (lessons).
 
 ## Layout
 
@@ -42,9 +42,8 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
   tasks/            task breakdowns:        {slug}.md  (checklist with owners + status)
   research/         sourced findings:       {slug}.md  (with sources, dates, confidence)
   reviews/          review & critique reports: {slug}.md
-  knowledge/        concept map of the codebase — graph.md (Mermaid index) + concepts/{slug}.md
   lessons/          feedback loop:          {YYYY-MM-DD}-{slug}.md
-  archive/          dropped plans moved aside by /crew:drop:
+  archive/          dropped plans moved aside by /bq:drop:
                       {YYYY-MM-DD}/{requirements|decisions|tasks}/{file} (with an archive header)
 ```
 
@@ -58,8 +57,8 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
   - **engineer** → code, `tasks/` (status), `decisions/` (implementation decisions)
   - **tester** → `reviews/` (test plans/verification), test code, `tasks/` (status)
   - **reviewer** → `reviews/`, `lessons/`; may *flag* a `decisions/` entry (annotate, never rewrite)
-  - **researcher** → `research/`, `knowledge/` (concept extraction), reference material in `docs/`
-  - **scribe** → `discussions/`, `decisions/` (recording for the team), `knowledge/`, `lessons/`, `docs/`
+  - **researcher** → `research/`, reference material in `docs/`
+  - **scribe** → `discussions/`, `decisions/` (recording for the team), `lessons/`, `docs/`
 - **Everyone reads everything.** Memory is shared context, not siloed.
 - **Scopes are conventions, not enforced.** Write-permissions and tool grants are rules agents
   follow, not a hard sandbox. Keep *code* under version control so any unintended change shows in the
@@ -69,17 +68,17 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
 - **Keep it current.** When a decision is superseded, update the entry and note what replaced it. A
   stale decision is worse than none.
 - **Close plans that shipped.** A requirement whose tasks are all `[x]` is `Delivered`, not `Active`
-  — mark it `Delivered` and stamp *Delivered by* at the close of `/crew:build` or `/crew:ship`. A
+  — mark it `Delivered` and stamp *Delivered by* at the close of `/bq:build` or `/bq:ship`. A
   `Delivered` requirement stays in `requirements/` (it's the record of what shipped); only *dropped*
   plans move to `archive/`.
-- **Drop abandoned plans, don't leave them in place.** `/crew:drop` marks the decision
+- **Drop abandoned plans, don't leave them in place.** `/bq:drop` marks the decision
   `Rejected`/`Withdrawn`, the requirement `Dropped`, open tasks `[-]`, and archives the trio under
   `archive/{YYYY-MM-DD}/` with an archive header. Keep ADR numbers stable — an archived decision
   keeps its `{NNNN}`; the sequence continues with no misleading gaps.
 - **Write for the user to read alone, later.** Every artifact must be understandable without the team
   present: plain language, lead with the point, **define non-obvious terms** on first use, and always
   record the **why**, not just the what. A decision with no rationale is unreviewable — this is what
-  lets `/crew:ask` answer "what does this mean / why did we decide this" from the record.
+  lets `/bq:ask` answer "what does this mean / why did we decide this" from the record.
 
 ## Status markers
 
@@ -87,6 +86,24 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
 - **Decisions (ADR):** `Proposed` → `Accepted` → `Implemented` → (`Verified`); or `Rejected` /
   `Withdrawn` / `Superseded by {NNNN}`
 - **Requirements:** `Active` → `Delivered`, or `Dropped`
+
+## Integrity checks
+
+Run these when refreshing memory (`/bq:refresh`) or rolling up state (`/bq:status`) — they catch
+drift a single file can't reveal on its own. Fix the unambiguous cases directly; report anything that
+needs a human call rather than guessing.
+
+- **Decision status vs. evidence.** A `decisions/` entry marked `Implemented` has an *Implemented by*
+  filled in; one marked `Verified` also has a *Verified by*. Neither field is filled in before its
+  status is reached.
+- **Requirement status vs. tasks.** A `requirements/` entry whose `tasks/` file is all `[x]` is
+  `Delivered`, not `Active`, and carries a *Delivered by* stamp.
+- **Task dependencies resolve.** Every `deps` reference in a `tasks/` file names a task that actually
+  exists in that file — not a typo'd id or one that got renamed or removed.
+- **Archive integrity.** Every file under `archive/{date}/` carries the archive header (reason +
+  original home); a dropped decision keeps its original `{NNNN}` rather than being renumbered.
+- **No orphaned links.** A decision/requirement/task that links to another artifact points to one
+  that still exists, not one silently removed or moved.
 
 ## Templates
 
@@ -99,8 +116,8 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
 - **Implemented by:** {task / commit / file — filled in when Status becomes Implemented}
 - **Verified by:** {review / test — the evidence it works; filled in when verified}
 
-> A decision is intent until Implemented; it enters `knowledge/` only after its code lands and is
-> verifiable (see the **decision-and-spec** and **knowledge-graph** skills).
+> A decision is intent until Implemented; only once its code lands and is verifiable does it describe
+> the real system (see the **decision-and-spec** skill).
 
 ## Context
 What's the situation and the forces at play?
@@ -146,14 +163,13 @@ Requirement: ../requirements/{slug}.md
 ```
 
 ### Archive header — `archive/{YYYY-MM-DD}/{folder}/{file}`
-`/crew:drop` moves a dropped plan's requirement, decision(s), and task list here and prepends:
+`/bq:drop` moves a dropped plan's requirement, decision(s), and task list here and prepends:
 ```markdown
 > Archived {YYYY-MM-DD} — Rejected | Withdrawn | Dropped: {one-line reason}
 > Superseded by {link to the replacement plan} — or "not replaced"
 > Original home: <mem>/{folder}/{filename}
 ```
 
-### Knowledge graph and lessons
-The concept map (`knowledge/`) and lessons (`lessons/`) have their own formats — see the
-**knowledge-graph** and **feedback-loop** skills. Build/refresh them with `/crew:knowledge` and
-`/crew:retro`.
+### Lessons
+Lessons (`lessons/`) have their own format — see the **feedback-loop** skill. Capture them with
+`/bq:retro`.

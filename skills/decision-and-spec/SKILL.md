@@ -1,6 +1,6 @@
 ---
 name: decision-and-spec
-description: 'How to write testable requirements and record decisions well — measurable acceptance criteria (given/when/then), explicit scope, and ADRs that capture context, the decision, the alternatives rejected, and the consequences. Use when writing a spec (/crew:plan) or recording a decision, so the record is reviewable later by a human alone.'
+description: 'How to write testable requirements and record decisions well — measurable acceptance criteria (given/when/then), explicit scope, and ADRs that capture context, the decision, the alternatives rejected, and the consequences. Use when writing a spec (/bq:plan) or recording a decision, so the record is reviewable later by a human alone.'
 ---
 # Decisions & specs
 
@@ -21,9 +21,9 @@ A requirement a tester can't check is a wish. Make each one measurable.
 - Each requirement gets **acceptance criteria** that define "done" unambiguously.
 - Flag every assumption. An unstated assumption is a future bug.
 
-Scope is a chain: what's **in scope** is what a decision commits to build; what gets **implemented**
-is what becomes durable knowledge. The knowledge graph only ever records the in-scope work that has
-actually landed in code — never the plan, and never the out-of-scope list.
+Scope is a chain: what's **in scope** is what a decision commits to build; what actually gets
+**implemented** — the code, with the `decisions/` entry stamped *Implemented by* — is the durable
+record of what the system is. The plan and the out-of-scope list stay intent, not record.
 
 ## Decision records (ADRs)
 
@@ -52,30 +52,14 @@ any point before implementation:
 - **Superseded by {NNNN}** — replaced by a later decision; update the entry and point to it.
 
 In loop terms this is the **decision loop**: it opens at `Proposed`/`Accepted` (intent) and *closes*
-only when the code lands (`Implemented`, verified) and the concept folds into knowledge — or when the
-plan is dropped. An `Accepted` decision never implemented is an open loop. See the
-**loop-engineering** skill.
+only when the code lands (`Implemented`, verified) — or when the plan is dropped. An `Accepted`
+decision never implemented is an open loop. See the **bq-team** skill's Loop engineering section.
 
 Keep the status current — a stale status is worse than none. `Proposed` and `Accepted` are *intent*;
 only `Implemented` describes something that actually exists. When you walk away from a plan, mark it
-`Rejected` or `Withdrawn` and archive it with `/crew:drop` so it stops reading as live work — don't
+`Rejected` or `Withdrawn` and archive it with `/bq:drop` so it stops reading as live work — don't
 leave it looking active, and don't silently delete it (see the **memory** skill for the archive
-discipline). A `Rejected` or `Withdrawn` decision never had code land, so it never enters the
-knowledge graph.
-
-### Decisions and the knowledge graph
-
-A decision does **not** enter the knowledge graph (`~/.ai/<project>/knowledge/`) until it is
-`Implemented`. This is the boundary the whole record depends on:
-
-- The **decision** captures *what we chose and why* — the intent and rationale.
-- The **knowledge graph** captures *what the code is and how it connects* — grounded in `file:line`.
-
-A `Proposed` or `Accepted` decision describes a plan, not the system. Folding it into the graph
-would make the graph assert something that isn't true yet — a lie about the codebase's shape. Only
-once the code lands (status → `Implemented`) does the resulting concept become a fact worth mapping.
-At that point the *concept* enters the graph; the *rationale* stays in the decision — link, don't
-duplicate. See the **knowledge-graph** skill for how implemented decisions flow into concepts.
+discipline).
 
 ## Quality bar
 

@@ -14,8 +14,7 @@ how lessons should affect future behavior.
 ## Step 0 — Frame the retro (you)
 
 Load `~/.ai/<project>/charter.md`, relevant `tasks/`, `requirements/`, `decisions/`, `reviews/`,
-`research/`, `knowledge/graph.md`, and existing `lessons/` entries if present. Identify what kind
-of feedback this is:
+`research/`, and existing `lessons/` entries if present. Identify what kind of feedback this is:
 
 - **User correction** — the user told the team a preference, rule, or mistake.
 - **Workflow retro** — a build/debug/review/ship run completed and has lessons.

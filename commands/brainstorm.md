@@ -64,5 +64,5 @@ Have **scribe** (Quill) — or do it yourself — write, using the **memory** sk
 - If a real decision was made → an entry in `~/.ai/<project>/decisions/`.
 
 End by telling the user the decision and where it's recorded, and offer the natural next step
-(`/crew:plan` to turn it into tasks, `/crew:knowledge` if new concepts should be mapped,
-`/crew:retro` if the discussion produced a reusable lesson, or a direct specialist for a spike).
+(`/bq:plan` to turn it into tasks, `/bq:retro` if the discussion produced a reusable lesson, or a
+direct specialist for a spike).

@@ -6,9 +6,8 @@
 - **Implemented by:** {task / commit / `path/to/file.ext` — fill in when Status becomes Implemented; blank until then}
 - **Verified by:** {review / test / `~/.ai/<project>/reviews/{slug}.md` — the evidence it works; blank until verified}
 
-> A decision is *intent* until it's Implemented. It does not enter the knowledge graph
-> (`~/.ai/<project>/knowledge/`) until its code has landed and is verifiable — see the
-> **decision-and-spec** skill.
+> A decision is *intent* until it's Implemented — its code has to land and be verifiable before it
+> describes the real system. See the **decision-and-spec** skill.
 
 ## Context
 

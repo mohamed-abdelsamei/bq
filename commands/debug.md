@@ -28,14 +28,14 @@ didn't turn a green test red, check the fix holds at the boundary, and hunt the 
 the bug hints at. Return a verdict: fixed / not-fixed / regression-introduced, with the failing
 case if any.
 
-- If not fixed or a regression appears, loop back to **engineer** (cap ~2 attempts, then stop
-  and report what you tried).
+- If not fixed or a regression appears, loop back to **engineer** — bq's fix-loop cap applies
+  (~2 attempts, then stop and report what you tried; see the **bq-team** skill).
 
 ## Step 3 — Close (you)
 
 Report the **root cause**, the **fix** (and why it's minimal), the **regression test** that now
 guards it, and confirmation the suite is green. Record substantive findings to `~/.ai/<project>/`. If
 the root cause hints at a larger problem, note it as a follow-up — don't expand the fix to chase
-it. If the same failure mode could happen again, run or offer `/crew:retro` to capture the
-prevention lesson. Offer the next step — `/crew:review` the change, or `/crew:build` if it grew
+it. If the same failure mode could happen again, run or offer `/bq:retro` to capture the
+prevention lesson. Offer the next step — `/bq:review` the change, or `/bq:build` if it grew
 into real work.
