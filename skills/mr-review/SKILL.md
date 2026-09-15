@@ -68,6 +68,13 @@ A review is only useful if its findings are trusted — protect that trust.
 - **Compatibility & migrations** — API/schema/config/contract changes, data migrations and their
   rollback, impact on existing callers and persisted data.
 - **Necessity & fit** — does this code need to exist, can it be smaller, does it follow local patterns?
+- **Removal completeness** — when the change *deletes, renames, or refactors out* an asset (a file, a
+  symbol, a config knob, a capability), everything that existed only to serve it is now stale or dead.
+  Enumerate what was removed, then hunt each dependent: dangling doc/instruction pointers, comments and
+  defaults that still describe the gone behavior, and now-caller-less exports or trait hooks. Verify
+  dead-ness by **usage search** before asserting it — if only definitions and internal self-use remain,
+  it is orphaned; name the exact symbols. Distrust *relabel-and-retain*: repurposing a helper that lost
+  its last caller as a “generic” one is usually dead code with a new name.
 - **Tests** — meaningful coverage for the *changed* behavior, failure paths included, not just the
   happy path.
 - **Honesty & drift** — the diff does what the title and description claim; flag undisclosed changes
@@ -120,6 +127,14 @@ both deliberately:
   re-raising the whole issue. Narrow the severity to the residual instead of re-blocking at full
   weight, and verify the fix's own **new** comment, doc, or changelog line is itself accurate —
   fixes introduce fresh drift.
+- **Sweep the orphans of a removal, across every parallel copy.** A stale pointer or dead knob left by
+  a deletion almost never appears once — the same “see the old file” reference lives in a README *and*
+  an app-local instruction file; the same removed-capability default sits in a build file *and* its CI
+  mirror. Find one, then search for its siblings and fix them together; a half-swept removal is a real
+  finding. Anchor it in the change's **own stated goal** to make it land: “this now makes the README the
+  source of truth, yet line 214 still points at the deleted file,” “the suite no longer asserts Trust
+  Check, yet this default still enables its debug filter.” The contradiction with the change's own
+  intent is the argument.
 
 ## Procedure
 
@@ -160,6 +175,10 @@ both deliberately:
   usually means Request changes.
 - **Tests absent for changed behavior** → Important when behavior, data, security, or a user-facing
   flow changed.
+- **Removal / rename / refactor-out diff** → run the orphan sweep: list what's gone, then grep the tree
+  for surviving references, stale config/comments, and now-dead exports/hooks — including their parallel
+  copies in sibling docs and the CI mirror of a build file. Verify “no callers remain” by usage search
+  before calling anything dead.
 - **Generated or vendored code** → skip deep style review; check provenance, necessity, security, and
   integration points.
 - **Already reviewed (human or bot threads present)** → don't restate the thread. Verify its open
