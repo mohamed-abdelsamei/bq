@@ -71,7 +71,7 @@ It copies into a clean, collision-proof `bq` namespace:
 |-----------|--------------|--------|
 | commands  | `~/.claude/commands/bq/`  | invoked as `/bq:<name>` |
 | skills    | `~/.claude/skills/bq-*/`  | skill ids `bq-<name>` |
-| agents    | `~/.claude/agents/bq/`    | names unchanged (`bq-maestro`, `bq-architect`, …) |
+| agents    | `~/.claude/agents/bq/`    | prefixed at install: `bq-maestro`, `bq-architect`, … (same names as before) |
 | templates | `~/.claude/bq-templates/` | scaffolding for `/bq:init` and `/bq:onboard` |
 
 The script tracks what it wrote in `~/.claude/.bq-install-manifest`, so `uninstall` removes
@@ -80,7 +80,7 @@ Claude Code afterward to pick up the changes.
 
 > **Always-on note:** a plugin cannot inject an always-on instruction into your project. The team
 > identity, roster, and routing ship as the on-demand `bq-team` skill and are mirrored in the
-> Maestro — load that skill or talk to `bq-maestro` to bring the conventions into context.
+> Maestro — load that skill or talk to the Maestro (`bq:maestro`) to bring the conventions into context.
 
 ### Install into GitHub Copilot (VS Code)
 
@@ -238,7 +238,7 @@ See [docs/architecture.md](docs/architecture.md) for the full picture and
 ## Design principles
 
 - **Single-level orchestration.** One conductor (the Maestro) drives many specialists; specialists
-  don't drive each other. This is enforced in config: only `bq-maestro` carries the `Agent` tool, so only
+  don't drive each other. This is enforced in config: only the Maestro (`bq:maestro`) carries the `Agent` tool, so only
   it can spawn a specialist. File-write lanes (e.g. the reviewer critiques, it doesn't rewrite code)
   are a convention backed by version control — a lane violation shows up in the diff.
 - **Productive disagreement.** Personas carry deliberate, opposing biases so a brainstorm produces

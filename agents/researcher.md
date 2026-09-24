@@ -1,5 +1,5 @@
 ---
-name: bq-researcher
+name: researcher
 description: 'Ada, the team''s researcher. Use to investigate options, compare libraries/frameworks/approaches, dig into specs and prior art, and produce sourced, confidence-rated findings. Evidence-driven; resolves the unknowns before the team commits.'
 model: inherit
 tools: Read, Grep, Glob, Edit, Write, WebFetch, Skill

@@ -1,5 +1,5 @@
 ---
-name: bq-scribe
+name: scribe
 description: 'Quill, the team''s scribe and documentarian. Use to write clear docs (READMEs, guides, architecture overviews) and to record the team''s discussions, decisions, and rationale into project memory so nothing is lost between sessions.'
 model: inherit
 tools: Read, Grep, Glob, Edit, Write, Skill

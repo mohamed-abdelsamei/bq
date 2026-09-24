@@ -11,7 +11,8 @@
 # Manual-copy namespacing (collision-proof, cleanly removable):
 #   commands/<name>.md   -> ~/.claude/commands/bq/<name>.md   (invoked as /bq:<name>)
 #   skills/<name>/       -> ~/.claude/skills/bq-<name>/        (skill id bq-<name>)
-#   agents/<name>.md     -> ~/.claude/agents/bq/<name>.md      (name unchanged; delegation intact)
+#   agents/<role>.md     -> ~/.claude/agents/bq/bq-<role>.md   (agent name bq-<role>; plugin
+#                           references bq:<role> rewritten to bq-<role> in installed files)
 #   templates/           -> ~/.claude/bq-templates/            (home for init/onboard scaffolding)
 #
 # Usage:
@@ -72,10 +73,10 @@ clean_legacy() {
     if [[ -f "$legacy" ]]; then rm -f "$legacy"; info "removed $legacy"; removed=1; fi
   done
 
-  # flat agents: ~/.claude/agents/<name>.md
+  # flat agents: ~/.claude/agents/bq-<role>.md
   for f in "$REPO_DIR"/agents/*.md; do
     [[ -e "$f" ]] || continue
-    local legacy="$CLAUDE_DIR/agents/$(basename "$f")"
+    local legacy="$CLAUDE_DIR/agents/bq-$(basename "$f")"
     if [[ -f "$legacy" ]]; then rm -f "$legacy"; info "removed $legacy"; removed=1; fi
   done
 
@@ -104,6 +105,21 @@ set_skill_name() {
     BEGIN { done=0 }
     /^name:[[:space:]]/ && !done { print "name: " n; done=1; next }
     { print }
+  ' "$file" > "$tmp"
+  mv "$tmp" "$file"
+}
+
+# manual installs name agents bq-<role> (plugin installs scope them as bq:<role>). Rewrite the
+# frontmatter name, collapse the claude-only "plugin vs manual" naming clause to the manual form,
+# and rewrite agent references bq:<role> -> bq-<role>. The (?<![/\w]) guard leaves /bq:<command>
+# slash commands alone; only the seven role names are touched.
+localize_agent_names() {
+  local file="$1" newname="${2:-}" tmp
+  tmp="$(mktemp)"
+  NN="$newname" perl -0777 -pe '
+    s/\A(---\n(?:.*\n)*?)name:[^\n]*/$1name: $ENV{NN}/ if length $ENV{NN};
+    s{<!--\s*claude-only\s*-->.*?<!--\s*/claude-only\s*-->}{`bq-<role>` (e.g. `bq-engineer`)}gs;
+    s/(?<![\/\w])bq:(maestro|architect|engineer|tester|reviewer|researcher|scribe)\b/bq-$1/g;
   ' "$file" > "$tmp"
   mv "$tmp" "$file"
 }
@@ -198,17 +214,19 @@ do_manual_install() {
   for f in "$REPO_DIR"/commands/*.md; do
     [[ -e "$f" ]] || continue
     local dest="$CMD_DIR/$(basename "$f")"
-    cp "$f" "$dest"; record "$dest"; n_cmd=$((n_cmd+1))
+    cp "$f" "$dest"; localize_agent_names "$dest"; record "$dest"; n_cmd=$((n_cmd+1))
   done
   ok "$n_cmd commands -> $CMD_DIR  (/bq:<name>)"
 
-  # agents -> agents/bq/  (names unchanged)
+  # agents -> agents/bq/bq-<role>.md  (name: bq-<role>)
   mkdir -p "$AGENT_DIR"; record "$AGENT_DIR"
   local n_agent=0
   for f in "$REPO_DIR"/agents/*.md; do
     [[ -e "$f" ]] || continue
-    local dest="$AGENT_DIR/$(basename "$f")"
-    cp "$f" "$dest"; record "$dest"; n_agent=$((n_agent+1))
+    local role dest
+    role="$(basename "$f" .md)"
+    dest="$AGENT_DIR/bq-$role.md"
+    cp "$f" "$dest"; localize_agent_names "$dest" "bq-$role"; record "$dest"; n_agent=$((n_agent+1))
   done
   ok "$n_agent agents -> $AGENT_DIR"
 
@@ -223,7 +241,10 @@ do_manual_install() {
     dest="$SKILL_ROOT/$newname"
     rm -rf "$dest"
     cp -R "$d" "$dest"
-    [[ -f "$dest/SKILL.md" ]] && set_skill_name "$dest/SKILL.md" "$newname"
+    if [[ -f "$dest/SKILL.md" ]]; then
+      set_skill_name "$dest/SKILL.md" "$newname"
+      localize_agent_names "$dest/SKILL.md"
+    fi
     record "$dest"; n_skill=$((n_skill+1))
   done
   ok "$n_skill skills -> $SKILL_ROOT/bq-*"

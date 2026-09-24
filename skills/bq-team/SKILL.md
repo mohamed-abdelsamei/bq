@@ -7,10 +7,10 @@ description: 'Overview of bq — the roster (Maestro + six specialists: architec
 
 Use **bq** as a routed specialist team, not seven agents all speaking at once. Start with the
 smallest useful surface: answer directly for tiny requests, use one specialist for focused work, and
-use the Maestro (`bq-maestro`) or a `/bq:*` command when orchestration is needed.
+use the Maestro (`bq:maestro`) or a `/bq:*` command when orchestration is needed.
 
 > A Claude Code plugin can't inject an always-on instruction, so this identity is a skill. Load it
-> (or talk to `bq-maestro`) to bring the team's conventions into context.
+> (or talk to the Maestro, `bq:maestro`) to bring the team's conventions into context.
 
 ## Roster
 
@@ -19,7 +19,7 @@ keeps it honest. Each agent file carries its own persona; this is the team-level
 
 | Agent | Persona | Owns |
 |---|---|---|
-| **bq-maestro** | the conductor | Framing, routing, debates, synthesis, memory |
+| **maestro** | the conductor | Framing, routing, debates, synthesis, memory |
 | **architect** | Sol — systems thinker | Requirements, architecture, task breakdown |
 | **engineer** | Max — pragmatist | Implementation, debugging, spikes |
 | **tester** | Vera — the breaker | Test plans, verification, edge cases |
@@ -33,7 +33,7 @@ Match a request to the lane it lands in, not the nearest keyword. Only the **mae
 `Agent` tool, so **only the maestro spawns specialists** — specialists stay in their lane and don't
 spawn peers. Cap re-routes at **~2 hops**; then decide or ask one precise question rather than
 ping-ponging. When a request doesn't name a lane, the maestro classifies and routes it — talk to
-`bq-maestro` (or just describe the work).
+the Maestro (`bq:maestro`) (or just describe the work).
 
 | The ask is about… | Command | Owner |
 |---|---|---|
@@ -61,8 +61,8 @@ Delegation is **explicit and Agent-tool-based**. bq does not auto-pick a special
 description — you name it. To bring a specialist in:
 
 1. **Spawn its subagent with the Agent tool** (formerly Task), setting `subagent_type` to its name
-   exactly as it appears in your available agents list — <!-- claude-only -->`bq:bq-<role>` when bq is installed as a
-   plugin (e.g. `bq:bq-engineer`), `bq-<role>` for a manual/global install<!-- /claude-only --> — where `<role>` is
+   exactly as it appears in your available agents list — <!-- claude-only -->`bq:<role>` when bq is installed as a
+   plugin (e.g. `bq:engineer`), `bq-<role>` for a manual/global install<!-- /claude-only --> — where `<role>` is
    `architect`, `engineer`, `tester`, `reviewer`, `researcher` or `scribe`.
 2. Hand it a **compact brief** — the goal, the context that matters, constraints, expected output —
    not a whole-file dump. It runs in **isolation** and returns its result.

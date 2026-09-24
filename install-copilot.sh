@@ -8,7 +8,7 @@
 #
 # What it installs (user/global scope):
 #   commands/<name>.md   -> <prompts>/bq-<name>.prompt.md   (invoked as /bq-<name>)
-#   agents/bq-<name>.md  -> <prompts>/bq-<name>.agent.md    (custom agent bq-<name>)
+#   agents/<role>.md     -> <prompts>/bq-<role>.agent.md    (custom agent bq-<role>)
 #   skills/<name>/       -> ~/.copilot/skills/bq-<name>/     (skill id bq-<name>)
 #   skills/bq-team/      -> <prompts>/bq-team.instructions.md (always-on, applyTo '**')
 #
@@ -67,16 +67,17 @@ map_tools() {
 # wrap across a line break (e.g. "Task\ntool") still match. \b needs perl (BSD sed lacks it).
 # Colon commands -> dash; bare specialist/skill names -> bq-prefixed (bolded tokens only);
 # Agent/Task-tool/subagent_type phrasing -> Copilot agent wording. Plugin-scoped agent names
-# (bq:bq-<role>) collapse to bq-<role>. The Claude-only "plugin vs manual" naming clause in the
-# Maestro and bq-team sources is wrapped in <!-- claude-only --> ... <!-- /claude-only --> markers
-# (invisible when rendered); the whole span is replaced by the single Copilot form first.
+# (bq:<role>, no leading slash) become bq-<role> before /bq:<command> -> /bq-<command>. The
+# Claude-only "plugin vs manual" naming clause in the Maestro and bq-team sources is wrapped in
+# <!-- claude-only --> ... <!-- /claude-only --> markers (invisible when
+# rendered); the whole span is replaced by the single Copilot form first.
 rewrite_body() {
   perl -0777 -pe '
     s{<!--\s*claude-only\s*-->.*?<!--\s*/claude-only\s*-->}{`bq-<role>` (e.g. `bq-engineer`)}gs;
     s/\b(Agent|Task)\s+tool(\*\*)?\s+\(formerly\s+Task\)/$1 tool$2/g;
-    s/\bbq:(bq-)/$1/g;
+    s/(?<![\/\w])bq:(maestro|architect|engineer|tester|reviewer|researcher|scribe)\b/bq-$1/g;
     s{/bq:}{/bq-}g;
-    s/\*\*(architect|engineer|tester|reviewer|researcher|scribe)\b/**bq-$1/g;
+    s/\*\*(maestro|architect|engineer|tester|reviewer|researcher|scribe)\b/**bq-$1/g;
     s/\*\*(memory|critique|facilitation|mr-review|debugging|research-method|feedback-loop|decision-and-spec|codebase-onboarding)\b/**bq-$1/g;
     s/`(?:Agent|Task)`\s+tool\b/agent tool/g;
     s/\bAgent-tool-based\b/agent-based/g;
@@ -94,15 +95,16 @@ cmd_to_prompt() {
   ' "$1" | rewrite_body > "$2"
 }
 
-# agents/bq-<name>.md -> a .agent.md: drop `model:`, map `tools:`, set `agents:`.
+# agents/<role>.md -> a .agent.md: name bq-<role>, drop `model:`, map `tools:`, set `agents:`.
 agent_to_agent() {
-  local src="$1" dest="$2" agents_line="$3" mapped=""
+  local src="$1" dest="$2" agents_line="$3" name="$4" mapped=""
   local raw
   raw="$(sed -n 's/^tools:[[:space:]]*//p' "$src" | head -1)"
   mapped="$(map_tools "$raw")"
-  awk -v tools="$mapped" -v agents="$agents_line" '
+  awk -v tools="$mapped" -v agents="$agents_line" -v name="$name" '
     NR==1 && $0=="---" { fm=1; print; next }
     fm==1 && $0=="---" { print "tools: " tools; print agents; print; fm=0; next }
+    fm==1 && /^name:/ { print "name: " name; next }
     fm==1 && /^model:/ { next }
     fm==1 && /^tools:/ { next }
     { print }
@@ -168,19 +170,19 @@ do_install() {
   done
   ok "$n_cmd commands -> $PROMPTS_DIR/bq-*.prompt.md  (/bq-<name>)"
 
-  # agents -> bq-<name>.agent.md
+  # agents -> bq-<role>.agent.md
   local n_agent=0
   for f in "$REPO_DIR"/agents/*.md; do
     [[ -e "$f" ]] || continue
     local base dest agents_line
     base="$(basename "$f" .md)"
-    dest="$PROMPTS_DIR/$base.agent.md"
-    if [[ "$base" == "bq-maestro" ]]; then
+    dest="$PROMPTS_DIR/bq-$base.agent.md"
+    if [[ "$base" == "maestro" ]]; then
       agents_line="agents: [bq-architect, bq-engineer, bq-tester, bq-reviewer, bq-researcher, bq-scribe]"
     else
       agents_line="agents: []"
     fi
-    agent_to_agent "$f" "$dest" "$agents_line"; record "$dest"; n_agent=$((n_agent+1))
+    agent_to_agent "$f" "$dest" "$agents_line" "bq-$base"; record "$dest"; n_agent=$((n_agent+1))
   done
   ok "$n_agent agents -> $PROMPTS_DIR/bq-*.agent.md"
 
@@ -287,6 +289,7 @@ do_verify() {
       my @h;
       push @h, "/bq:" if m{/bq:};
       push @h, "bq:bq-" if /\bbq:bq-/;
+      push @h, "bq:<role>" if m{(?<![/\w])bq:(?:maestro|architect|engineer|tester|reviewer|researcher|scribe)\b};
       push @h, "subagent_type" if /subagent_type/;
       push @h, "Task tool" if /\bTask\s+tool\b/;
       push @h, "`Agent` tool" if /`(?:Agent|Task)`\s+tool\b/;
@@ -313,7 +316,7 @@ do_verify() {
   done
 
   if [[ "$fail" -eq 0 ]]; then
-    ok "Verify passed: no /bq:, bq:bq-, subagent_type, Task tool, backticked Agent tool, Agent-tool, plugin/manual naming clause, or claude-only marker; every prompt maps to a known agent"
+    ok "Verify passed: no /bq:, bq:bq-, bq:<role>, subagent_type, Task tool, backticked Agent tool, Agent-tool, plugin/manual naming clause, or claude-only marker; every prompt maps to a known agent"
     return 0
   fi
   warn "Verify found issues (see above)"
