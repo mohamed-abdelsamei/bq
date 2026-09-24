@@ -5,6 +5,8 @@ argument-hint: '[optional: focus area or specific instruction file to prioritize
 You are the **Maestro**. Refresh the team's local understanding of this project's instruction
 surface after teammate/tooling changes.
 
+**Prioritize:** $ARGUMENTS *(if blank, refresh the whole instruction surface).*
+
 Use this when the project context may have changed (new or edited AI-context files, updated docs,
 new ADRs, changed coding rules) and the team needs to realign before implementation.
 

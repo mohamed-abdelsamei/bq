@@ -2,8 +2,12 @@ name: validate
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   validate:
@@ -15,140 +19,16 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Validate plugin manifests
+      - name: Validate plugin structure
+        run: python3 scripts/validate.py
+
+      - name: Test the validator
+        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+
+      - name: Shellcheck install scripts
+        run: shellcheck install.sh install-copilot.sh
+
+      - name: Syntax-check install scripts
         run: |
-          python3 - <<'PY'
-          import json, pathlib, sys
-
-          problems = []
-          root = pathlib.Path(".")
-
-          def load_json(rel, required):
-              p = root / rel
-              if not p.exists():
-                  problems.append(f"{rel}: missing")
-                  return None
-              try:
-                  data = json.loads(p.read_text())
-              except json.JSONDecodeError as e:
-                  problems.append(f"{rel}: invalid JSON ({e})")
-                  return None
-              for key in required:
-                  if key not in data:
-                      problems.append(f"{rel}: missing required key '{key}'")
-              return data
-
-          plugin = load_json(".claude-plugin/plugin.json", ["name"])
-          market = load_json(".claude-plugin/marketplace.json", ["name", "plugins"])
-
-          if plugin and plugin.get("name") != "bq":
-              problems.append(".claude-plugin/plugin.json: name must be 'bq'")
-          if market:
-              names = [p.get("name") for p in market.get("plugins", [])]
-              if "bq" not in names:
-                  problems.append(".claude-plugin/marketplace.json: plugins must list 'bq'")
-
-          if problems:
-              print("FAIL:")
-              for p in problems:
-                  print("  -", p)
-              sys.exit(1)
-          print("OK: plugin.json and marketplace.json valid")
-          PY
-
-      - name: Validate agent/command/skill frontmatter
-        run: |
-          python3 - <<'PY'
-          import pathlib, sys
-
-          problems = []
-          root = pathlib.Path(".")
-
-          def frontmatter(text):
-              if not text.startswith("---\n") or "\n---" not in text:
-                  return None
-              return text[4:text.index("\n---", 4)]
-
-          agents = sorted((root / "agents").glob("*.md"))
-          if not agents:
-              problems.append("agents/: no *.md files found")
-          for f in agents:
-              fm = frontmatter(f.read_text())
-              if fm is None:
-                  problems.append(f"{f}: missing frontmatter")
-                  continue
-              if "name:" not in fm:
-                  problems.append(f"{f}: frontmatter missing name")
-              if "description:" not in fm:
-                  problems.append(f"{f}: frontmatter missing description")
-
-          commands = sorted((root / "commands").glob("*.md"))
-          if not commands:
-              problems.append("commands/: no *.md files found")
-          for f in commands:
-              fm = frontmatter(f.read_text())
-              if fm is None:
-                  problems.append(f"{f}: missing frontmatter")
-                  continue
-              if "description:" not in fm:
-                  problems.append(f"{f}: frontmatter missing description")
-
-          skills = sorted((root / "skills").glob("*/SKILL.md"))
-          if not skills:
-              problems.append("skills/: no */SKILL.md files found")
-          for f in skills:
-              fm = frontmatter(f.read_text())
-              if fm is None:
-                  problems.append(f"{f}: missing frontmatter")
-                  continue
-              skill_name = f.parent.name
-              if f"name: {skill_name}" not in fm:
-                  problems.append(f"{f}: skill name must match folder ({skill_name})")
-              if "description:" not in fm:
-                  problems.append(f"{f}: frontmatter missing description")
-
-          if problems:
-              print("FAIL:")
-              for p in problems:
-                  print("  -", p)
-              sys.exit(1)
-          print("OK: all agent/command/skill frontmatter valid")
-          PY
-
-      - name: Validate command docs and memory templates
-        run: |
-          python3 - <<'PY'
-          import pathlib, sys
-
-          root = pathlib.Path(".")
-          problems = []
-
-          commands = sorted(p.stem for p in (root / "commands").glob("*.md"))
-          readme = (root / "README.md").read_text()
-          for command in commands:
-              if f"/bq:{command}" not in readme:
-                  problems.append(f"README.md: missing command reference /bq:{command}")
-
-          required_templates = [
-              "README.md",
-              "charter.md",
-              "decision-template.md",
-              "discussions/discussion-template.md",
-              "lessons/README.md",
-              "lessons/lesson-template.md",
-              "requirements/requirement-template.md",
-              "research/research-template.md",
-              "reviews/review-template.md",
-              "tasks/task-template.md",
-          ]
-          for rel in required_templates:
-              if not (root / "templates" / "bq" / rel).exists():
-                  problems.append(f"missing memory template: templates/bq/{rel}")
-
-          if problems:
-              print("FAIL:")
-              for problem in problems:
-                  print("  -", problem)
-              sys.exit(1)
-          print("OK: command docs and memory templates consistent")
-          PY
+          bash -n install.sh
+          bash -n install-copilot.sh
