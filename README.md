@@ -71,7 +71,7 @@ It copies into a clean, collision-proof `bq` namespace:
 |-----------|--------------|--------|
 | commands  | `~/.claude/commands/bq/`  | invoked as `/bq:<name>` |
 | skills    | `~/.claude/skills/bq-*/`  | skill ids `bq-<name>` |
-| agents    | `~/.claude/agents/bq/`    | names unchanged (`maestro`, `architect`, …) |
+| agents    | `~/.claude/agents/bq/`    | names unchanged (`bq-maestro`, `bq-architect`, …) |
 | templates | `~/.claude/bq-templates/` | scaffolding for `/bq:init` and `/bq:onboard` |
 
 The script tracks what it wrote in `~/.claude/.bq-install-manifest`, so `uninstall` removes
@@ -80,7 +80,7 @@ Claude Code afterward to pick up the changes.
 
 > **Always-on note:** a plugin cannot inject an always-on instruction into your project. The team
 > identity, roster, and routing ship as the on-demand `bq-team` skill and are mirrored in the
-> Maestro — load that skill or talk to `maestro` to bring the conventions into context.
+> Maestro — load that skill or talk to `bq-maestro` to bring the conventions into context.
 
 ### Install into GitHub Copilot (VS Code)
 
@@ -161,7 +161,7 @@ debate, synthesizes a decision, and records it. The six specialists do the focus
 or convenes the team if it's big. If a specialist gets something out of its lane, it names the right
 teammate and the Maestro re-routes.
 
-> **How orchestration works:** the `/bq:*` commands run in the main session (which holds the `Task`
+> **How orchestration works:** the `/bq:*` commands run in the main session (which holds the `Agent`
 > tool) and **spawn each specialist as an isolated subagent** with a compact brief. Delegation is
 > **explicit** — the specialist is named, never auto-picked from its description. Orchestration stays
 > single-level: specialists don't spawn peers; one that hits work outside its lane names the right
@@ -238,7 +238,7 @@ See [docs/architecture.md](docs/architecture.md) for the full picture and
 ## Design principles
 
 - **Single-level orchestration.** One conductor (the Maestro) drives many specialists; specialists
-  don't drive each other. This is enforced in config: only `maestro` carries the `Task` tool, so only
+  don't drive each other. This is enforced in config: only `bq-maestro` carries the `Agent` tool, so only
   it can spawn a specialist. File-write lanes (e.g. the reviewer critiques, it doesn't rewrite code)
   are a convention backed by version control — a lane violation shows up in the diff.
 - **Productive disagreement.** Personas carry deliberate, opposing biases so a brainstorm produces

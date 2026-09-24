@@ -12,7 +12,7 @@ memory or the description alone. If you can't fetch the diff, stop and say so.
 
 ## The casting
 
-Spawn each specialist below as a subagent (Task tool) with its axis and a compact brief:
+Spawn each specialist below as a subagent (Agent tool) with its axis and a compact brief:
 
 - **you** — resolve `$ARGUMENTS` to a concrete diff and capture the three things the skill needs:
   the diff, the stated intent (MR title + description, linked requirement/issue), and the target

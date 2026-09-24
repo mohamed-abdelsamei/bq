@@ -52,8 +52,7 @@ map_tools() {
       Edit|Write) m=edit ;;
       Bash)      m=execute ;;
       WebFetch)  m=web ;;
-      TodoWrite) m=todo ;;
-      Task)      m=agent ;;
+      Agent|Task) m=agent ;;
       *)         m="" ;;
     esac
     [[ -z "$m" ]] && continue
@@ -67,13 +66,21 @@ map_tools() {
 # Rewrite Claude-native body prose into Copilot form. perl -0777 slurps so phrases that
 # wrap across a line break (e.g. "Task\ntool") still match. \b needs perl (BSD sed lacks it).
 # Colon commands -> dash; bare specialist/skill names -> bq-prefixed (bolded tokens only);
-# Task-tool/subagent_type phrasing -> Copilot agent wording.
+# Agent/Task-tool/subagent_type phrasing -> Copilot agent wording. Plugin-scoped agent names
+# (bq:bq-<role>) collapse to bq-<role>. The Claude-only "plugin vs manual" naming clause in the
+# Maestro and bq-team sources is wrapped in <!-- claude-only --> ... <!-- /claude-only --> markers
+# (invisible when rendered); the whole span is replaced by the single Copilot form first.
 rewrite_body() {
   perl -0777 -pe '
+    s{<!--\s*claude-only\s*-->.*?<!--\s*/claude-only\s*-->}{`bq-<role>` (e.g. `bq-engineer`)}gs;
+    s/\b(Agent|Task)\s+tool(\*\*)?\s+\(formerly\s+Task\)/$1 tool$2/g;
+    s/\bbq:(bq-)/$1/g;
     s{/bq:}{/bq-}g;
     s/\*\*(architect|engineer|tester|reviewer|researcher|scribe)\b/**bq-$1/g;
     s/\*\*(memory|critique|facilitation|mr-review|debugging|research-method|feedback-loop|decision-and-spec|codebase-onboarding)\b/**bq-$1/g;
-    s/\bTask\s+tool\b/agent tool/g;
+    s/`(?:Agent|Task)`\s+tool\b/agent tool/g;
+    s/\bAgent-tool-based\b/agent-based/g;
+    s/\b(?:Agent|Task)\s+tool\b/agent tool/g;
     s/\bsubagent_type\b/agent/g;
   '
 }
@@ -279,11 +286,20 @@ do_verify() {
     bad="$(perl -0777 -ne '
       my @h;
       push @h, "/bq:" if m{/bq:};
+      push @h, "bq:bq-" if /\bbq:bq-/;
       push @h, "subagent_type" if /subagent_type/;
       push @h, "Task tool" if /\bTask\s+tool\b/;
+      push @h, "`Agent` tool" if /`(?:Agent|Task)`\s+tool\b/;
+      push @h, "Agent-tool" if /\bAgent-tool\b/;
+      push @h, "installed as a plugin" if /installed\s+as\s+a\s+plugin/;
+      push @h, "manual/global install" if /manual\/global\s+install/;
+      push @h, "claude-only marker" if /claude-only/;
       print join(",", @h) if @h;
     ' "$f")"
     if [[ -n "$bad" ]]; then warn "leftover [$bad] in: $f"; fail=1; fi
+    # Non-fatal: ${CLAUDE_PLUGIN_ROOT} is expected in bq-memory (its template lookup falls through
+    # when unexpanded); surfaced every run so it is not forgotten.
+    if grep -q "CLAUDE_PLUGIN_ROOT" "$f"; then warn "note: \${CLAUDE_PLUGIN_ROOT} (non-fatal) in: $f"; fi
   done
 
   for f in "$PROMPTS_DIR"/bq-*.prompt.md; do
@@ -297,7 +313,7 @@ do_verify() {
   done
 
   if [[ "$fail" -eq 0 ]]; then
-    ok "Verify passed: no /bq:, subagent_type, or Task tool; every prompt maps to a known agent"
+    ok "Verify passed: no /bq:, bq:bq-, subagent_type, Task tool, backticked Agent tool, Agent-tool, plugin/manual naming clause, or claude-only marker; every prompt maps to a known agent"
     return 0
   fi
   warn "Verify found issues (see above)"

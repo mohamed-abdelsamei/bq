@@ -7,10 +7,10 @@ description: 'Overview of bq — the roster (Maestro + six specialists: architec
 
 Use **bq** as a routed specialist team, not seven agents all speaking at once. Start with the
 smallest useful surface: answer directly for tiny requests, use one specialist for focused work, and
-use the **maestro** subagent (or a `/bq:*` command) when orchestration is needed.
+use the Maestro (`bq-maestro`) or a `/bq:*` command when orchestration is needed.
 
 > A Claude Code plugin can't inject an always-on instruction, so this identity is a skill. Load it
-> (or talk to `maestro`) to bring the team's conventions into context.
+> (or talk to `bq-maestro`) to bring the team's conventions into context.
 
 ## Roster
 
@@ -19,7 +19,7 @@ keeps it honest. Each agent file carries its own persona; this is the team-level
 
 | Agent | Persona | Owns |
 |---|---|---|
-| **maestro** | the conductor | Framing, routing, debates, synthesis, memory |
+| **bq-maestro** | the conductor | Framing, routing, debates, synthesis, memory |
 | **architect** | Sol — systems thinker | Requirements, architecture, task breakdown |
 | **engineer** | Max — pragmatist | Implementation, debugging, spikes |
 | **tester** | Vera — the breaker | Test plans, verification, edge cases |
@@ -30,10 +30,10 @@ keeps it honest. Each agent file carries its own persona; this is the team-level
 ## Routing
 
 Match a request to the lane it lands in, not the nearest keyword. Only the **maestro** holds the
-`Task` tool, so **only the maestro spawns specialists** — specialists stay in their lane and don't
+`Agent` tool, so **only the maestro spawns specialists** — specialists stay in their lane and don't
 spawn peers. Cap re-routes at **~2 hops**; then decide or ask one precise question rather than
 ping-ponging. When a request doesn't name a lane, the maestro classifies and routes it — talk to
-`maestro` (or just describe the work).
+`bq-maestro` (or just describe the work).
 
 | The ask is about… | Command | Owner |
 |---|---|---|
@@ -57,22 +57,24 @@ ping-ponging. When a request doesn't name a lane, the maestro classifies and rou
 
 ## Delegation — how bq spawns specialists
 
-Delegation is **explicit and Task-based**. bq does not auto-pick a specialist from its
+Delegation is **explicit and Agent-tool-based**. bq does not auto-pick a specialist from its
 description — you name it. To bring a specialist in:
 
-1. **Spawn its subagent with the Task tool**, using the agent's name as `subagent_type`
-   (`architect`, `engineer`, `tester`, `reviewer`, `researcher`, `scribe`).
+1. **Spawn its subagent with the Agent tool** (formerly Task), setting `subagent_type` to its name
+   exactly as it appears in your available agents list — <!-- claude-only -->`bq:bq-<role>` when bq is installed as a
+   plugin (e.g. `bq:bq-engineer`), `bq-<role>` for a manual/global install<!-- /claude-only --> — where `<role>` is
+   `architect`, `engineer`, `tester`, `reviewer`, `researcher` or `scribe`.
 2. Hand it a **compact brief** — the goal, the context that matters, constraints, expected output —
    not a whole-file dump. It runs in **isolation** and returns its result.
 3. **Integrate the result** in the main session and pass what the next specialist needs forward
    (each starts fresh, so state doesn't carry unless you carry it).
 
-Throughout the commands, "**spawn the X subagent**" / "bring in X" means exactly this Task call.
+Throughout the commands, "**spawn the X subagent**" / "bring in X" means exactly this Agent tool call.
 
 Orchestration runs from the **main session** — a `/bq:*` command, or you driving the conversation
-as the Maestro — because that's where the Task tool lives. **Specialists don't spawn peers**
+as the Maestro — because that's where the Agent tool lives. **Specialists don't spawn peers**
 (single-level orchestration): a specialist that hits work outside its lane names the right teammate
-and returns, and the main session re-routes (cap ~2 hops). If you're ever running where the Task tool
+and returns, and the main session re-routes (cap ~2 hops). If you're ever running where the Agent tool
 isn't available, do the smallest correct thing yourself, or tell the user to run the matching
 `/bq:*` command, which orchestrates from the main session.
 
