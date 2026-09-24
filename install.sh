@@ -31,7 +31,16 @@ set -euo pipefail
 
 # --- paths -------------------------------------------------------------------
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+# make a dir override absolute (relative = from the current dir) with no ./ segments or trailing
+# slash, so recorded manifest paths stay comparable in owned_path (which refuses /./ segments)
+abs_dir() {
+  local p="$1" dot="/./" sl="/"
+  [[ "$p" == /* ]] || p="$PWD/$p"
+  while [[ "$p" == */./* ]]; do p="${p//"$dot"/$sl}"; done
+  while [[ "$p" == ?*/ ]]; do p="${p%/}"; done
+  printf '%s' "$p"
+}
+CLAUDE_DIR="$(abs_dir "${CLAUDE_CONFIG_DIR:-$HOME/.claude}")"
 MANIFEST="$CLAUDE_DIR/.bq-install-manifest"
 
 CMD_DIR="$CLAUDE_DIR/commands/bq"
@@ -49,7 +58,47 @@ step()  { printf '\n\033[1m%s\033[0m\n' "$*"; }
 ok()    { printf '\033[32m✓ %s\033[0m\n' "$*"; }
 warn()  { printf '\033[33m! %s\033[0m\n' "$*"; }
 
+# manifest lines: a path to delete (checked by owned_path), or `mkdir:<dir>` — a dir this install
+# created, which uninstall only ever rmdir's (so it goes only if empty; never rm -rf'd)
 record() { printf '%s\n' "$1" >> "$MANIFEST"; }
+
+# number of arguments — pair with `shopt -s nullglob` to count glob matches (0 when none)
+count() { printf '%s' "$#"; }
+
+# is $1 a path this installer owns (and so may delete)? Guards the manifest-driven delete:
+# exactly the bq dirs, or a DIRECT child of commands/bq, agents/bq, or a skills/bq-* entry — never
+# CLAUDE_DIR or the shared skills/ root, never anything deeper (which could sit behind a symlink),
+# never a `..` or `.` segment. Callers strip trailing slashes and unlink symlinks, never recurse.
+# a recorded mkdir: entry is only trusted if it is one of our target dirs or an ancestor of one
+# (exactly what `mkdir -p` creates) — a tampered manifest can't point rmdir anywhere else
+created_dir() {
+  local d="$1" root
+  for root in "$CMD_DIR" "$AGENT_DIR" "$SKILL_ROOT" "$TEMPLATE_DIR"; do
+    [[ "$root" == "$d" || "$root" == "$d"/* ]] && return 0
+  done
+  return 1
+}
+
+owned_path() {
+  local p="$1" rest
+  [[ -n "$p" && "$p" != "/" ]] || return 1
+  case "/$p/" in */../*|*/./*) return 1 ;; esac
+  case "$p" in "$CMD_DIR"|"$AGENT_DIR"|"$TEMPLATE_DIR") return 0 ;; esac
+  case "$p" in
+    # a symlinked parent would make rm -rf act outside bq's tree
+    "$CMD_DIR"/?*)       [[ -L "$CMD_DIR" ]] && return 1; rest="${p#"$CMD_DIR"/}" ;;
+    "$AGENT_DIR"/?*)     [[ -L "$AGENT_DIR" ]] && return 1; rest="${p#"$AGENT_DIR"/}" ;;
+    "$SKILL_ROOT"/bq-*)  rest="${p#"$SKILL_ROOT"/}" ;;
+    *) return 1 ;;
+  esac
+  [[ "$rest" != */* ]]
+}
+
+# delete an owned path: a symlink is unlinked (never followed), anything else removed recursively
+remove_path() {
+  if [[ -L "$1" ]]; then rm -f "$1"; elif [[ -e "$1" ]]; then rm -rf "$1"; else return 1; fi
+  info "removed $1"
+}
 
 require_claude_dir() {
   if [[ ! -d "$CLAUDE_DIR" ]]; then
@@ -69,14 +118,16 @@ clean_legacy() {
   # flat commands: ~/.claude/commands/<name>.md
   for f in "$REPO_DIR"/commands/*.md; do
     [[ -e "$f" ]] || continue
-    local legacy="$CLAUDE_DIR/commands/$(basename "$f")"
+    local legacy
+    legacy="$CLAUDE_DIR/commands/$(basename "$f")"
     if [[ -f "$legacy" ]]; then rm -f "$legacy"; info "removed $legacy"; removed=1; fi
   done
 
   # flat agents: ~/.claude/agents/bq-<role>.md
   for f in "$REPO_DIR"/agents/*.md; do
     [[ -e "$f" ]] || continue
-    local legacy="$CLAUDE_DIR/agents/bq-$(basename "$f")"
+    local legacy
+    legacy="$CLAUDE_DIR/agents/bq-$(basename "$f")"
     if [[ -f "$legacy" ]]; then rm -f "$legacy"; info "removed $legacy"; removed=1; fi
   done
 
@@ -85,7 +136,7 @@ clean_legacy() {
     rm -rf "$SKILL_ROOT/bq"; info "removed $SKILL_ROOT/bq"; removed=1
   fi
 
-  [[ "$removed" -eq 1 ]] && ok "Legacy install removed" || info "No legacy install found"
+  if [[ "$removed" -eq 1 ]]; then ok "Legacy install removed"; else info "No legacy install found"; fi
 }
 
 # --- skill name prefixing ----------------------------------------------------
@@ -97,28 +148,21 @@ bq_name() {
   esac
 }
 
-# rewrite the frontmatter `name:` line in a SKILL.md to $2
-set_skill_name() {
-  local file="$1" newname="$2" tmp
-  tmp="$(mktemp)"
-  awk -v n="$newname" '
-    BEGIN { done=0 }
-    /^name:[[:space:]]/ && !done { print "name: " n; done=1; next }
-    { print }
-  ' "$file" > "$tmp"
-  mv "$tmp" "$file"
-}
-
 # manual installs name agents bq-<role> (plugin installs scope them as bq:<role>). Rewrite the
-# frontmatter name, collapse the claude-only "plugin vs manual" naming clause to the manual form,
-# and rewrite agent references bq:<role> -> bq-<role>. The (?<![/\w]) guard leaves /bq:<command>
-# slash commands alone; only the seven role names are touched.
+# frontmatter name (bounded to the frontmatter: stops at the closing ---), resolve the claude-only
+# spans, and rewrite agent references bq:<role> -> bq-<role>. The (?<![/\w]) guard leaves
+# /bq:<command> slash commands alone; only the seven role names are touched.
+# claude-only spans: `<!-- claude-only -->A<!-- copilot: B --><!-- /claude-only -->` is still Claude,
+# so keep A (the copilot alternative is for install-copilot.sh); the newline after the closer is
+# eaten only when the opener's was (a block span), so an inline span doesn't glue words. A plain
+# `<!-- claude-only -->A<!-- /claude-only -->` is the plugin-vs-manual naming clause -> manual form.
 localize_agent_names() {
   local file="$1" newname="${2:-}" tmp
   tmp="$(mktemp)"
   NN="$newname" perl -0777 -pe '
-    s/\A(---\n(?:.*\n)*?)name:[^\n]*/$1name: $ENV{NN}/ if length $ENV{NN};
-    s{<!--\s*claude-only\s*-->.*?<!--\s*/claude-only\s*-->}{`bq-<role>` (e.g. `bq-engineer`)}gs;
+    s/\A(---\n(?:(?!---\n)[^\n]*\n)*?)name:[^\n]*/$1name: $ENV{NN}/ if length $ENV{NN};
+    s{<!--\s*claude-only\s*-->(\n)?((?:(?!<!--\s*/?claude-only).)*?)<!--\s*copilot:(?:(?!-->).)*-->\s*?<!--\s*/claude-only\s*-->(?(1)\n?)}{$2}gs;
+    s{<!--\s*claude-only\s*-->(?:(?!<!--\s*/?claude-only|<!--\s*copilot:).)*?<!--\s*/claude-only\s*-->}{`bq-<role>` (e.g. `bq-engineer`)}gs;
     s/(?<![\/\w])bq:(maestro|architect|engineer|tester|reviewer|researcher|scribe)\b/bq-$1/g;
   ' "$file" > "$tmp"
   mv "$tmp" "$file"
@@ -206,20 +250,34 @@ do_manual_install() {
   clean_legacy
 
   step "Installing bq into $CLAUDE_DIR"
+  # note the dirs this install creates (deepest first) so uninstall can rmdir them if left empty
+  # (carrying over any recorded by a previous install, so re-running install doesn't forget them)
+  local created=() d
+  if [[ -f "$MANIFEST" ]]; then
+    while IFS= read -r d; do
+      [[ "$d" == mkdir:* ]] && created+=("${d#mkdir:}")
+    done < "$MANIFEST"
+  fi
+  for d in "$CMD_DIR" "$AGENT_DIR" "$SKILL_ROOT"; do
+    while [[ ! -e "$d" ]]; do created+=("$d"); d="$(dirname "$d")"; done
+  done
+  mkdir -p "$CMD_DIR" "$AGENT_DIR" "$SKILL_ROOT"
   : > "$MANIFEST"   # fresh manifest
+  for d in ${created[@]+"${created[@]}"}; do record "mkdir:$d"; done
 
   # commands -> commands/bq/
-  mkdir -p "$CMD_DIR"; record "$CMD_DIR"
+  record "$CMD_DIR"
   local n_cmd=0
   for f in "$REPO_DIR"/commands/*.md; do
     [[ -e "$f" ]] || continue
-    local dest="$CMD_DIR/$(basename "$f")"
+    local dest
+    dest="$CMD_DIR/$(basename "$f")"
     cp "$f" "$dest"; localize_agent_names "$dest"; record "$dest"; n_cmd=$((n_cmd+1))
   done
   ok "$n_cmd commands -> $CMD_DIR  (/bq:<name>)"
 
   # agents -> agents/bq/bq-<role>.md  (name: bq-<role>)
-  mkdir -p "$AGENT_DIR"; record "$AGENT_DIR"
+  record "$AGENT_DIR"
   local n_agent=0
   for f in "$REPO_DIR"/agents/*.md; do
     [[ -e "$f" ]] || continue
@@ -231,7 +289,6 @@ do_manual_install() {
   ok "$n_agent agents -> $AGENT_DIR"
 
   # skills -> skills/bq-<name>/  (rewrite name: field)
-  mkdir -p "$SKILL_ROOT"
   local n_skill=0
   for d in "$REPO_DIR"/skills/*/; do
     [[ -d "$d" ]] || continue
@@ -241,10 +298,14 @@ do_manual_install() {
     dest="$SKILL_ROOT/$newname"
     rm -rf "$dest"
     cp -R "$d" "$dest"
-    if [[ -f "$dest/SKILL.md" ]]; then
-      set_skill_name "$dest/SKILL.md" "$newname"
-      localize_agent_names "$dest/SKILL.md"
-    fi
+    local md
+    while IFS= read -r md; do
+      if [[ "$md" == "$dest/SKILL.md" ]]; then
+        localize_agent_names "$md" "$newname"
+      else
+        localize_agent_names "$md"
+      fi
+    done < <(find "$dest" -type f -name '*.md')
     record "$dest"; n_skill=$((n_skill+1))
   done
   ok "$n_skill skills -> $SKILL_ROOT/bq-*"
@@ -272,30 +333,45 @@ do_uninstall() {
   step "Uninstalling bq from $CLAUDE_DIR"
   local removed=0
 
+  # dirs the install created (mkdir: lines; manifests from older installs have none, so their
+  # parent dirs are simply left in place)
+  local made=() p
   if [[ -f "$MANIFEST" ]]; then
+    while IFS= read -r p; do
+      [[ "$p" == mkdir:* ]] && made+=("${p#mkdir:}")
+    done < "$MANIFEST"
     # remove in reverse so files go before their dirs
     while IFS= read -r p; do
-      [[ -n "$p" ]] || continue
-      if [[ -e "$p" ]]; then rm -rf "$p"; info "removed $p"; removed=1; fi
+      [[ -n "$p" && "$p" != mkdir:* ]] || continue
+      while [[ "$p" == */ ]]; do p="${p%/}"; done
+      if ! owned_path "$p"; then warn "refusing manifest entry outside bq's install paths: $p"; continue; fi
+      if remove_path "$p"; then removed=1; fi
     done < <(tac "$MANIFEST" 2>/dev/null || tail -r "$MANIFEST")
     rm -f "$MANIFEST"
   else
     warn "No manifest found; falling back to known locations"
   fi
 
-  # fallback / belt-and-suspenders for the known layout
-  [[ -d "$CMD_DIR" ]]      && { rm -rf "$CMD_DIR";      info "removed $CMD_DIR";      removed=1; }
-  [[ -d "$AGENT_DIR" ]]    && { rm -rf "$AGENT_DIR";    info "removed $AGENT_DIR";    removed=1; }
-  [[ -d "$TEMPLATE_DIR" ]] && { rm -rf "$TEMPLATE_DIR"; info "removed $TEMPLATE_DIR"; removed=1; }
-  for d in "$SKILL_ROOT"/bq-*/; do
-    [[ -d "$d" ]] || continue
-    rm -rf "$d"; info "removed $d"; removed=1
+  # fallback / belt-and-suspenders for the known layout — only names this repo ships, so a
+  # user's own bq-* skill is never swept up
+  local d s
+  local known=("$CMD_DIR" "$AGENT_DIR" "$TEMPLATE_DIR")
+  for s in "$REPO_DIR"/skills/*/; do
+    [[ -d "$s" ]] && known+=("$SKILL_ROOT/$(bq_name "$(basename "$s")")")
+  done
+  for d in "${known[@]}"; do
+    [[ -L "$d" || -d "$d" ]] || continue
+    if remove_path "$d"; then removed=1; fi
   done
 
-  # tidy now-empty parent dirs we may have created
-  rmdir "$CLAUDE_DIR/commands" "$CLAUDE_DIR/agents" 2>/dev/null || true
+  # tidy only the dirs this install recorded as created — rmdir only succeeds on empty dirs, so
+  # one now holding the user's own files stays; two passes so a parent listed before its child goes
+  for d in ${made[@]+"${made[@]}"} ${made[@]+"${made[@]}"}; do
+    created_dir "$d" || continue
+    rmdir "$d" 2>/dev/null || true
+  done
 
-  [[ "$removed" -eq 1 ]] && ok "bq uninstalled" || info "Nothing to uninstall"
+  if [[ "$removed" -eq 1 ]]; then ok "bq uninstalled"; else info "Nothing to uninstall"; fi
 }
 
 # --- status ------------------------------------------------------------------
@@ -317,14 +393,16 @@ do_status() {
   # manual copy
   if [[ -f "$MANIFEST" ]]; then
     local n_cmd n_agent n_skill
-    n_cmd=$(ls "$CMD_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')
-    n_agent=$(ls "$AGENT_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')
-    n_skill=$(ls -d "$SKILL_ROOT"/bq-*/ 2>/dev/null | wc -l | tr -d ' ')
+    shopt -s nullglob
+    n_cmd=$(count "$CMD_DIR"/*.md)
+    n_agent=$(count "$AGENT_DIR"/*.md)
+    n_skill=$(count "$SKILL_ROOT"/bq-*/)
+    shopt -u nullglob
     ok "Manual: installed in $CLAUDE_DIR"
     info "commands:  $n_cmd  ($CMD_DIR)"
     info "agents:    $n_agent  ($AGENT_DIR)"
     info "skills:    $n_skill  ($SKILL_ROOT/bq-*)"
-    [[ -d "$TEMPLATE_DIR" ]] && info "templates: $TEMPLATE_DIR"
+    if [[ -d "$TEMPLATE_DIR" ]]; then info "templates: $TEMPLATE_DIR"; fi
     info "manifest:  $MANIFEST"
   else
     info "Manual: not installed (no manifest at $MANIFEST)"
@@ -332,8 +410,9 @@ do_status() {
 }
 
 # --- usage -------------------------------------------------------------------
+# prints the leading comment block (line 2 up to the first non-comment line)
 usage() {
-  sed -n '3,27p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "${BASH_SOURCE[0]}"
 }
 
 # --- main --------------------------------------------------------------------
