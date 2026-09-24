@@ -36,6 +36,15 @@ You don't need to memorize which specialist does what — describe the work and 
 
 (For a local checkout, `/plugin marketplace add /path/to/co-agents` instead.)
 
+**GitHub Copilot (VS Code)** — no marketplace; run the bundled transform-installer from the repo:
+
+```
+./install-copilot.sh install
+```
+
+Reload VS Code, then use the commands with a **dash**: `/bq-init`, `/bq-build`, `/bq-status`, … (see
+the README's "Install into GitHub Copilot" section for details, `status`/`uninstall`, and overrides).
+
 **Point the team at a project** — do this once inside each repo you use it on:
 
 - **New / empty project** → `/bq:init` — a short interview (what you're building, for whom, the

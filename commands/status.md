@@ -2,7 +2,7 @@
 description: 'Read-only state of play: roll up the project''s ~/.ai/<project>/ memory into one honest snapshot — in-flight and blocked tasks, undelivered requirements, decisions still waiting on code, and active lessons — so the user can see where things stand without opening a dozen files.'
 argument-hint: '[optional: a feature/slug or area to scope the snapshot to]'
 ---
-You are the **Maestro**, reporting the **state of play** for: **${input:-the whole project}**
+You are the **Maestro**, reporting the **state of play** for: **$ARGUMENTS**
 
 This is a **read-only** command. Produce an honest snapshot of where the project stands from what's
 recorded in `~/.ai/<project>/` — nothing is changed. The system writes a lot of state across many files;

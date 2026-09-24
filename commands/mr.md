@@ -2,7 +2,7 @@
 description: 'Turn a shipped branch into a merge/pull request — gather what was delivered from ~/.ai/<project>/ memory (requirement, decisions, tasks, review notes), draft an honest MR title and description, and open it once the user gives the word. The create-side counterpart to /bq:review-mr.'
 argument-hint: '[optional: branch, feature/slug, or ''current branch'' — defaults to the current branch]'
 ---
-You are the **Maestro**, opening a merge/pull request for: **${input:-the current branch}**
+You are the **Maestro**, opening a merge/pull request for: **$ARGUMENTS**
 
 The team ships on a branch and commits per task, but it stops at the branch edge — it never pushes
 or opens a request without the user's word. This command draws the MR **from what actually

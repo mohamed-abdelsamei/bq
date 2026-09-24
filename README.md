@@ -82,6 +82,38 @@ Claude Code afterward to pick up the changes.
 > identity, roster, and routing ship as the on-demand `bq-team` skill and are mirrored in the
 > Maestro — load that skill or talk to `maestro` to bring the conventions into context.
 
+### Install into GitHub Copilot (VS Code)
+
+The same team runs in GitHub Copilot. Copilot has no plugin marketplace, so the bundled script
+transforms the canonical Claude files into Copilot customizations and installs them into your user
+profile:
+
+```
+./install-copilot.sh install      # transform + install into your Copilot profile
+./install-copilot.sh status       # show what's installed
+./install-copilot.sh uninstall    # remove everything the script installed
+./install-copilot.sh reinstall    # uninstall then install (pick up edits)
+```
+
+| Component | Installed to | Result |
+|-----------|--------------|--------|
+| commands  | `<prompts>/bq-*.prompt.md` | invoked as `/bq-<name>` (dash — Copilot has no `:` namespacing) |
+| agents    | `<prompts>/bq-*.agent.md`  | custom agents `bq-maestro`, `bq-architect`, … |
+| skills    | `~/.copilot/skills/bq-*/`   | skill ids `bq-<name>` |
+| identity  | `<prompts>/bq-team.instructions.md` | always-on (`applyTo: '**'`) roster + routing |
+
+`<prompts>` is your VS Code User prompts folder. The transform rewrites `$ARGUMENTS` →
+`${input:args}`, maps Claude tool names to Copilot aliases (`read`, `search`, `edit`, `execute`,
+`web`, `todo`, `agent`), and restricts subagent delegation to the Maestro. It tracks what it wrote
+in `~/.copilot/.bq-copilot-install-manifest`, so `uninstall` removes exactly those files. Override
+locations with `COPILOT_PROMPTS_DIR=/path` and `COPILOT_SKILLS_DIR=/path`. Reload VS Code
+(**Developer: Reload Window**) afterward, then type `/` in Copilot Chat to run `/bq-build`,
+`/bq-brainstorm`, `/bq-status`, ….
+
+> Unlike a Claude plugin, Copilot **can** carry an always-on instruction: the `bq-team` identity is
+> installed as a user-level `*.instructions.md` with `applyTo: '**'`, so the roster and routing are
+> in context everywhere without loading a skill.
+
 ## Commands
 
 | What you want | Command |
@@ -106,6 +138,9 @@ Claude Code afterward to pick up the changes.
 
 Or skip the commands and just talk: pick **maestro** (or a specialist) and ask in plain language —
 the Maestro classifies anything you hand it and routes it to the right lane.
+
+> In **GitHub Copilot** these commands use a dash instead of a colon — `/bq-build`, `/bq-status`,
+> `/bq-brainstorm`, … — because Copilot has no `:` namespacing.
 
 ## How it works
 
