@@ -47,6 +47,18 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
                       {YYYY-MM-DD}/{requirements|decisions|tasks}/{file} (with an archive header)
 ```
 
+## Locating the templates
+
+`/bq:init` and `/bq:onboard` seed `<mem>/` from starter files (`README.md`, `charter.md`, the
+folders). Use the first of these that exists:
+
+1. `${CLAUDE_PLUGIN_ROOT}/templates/bq/` — the installed plugin. If `${CLAUDE_PLUGIN_ROOT}` shows up
+   literally (not expanded to a path), skip to 2.
+2. The most recently modified version folder under `~/.claude/plugins/cache/bq/bq/*/templates/bq/`
+   (the plugin cache; version folders may be SHAs, so go by modification time, not name).
+3. `~/.claude/bq-templates/bq/` — the manual `install.sh` install.
+4. None found → generate the files directly from the **Layout** above and the **Templates** below.
+
 ## Rules
 
 - **One home per artifact.** Durable, polished docs (architecture overview, guides, API refs) live

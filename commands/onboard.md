@@ -38,8 +38,8 @@ or contradict them.
    in a few plain-language lines. Ask the user to correct anything you got wrong — you inferred it
    from the code, so verify before relying on it.
 5. **Scaffold the rest of memory.** Create the `~/.ai/<project>/` folders and `README.md` per the
-   **memory** skill's layout. Use this plugin's `templates/bq/` as the starting content if
-   available; otherwise generate them directly.
+   **memory** skill's layout, seeding them from the starter templates found via the **memory**
+   skill's *Locating the templates*.
 
 ## After onboarding
 

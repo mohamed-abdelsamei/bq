@@ -108,6 +108,15 @@ set_skill_name() {
   mv "$tmp" "$file"
 }
 
+# point the installed bq-memory template lookup at this install's real paths (CLAUDE_CONFIG_DIR aware)
+localize_memory_paths() {
+  local file="$1" tmp
+  [[ -f "$file" ]] || return 0
+  tmp="$(mktemp)"
+  TD="$TEMPLATE_DIR" CD="$CLAUDE_DIR" perl -pe 's{~/\.claude/bq-templates/bq/}{$ENV{TD}/bq/}g; s{~/\.claude/plugins/cache/}{$ENV{CD}/plugins/cache/}g' "$file" > "$tmp"
+  mv "$tmp" "$file"
+}
+
 # --- native plugin CLI path --------------------------------------------------
 have_claude_cli() { command -v claude >/dev/null 2>&1; }
 
@@ -224,17 +233,8 @@ do_manual_install() {
     rm -rf "$TEMPLATE_DIR"
     cp -R "$REPO_DIR/templates" "$TEMPLATE_DIR"
     record "$TEMPLATE_DIR"
-    ok "templates -> $TEMPLATE_DIR"
-
-    # point init/onboard at the installed template home
-    for c in init onboard; do
-      local cf="$CMD_DIR/$c.md"
-      [[ -f "$cf" ]] || continue
-      local tmp; tmp="$(mktemp)"
-      sed "s#this plugin's \`templates/bq/\`#\`$TEMPLATE_DIR/bq/\`#g" "$cf" > "$tmp"
-      mv "$tmp" "$cf"
-    done
-    info "rewrote template path in init/onboard"
+    localize_memory_paths "$SKILL_ROOT/bq-memory/SKILL.md"
+    ok "templates -> $TEMPLATE_DIR  (bq-memory lookup pointed at $TEMPLATE_DIR/bq/)"
   fi
 
   step "Done"

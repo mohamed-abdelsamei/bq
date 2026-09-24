@@ -26,8 +26,8 @@ conventions; draw the charter's shape from **decision-and-spec** and **codebase-
      exist, read them to pre-fill, so you're confirming, not asking from zero.)
    - What are the non-negotiable principles or constraints?
    - What's explicitly out of scope for v1?
-3. **Scaffold the structure** per the **memory** skill's layout. If this plugin's `templates/bq/`
-   files are available, use them as the starting content; otherwise generate them directly. Fill
+3. **Scaffold the structure** per the **memory** skill's layout, seeding it from the starter
+   templates found via the **memory** skill's *Locating the templates*. Fill
    `charter.md` from the interview — not left as blanks — and include the standing rule: *never
    modify existing AI-context files (`CLAUDE.md`, `AGENTS.md`, `copilot-instructions.md`,
    `context.md`, …) — they're authoritative.*
