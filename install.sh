@@ -3,10 +3,15 @@
 # install.sh — install the "bq" agent team into Claude Code.
 #
 # Two install paths:
-#   1. Native plugin CLI  — uses `claude plugin marketplace add` + `claude plugin install`.
-#                           Preferred; used automatically when the `claude` CLI is on PATH.
+#   1. Native plugin CLI  — uses `claude plugin marketplace add` + `claude plugin install`
+#                           (or, when already installed, `claude plugin marketplace update` +
+#                           `claude plugin update`). Preferred; used automatically when the
+#                           `claude` CLI is on PATH and no manual copy is installed.
 #   2. Manual global copy — copies files into ~/.claude/ for environments where the plugin
 #                           flow is unavailable (e.g. blocked by policy).
+#
+# One install at a time: an existing manual copy is kept (never doubled up with the plugin); to
+# switch to the plugin run `./install.sh uninstall && ./install.sh plugin`.
 #
 # Manual-copy namespacing (collision-proof, cleanly removable):
 #   commands/<name>.md   -> ~/.claude/commands/bq/<name>.md   (invoked as /bq:<name>)
@@ -16,12 +21,13 @@
 #   templates/           -> ~/.claude/bq-templates/            (home for init/onboard scaffolding)
 #
 # Usage:
-#   ./install.sh install      Auto: plugin CLI if available, else manual copy
-#   ./install.sh plugin       Force the native plugin CLI install
+#   ./install.sh install      Auto: refresh an existing manual copy; else install/upgrade the
+#                             plugin via the CLI if available; else manual copy
+#   ./install.sh plugin       Install/upgrade via the plugin CLI (refuses if a manual copy exists)
 #   ./install.sh manual       Force the manual global copy
 #   ./install.sh status       Show what is currently installed (plugin + manual)
 #   ./install.sh uninstall    Remove the bq install (plugin and/or manual copy)
-#   ./install.sh reinstall    uninstall then install
+#   ./install.sh reinstall    uninstall then install again, keeping the current mode
 #   ./install.sh clean-legacy Remove only the old flat/mis-nested manual install
 #
 # Force manual from `install`:   BQ_MANUAL=1 ./install.sh install
@@ -181,10 +187,15 @@ localize_memory_paths() {
 have_claude_cli() { command -v claude >/dev/null 2>&1; }
 
 # is the bq plugin currently installed via the claude CLI?
+# (exact `bq@bq` token; output captured first so grep -q can't SIGPIPE the CLI under pipefail)
 plugin_installed() {
   have_claude_cli || return 1
-  claude plugin list 2>/dev/null | grep -qiE '(^|[^[:alnum:]])bq([^[:alnum:]]|$)'
+  local out
+  out="$(claude plugin list 2>/dev/null)" || return 1
+  grep -qE '(^|[[:space:]])bq@bq([[:space:]]|$)' <<< "$out"
 }
+
+have_manual_install() { [[ -f "$MANIFEST" ]]; }
 
 # attempt the plugin CLI install; returns non-zero on failure without exiting
 # (call in an `if` so set -e is suspended and the caller can fall back)
@@ -193,8 +204,37 @@ _plugin_install_attempt() {
   info "marketplace add: $REPO_DIR"
   claude plugin marketplace add "$REPO_DIR" \
     || warn "marketplace add reported an issue (already added or blocked); continuing"
+  # an already-added marketplace keeps its old snapshot; refresh it so the install gets current files
+  claude plugin marketplace update "$MARKETPLACE_NAME" \
+    || warn "marketplace update reported an issue; continuing"
   info "plugin install: $PLUGIN_ID"
   claude plugin install "$PLUGIN_ID" -y
+}
+
+# upgrade an installed plugin in place; never falls back to a manual copy (that would double-install)
+do_plugin_upgrade() {
+  step "Upgrading bq via the Claude Code plugin CLI"
+  info "marketplace update: $MARKETPLACE_NAME (pulls from wherever that marketplace was added from)"
+  if ! claude plugin marketplace update "$MARKETPLACE_NAME"; then
+    warn "Marketplace update failed — $PLUGIN_ID left as it was."
+    exit 1
+  fi
+  info "plugin update: $PLUGIN_ID"
+  if ! claude plugin update "$PLUGIN_ID" -y; then
+    warn "Plugin update failed — $PLUGIN_ID left as it was."
+    exit 1
+  fi
+  ok "Updated $PLUGIN_ID via the plugin CLI"
+  info "Restart Claude Code to apply the update."
+}
+
+# refuse the plugin path while a manual copy is installed (both would load: a double install)
+refuse_if_manual() {
+  if have_manual_install; then
+    warn "A manual bq copy is installed ($MANIFEST) — not adding the plugin on top of it."
+    info "Switch to the plugin with: $0 uninstall && $0 plugin"
+    exit 1
+  fi
 }
 
 do_plugin_install() {
@@ -203,6 +243,8 @@ do_plugin_install() {
     info "Install the Claude Code CLI, or run: $0 manual"
     exit 1
   fi
+  refuse_if_manual
+  if plugin_installed; then do_plugin_upgrade; return; fi
   step "Installing bq via the Claude Code plugin CLI"
   if _plugin_install_attempt; then
     ok "Installed $PLUGIN_ID via the plugin CLI"
@@ -214,13 +256,17 @@ do_plugin_install() {
   fi
 }
 
+# returns non-zero if the plugin is installed but the CLI failed to remove it
 do_plugin_uninstall() {
   have_claude_cli || return 0
   plugin_installed || return 0
   step "Uninstalling bq via the Claude Code plugin CLI"
-  claude plugin uninstall "$PLUGIN_ID" -y \
-    || warn "plugin uninstall reported an issue"
-  ok "Removed $PLUGIN_ID (marketplace '$MARKETPLACE_NAME' left in place)"
+  if claude plugin uninstall "$PLUGIN_ID" -y; then
+    ok "Removed $PLUGIN_ID (marketplace '$MARKETPLACE_NAME' left in place)"
+  else
+    warn "Plugin uninstall failed — $PLUGIN_ID is still installed."
+    return 1
+  fi
 }
 
 # --- install (auto: plugin CLI if available, else manual copy) ---------------
@@ -228,6 +274,12 @@ do_install() {
   if [[ "${BQ_MANUAL:-0}" == "1" ]]; then
     info "BQ_MANUAL=1 — using the manual file-copy install."
     do_manual_install
+  elif have_manual_install; then
+    info "Existing manual install found ($MANIFEST) — refreshing it, not adding the plugin on top."
+    do_manual_install
+    info "To switch to the plugin instead: $0 uninstall && $0 plugin"
+  elif have_claude_cli && plugin_installed; then
+    do_plugin_upgrade
   elif have_claude_cli; then
     step "Installing bq via the Claude Code plugin CLI"
     info "(force the file-copy install with: $0 manual)"
@@ -247,6 +299,12 @@ do_install() {
 # --- manual global copy ------------------------------------------------------
 do_manual_install() {
   require_claude_dir
+  # a manual copy on top of the plugin doubles every agent, skill and command
+  if plugin_installed; then
+    warn "bq is already installed as a plugin ($PLUGIN_ID) — a manual copy would duplicate it."
+    info "Remove the plugin first: claude plugin uninstall $PLUGIN_ID -y   (then re-run: $0 manual)"
+    exit 1
+  fi
   clean_legacy
 
   step "Installing bq into $CLAUDE_DIR"
@@ -327,8 +385,9 @@ do_manual_install() {
 
 # --- uninstall ---------------------------------------------------------------
 do_uninstall() {
-  # native plugin install first (no-op if not present)
-  do_plugin_uninstall
+  # native plugin install first (no-op if not present); a failure is reported at the end
+  local plugin_failed=0
+  do_plugin_uninstall || plugin_failed=1
 
   step "Uninstalling bq from $CLAUDE_DIR"
   local removed=0
@@ -371,7 +430,22 @@ do_uninstall() {
     rmdir "$d" 2>/dev/null || true
   done
 
+  if [[ "$plugin_failed" -eq 1 ]]; then
+    warn "Uninstall incomplete: the plugin CLI could not remove $PLUGIN_ID (retry: claude plugin uninstall $PLUGIN_ID)"
+    return 1
+  fi
   if [[ "$removed" -eq 1 ]]; then ok "bq uninstalled"; else info "Nothing to uninstall"; fi
+}
+
+# uninstall then install again in the same mode (decided before uninstall deletes the manifest)
+do_reinstall() {
+  if have_manual_install; then
+    do_uninstall; do_manual_install
+  elif plugin_installed; then
+    do_uninstall; do_plugin_install
+  else
+    do_uninstall; do_install
+  fi
 }
 
 # --- status ------------------------------------------------------------------
@@ -382,7 +456,7 @@ do_status() {
   if have_claude_cli; then
     if plugin_installed; then
       ok "Plugin: installed via the claude CLI"
-      claude plugin list 2>/dev/null | grep -i bq | sed 's/^/    /' || true
+      claude plugin list 2>/dev/null | grep -E '(^|[[:space:]])bq@bq([[:space:]]|$)' | sed 's/^/    /' || true
     else
       info "Plugin: not installed via the claude CLI"
     fi
@@ -422,7 +496,7 @@ case "${1:-install}" in
   manual)       do_manual_install ;;
   status)       do_status ;;
   uninstall)    do_uninstall ;;
-  reinstall)    do_uninstall; do_install ;;
+  reinstall)    do_reinstall ;;
   clean-legacy) require_claude_dir; clean_legacy ;;
   -h|--help|help)
     usage

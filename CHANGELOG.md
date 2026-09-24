@@ -11,8 +11,14 @@ All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.
   `bq:reviewer`, `bq:researcher`, `bq:scribe` (was `bq:bq-<role>`). Agent files moved from
   `agents/bq-<role>.md` to `agents/<role>.md`. **Plugin users:** update any `bq:bq-<role>` reference
   in your own `CLAUDE.md`, project memory (`~/.ai/<project>/`), lessons, and any Claude Code
-  settings that name agents (e.g. permission rules or a default agent). **Manual (`install.sh`) and
-  Copilot installs are unaffected** — they still install as `bq-<role>`.
+  settings that name agents (e.g. permission rules or a default agent). **Manual (`install.sh`)
+  installs are unaffected** — they still install as `bq-<role>`. Upgrade an installed plugin with
+  `/plugin marketplace update bq` then `/plugin update bq@bq` (shell:
+  `claude plugin marketplace update bq && claude plugin update bq@bq`) and restart Claude Code.
+- **`./install.sh install` now prefers the plugin CLI** (it used to copy files into `~/.claude/`).
+  An existing manual install is kept and refreshed rather than doubled up with the plugin; switch
+  with `./install.sh uninstall && ./install.sh plugin`. An already-installed plugin is upgraded in
+  place (`marketplace update` + `plugin update`), and `reinstall` keeps the current mode.
 
 ### Fixed
 
@@ -28,11 +34,15 @@ All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.
 ### Added
 
 - `install.sh`: prefers the `claude plugin` CLI, falls back to a manual copy; `status`, `plugin`,
-  `manual` subcommands.
+  `manual` subcommands. `plugin` refuses while a manual copy is installed; `uninstall` reports
+  failure (no success line) if the plugin CLI couldn't remove the plugin.
 - `install-copilot.sh`: installs the team into GitHub Copilot by transforming the canonical files
-  (ADR 0005), including memory templates; `verify` catches Claude-only leftovers.
+  (the Claude files stay the single source of truth; Copilot files are generated at install time,
+  not maintained in parallel), including
+  memory templates; `verify` catches Claude-only leftovers.
 - `scripts/validate.py` + tests: manifest version sync, agent name/model/tools rules (only the
-  Maestro may spawn), cross-references, marker balance; CI also runs shellcheck.
+  Maestro may spawn), cross-references, marker balance; CI also runs shellcheck and `bash -n`
+  on the installers.
 - `LICENSE` (MIT) and this changelog.
 
 ### Hardened
@@ -43,5 +53,5 @@ All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.
 
 ## [0.2.0]
 
-- Claude Code plugin release (ADR 0004): Maestro + six specialists, `/bq:*` commands, method skills,
-  `~/.ai/<project>/` memory.
+- Claude Code plugin release (repackaged from a GitHub Copilot extension as a native Claude Code plugin):
+  Maestro + six specialists, `/bq:*` commands, method skills, `~/.ai/<project>/` memory.
