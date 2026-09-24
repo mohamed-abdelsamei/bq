@@ -34,7 +34,10 @@ You don't need to memorize which specialist does what — describe the work and 
 /plugin install bq@bq
 ```
 
-(For a local checkout, `/plugin marketplace add /path/to/co-agents` instead.)
+(For a local checkout, `/plugin marketplace add /path/to/co-agents` instead. If the plugin flow is
+blocked, `./install.sh install` from the repo falls back to a manual copy into `~/.claude/` — see the
+README's "Install script" section. To upgrade: `/plugin marketplace update bq`, then
+`/plugin update bq@bq`; coming from 0.2, also check the [CHANGELOG](../CHANGELOG.md).)
 
 **GitHub Copilot (VS Code)** — no marketplace; run the bundled transform-installer from the repo:
 
@@ -43,7 +46,8 @@ You don't need to memorize which specialist does what — describe the work and 
 ```
 
 Reload VS Code, then use the commands with a **dash**: `/bq-init`, `/bq-build`, `/bq-status`, … (see
-the README's "Install into GitHub Copilot" section for details, `status`/`uninstall`, and overrides).
+the README's "Install into GitHub Copilot" section for details, `status`/`verify`/`uninstall`, and
+overrides).
 
 **Point the team at a project** — do this once inside each repo you use it on:
 
@@ -127,6 +131,7 @@ Everything the team decides lands in `~/.ai/<project>/`. You can open and read a
   research/       sourced findings
   reviews/        code reviews + critiques
   lessons/        what to do differently next time
+  archive/        dropped plans, moved aside by /bq:drop
 ```
 
 - Run `/bq:status` any time for a read-only snapshot — in-flight tasks, undelivered specs,
@@ -140,8 +145,8 @@ Everything the team decides lands in `~/.ai/<project>/`. You can open and read a
 ## How the team extends itself
 
 The specialists share deep *method* through **skills** that load only when relevant (debugging,
-research-method, mr-review, critique, decision-and-spec, facilitation, feedback-loop, memory, and the
-bq-team overview). You rarely invoke these directly — the commands and agents pull them in. When a
+research-method, mr-review, critique, decision-and-spec, facilitation, feedback-loop, memory,
+codebase-onboarding, and the bq-team overview). You rarely invoke these directly — the commands and agents pull them in. When a
 lesson from `/bq:retro` proves out across projects, you can promote it into the plugin itself (an
 agent/command/skill edit) — always with your explicit approval, never silently.
 
