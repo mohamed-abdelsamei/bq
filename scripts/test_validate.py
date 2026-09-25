@@ -333,6 +333,72 @@ class SeededDefects(unittest.TestCase):
         self.edit(self.SKILL, "| State | Set by | Leads to |", "| Name | Set by | Leads to |")
         self.assertCaught(f"FAIL: {self.SKILL}: no lesson-states table (header row starting '| State |')")
 
+    # hooks/hooks.json (ADR 0010)
+    HOOKS = "hooks/hooks.json"
+
+    def test_hooks_invalid_json(self):
+        self.edit(self.HOOKS, '"hooks": {', '"hooks": {,')
+        self.assertCaught(f"FAIL: {self.HOOKS}: invalid JSON")
+
+    def test_hooks_missing_wrapper(self):
+        p = self.root / self.HOOKS
+        data = json.loads(p.read_text(encoding="utf-8"))
+        p.write_text(json.dumps(data["hooks"]), encoding="utf-8")
+        self.assertCaught(f"FAIL: {self.HOOKS}: missing required key 'hooks'")
+
+    def test_hooks_timeout_too_long(self):
+        self.edit(self.HOOKS, '"timeout": 5', '"timeout": 30')
+        self.assertCaught(f"FAIL: {self.HOOKS}: hooks.SessionStart[0].hooks[0].timeout must be a number in (0, 5]")
+
+    def hooks_data(self):
+        return json.loads((self.root / self.HOOKS).read_text(encoding="utf-8"))
+
+    def write_hooks(self, data):
+        (self.root / self.HOOKS).write_text(json.dumps(data), encoding="utf-8")
+
+    def test_hooks_missing_timeout(self):
+        data = self.hooks_data()
+        del data["hooks"]["SessionStart"][0]["hooks"][0]["timeout"]
+        self.write_hooks(data)
+        self.assertCaught("hooks.SessionStart[0].hooks[0].timeout must be a number in (0, 5] seconds, got None")
+
+    def test_hooks_unquoted_command(self):
+        data = self.hooks_data()
+        data["hooks"]["SessionStart"][0]["hooks"][0]["command"] = "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/session_start.py"
+        self.write_hooks(data)
+        self.assertCaught(f"FAIL: {self.HOOKS}: hooks.SessionStart[0].hooks[0].command must be exactly python3")
+
+    def test_hooks_command_with_extra_shell(self):
+        data = self.hooks_data()
+        cmd = data["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        data["hooks"]["SessionStart"][0]["hooks"][0]["command"] = cmd + " && curl example.com"
+        self.write_hooks(data)
+        self.assertCaught("hooks.SessionStart[0].hooks[0].command must be exactly python3")
+
+    def test_hooks_banned_import_warns(self):
+        self.assertEqual([w for w in validate.run(self.root).warns if "imports" in w], [])
+        for i, line in enumerate(("import os, subprocess", "from urllib.parse import quote",
+                                  "import http.client", "import socket")):
+            (self.root / f"hooks/extra{i}.py").write_text(f"{line}\n", encoding="utf-8")
+        warns = validate.run(self.root).warns
+        for i, mod in enumerate(("subprocess", "urllib", "http", "socket")):
+            self.assertIn(f"WARN: hooks/extra{i}.py: imports '{mod}'", "\n".join(warns))
+
+    def test_hooks_wrong_type(self):
+        self.edit(self.HOOKS, '"type": "command"', '"type": "prompt"')
+        self.assertCaught(f"FAIL: {self.HOOKS}: hooks.SessionStart[0].hooks[0].type must be 'command'")
+
+    def test_hooks_empty_group(self):
+        p = self.root / self.HOOKS
+        data = json.loads(p.read_text(encoding="utf-8"))
+        data["hooks"]["SessionStart"][0]["hooks"] = []
+        p.write_text(json.dumps(data), encoding="utf-8")
+        self.assertCaught(f"FAIL: {self.HOOKS}: hooks.SessionStart[0].hooks must be a non-empty list")
+
+    def test_hooks_missing_script(self):
+        (self.root / "hooks/session_start.py").unlink()
+        self.assertCaught(f"FAIL: {self.HOOKS}: hooks.SessionStart[0].hooks[0] references missing file 'hooks/session_start.py'")
+
 
 class Frontmatter(unittest.TestCase):
     def test_quoted_escape(self):

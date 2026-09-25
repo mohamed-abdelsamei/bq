@@ -1,0 +1,17 @@
+{
+  "description": "bq learning loop: index lessons in force at session start and remind the model to reflect once after a user correction (ADR 0010). Reads ~/.ai memory; writes nothing.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/session_start.py\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -122,8 +122,7 @@ choices.
 ## End-of-run reflection
 
 **When.** At `/bq:build` and `/bq:debug` close-out, and once per run at `/bq:ship` Step 4 (ship's
-per-task close-outs skip it). <!-- claude-only -->Also when a session hook asks for it after a user
-correction.<!-- copilot: Also at the end of a reply to a user correction. --><!-- /claude-only -->
+per-task close-outs skip it). Also at the end of any reply to a user correction.
 
 1. **Trigger.** Form a candidate only if one fired: (a) the user corrected the team; (b) a blocking
    finding forced a fix round and its cause would recur in a different task; (c) a hard stop fired;

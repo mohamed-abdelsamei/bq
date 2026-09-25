@@ -54,6 +54,19 @@ STATE_NAME = re.compile(r"\s+(?:→|by|—)\s.*$")
 # `Name` or `Name(pattern)`, e.g. `Bash(git:*)`; commas inside parens don't split.
 TOOL_ITEM = re.compile(r"\s*([^,(]+?)\s*(\([^)]*\))?\s*(?:,|$)")
 
+# Hook events bq may use; anything else is likely a typo (WARN only: the platform list grows).
+HOOKS_JSON = "hooks/hooks.json"
+KNOWN_HOOK_EVENTS = {
+    "SessionStart", "SessionEnd", "UserPromptSubmit", "Stop", "SubagentStop", "SubagentStart",
+    "PreToolUse", "PostToolUse", "Notification", "PreCompact",
+}
+HOOK_TIMEOUT_MAX = 5
+PLUGIN_ROOT_PATH = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([^\s\"']+)")
+# The one command shape bq ships: quoted so a plugin root with spaces still works, python3, no args.
+HOOK_COMMAND = re.compile(r'python3 "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/[\w.-]+\.py"')
+# Hooks make no network calls and spawn nothing (ADR 0010); an import of these is suspicious.
+HOOK_BANNED_IMPORT = re.compile(r"^\s*(?:import\s+(?:[\w.]+\s*,\s*)*|from\s+)(socket|urllib|http|subprocess)\b", re.M)
+
 
 class Report:
     def __init__(self, root):
@@ -507,6 +520,68 @@ def check_lesson_format(rep, root):
             rep.fail(skill, f"'- **Status:**' list names '{n}', which is missing from the lesson-states table")
 
 
+def check_hooks(rep, root):
+    """hooks/hooks.json: {"hooks": {Event: [{matcher?, hooks: [{type: command, command, args?, timeout<=5}]}]}},
+    every command is `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<x>.py"` and the file exists, and no
+    hooks/*.py imports socket/urllib/http/subprocess (WARN) (ADR 0010)."""
+    for py in sorted((root / "hooks").glob("*.py")):
+        for m in HOOK_BANNED_IMPORT.finditer(py.read_text(encoding="utf-8", errors="replace")):
+            rep.warn(py, f"imports '{m.group(1)}' (hooks make no network calls and spawn no processes)")
+    path = root / HOOKS_JSON
+    data = load_json(rep, path, ["hooks"])
+    if data is None:
+        return
+    events = data.get("hooks")
+    if not isinstance(events, dict) or not events:
+        rep.fail(path, "'hooks' must be a non-empty object of event name -> list of matcher groups")
+        return
+    for event, groups in events.items():
+        where = f"hooks.{event}"
+        if event not in KNOWN_HOOK_EVENTS:
+            rep.warn(path, f"{where}: unknown hook event '{event}'")
+        if not isinstance(groups, list) or not groups:
+            rep.fail(path, f"{where} must be a non-empty list of matcher groups")
+            continue
+        for i, group in enumerate(groups):
+            gw = f"{where}[{i}]"
+            if not isinstance(group, dict):
+                rep.fail(path, f"{gw} must be an object")
+                continue
+            if "matcher" in group and not isinstance(group["matcher"], str):
+                rep.fail(path, f"{gw}.matcher must be a string")
+            hooks = group.get("hooks")
+            if not isinstance(hooks, list) or not hooks:
+                rep.fail(path, f"{gw}.hooks must be a non-empty list")
+                continue
+            for j, hook in enumerate(hooks):
+                check_hook_entry(rep, root, path, f"{gw}.hooks[{j}]", hook)
+
+
+def check_hook_entry(rep, root, path, where, hook):
+    if not isinstance(hook, dict):
+        rep.fail(path, f"{where} must be an object")
+        return
+    if hook.get("type") != "command":
+        rep.fail(path, f"{where}.type must be 'command' (bq ships no prompt/agent hooks)")
+    command, args = hook.get("command"), hook.get("args", [])
+    if not isinstance(command, str) or not command.strip():
+        rep.fail(path, f"{where}.command must be a non-empty string")
+        command = ""
+    if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
+        rep.fail(path, f"{where}.args must be a list of strings")
+        args = []
+    if command and not HOOK_COMMAND.fullmatch(command):
+        rep.fail(path, f'{where}.command must be exactly python3 "${{CLAUDE_PLUGIN_ROOT}}/hooks/<name>.py", '
+                       f"got {command!r}")
+    timeout = hook.get("timeout")
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not 0 < timeout <= HOOK_TIMEOUT_MAX:
+        rep.fail(path, f"{where}.timeout must be a number in (0, {HOOK_TIMEOUT_MAX}] seconds, got {timeout!r}")
+    for text in [command, *args]:
+        for rel in PLUGIN_ROOT_PATH.findall(text):
+            if not (root / rel).is_file():
+                rep.fail(path, f"{where} references missing file '{rel}'")
+
+
 CHECKS = [
     check_manifests,
     check_agents,
@@ -516,6 +591,7 @@ CHECKS = [
     check_readme_and_templates,
     check_cross_refs,
     check_lesson_format,
+    check_hooks,
 ]
 
 
