@@ -269,6 +269,23 @@ class SeededDefects(unittest.TestCase):
             p.write_bytes(p.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
         self.assertEqual(validate.run(self.root).fails, [])
 
+    # 10. lesson Status line stays in sync between the skill and the template
+    def test_status_line_mismatch(self):
+        self.edit("templates/bq/lessons/lesson-template.md", "- **Status:** Proposed |", "- **Status:** Draft |")
+        self.assertCaught("FAIL: templates/bq/lessons/lesson-template.md: '- **Status:**' line differs from skills/feedback-loop/SKILL.md")
+
+    def test_status_line_missing(self):
+        self.edit("skills/feedback-loop/SKILL.md", "- **Status:**", "- Status:")
+        self.assertCaught("FAIL: skills/feedback-loop/SKILL.md: expected exactly one '- **Status:**' line, found 0")
+
+    def test_status_line_duplicated(self):
+        self.append("templates/bq/lessons/lesson-template.md", "\n- **Status:** Active\n")
+        self.assertCaught("FAIL: templates/bq/lessons/lesson-template.md: expected exactly one '- **Status:**' line, found 2 (a second `- **Status:**` example? rename it, e.g. `Proposal status:`)")
+
+    def test_status_line_second_example_in_skill(self):
+        self.append("skills/feedback-loop/SKILL.md", "\n```markdown\n- **Status:** Drafted | Accepted\n```\n")
+        self.assertCaught("FAIL: skills/feedback-loop/SKILL.md: expected exactly one '- **Status:**' line, found 2 (a second `- **Status:**` example? rename it, e.g. `Proposal status:`)")
+
 
 class Frontmatter(unittest.TestCase):
     def test_quoted_escape(self):

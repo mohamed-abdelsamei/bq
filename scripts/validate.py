@@ -43,6 +43,9 @@ BARE_AGENT_REF = re.compile(r"(?<![\w/.:-])bq-([a-z][a-z0-9-]*)")
 COMMAND_REF = re.compile(r"(?<![\w/.])/bq:([a-z][a-z0-9-]*)")
 # Frontmatter keys the checks read; a value the mini-parser can't represent is a FAIL.
 CHECKED_KEYS = {"name", "description", "model", "tools", "argument-hint"}
+# The lesson Status vocabulary lives in both files; they must agree line-for-line.
+STATUS_SYNC = ("skills/feedback-loop/SKILL.md", "templates/bq/lessons/lesson-template.md")
+STATUS_LINE = re.compile(r"(?m)^- \*\*Status:\*\*.*$")
 # `Name` or `Name(pattern)`, e.g. `Bash(git:*)`; commas inside parens don't split.
 TOOL_ITEM = re.compile(r"\s*([^,(]+?)\s*(\([^)]*\))?\s*(?:,|$)")
 
@@ -378,6 +381,28 @@ def check_cross_refs(rep, root):
                 rep.fail(f, f"references /bq:{c} but commands/{c}.md does not exist")
 
 
+def check_status_sync(rep, root):
+    lines = {}
+    for rel in STATUS_SYNC:
+        p = root / rel
+        if not p.exists():
+            rep.fail(p, "missing (its '- **Status:**' line must match the other lesson file)")
+            continue
+        text = read_text(rep, p)
+        if text is None:
+            continue
+        found = [m.group(0).rstrip() for m in STATUS_LINE.finditer(text)]
+        if len(found) != 1:
+            rep.fail(p, f"expected exactly one '- **Status:**' line, found {len(found)}"
+                     + (" (a second `- **Status:**` example? rename it, e.g. `Proposal status:`)" if len(found) > 1 else ""))
+            continue
+        lines[rel] = found[0]
+    if len(lines) == 2:
+        a, b = STATUS_SYNC
+        if lines[a] != lines[b]:
+            rep.fail(root / b, f"'- **Status:**' line differs from {a}: {lines[b]!r} != {lines[a]!r}")
+
+
 CHECKS = [
     check_manifests,
     check_agents,
@@ -386,6 +411,7 @@ CHECKS = [
     check_markers,
     check_readme_and_templates,
     check_cross_refs,
+    check_status_sync,
 ]
 
 
