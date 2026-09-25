@@ -5,7 +5,8 @@ Silent unless ${AI_HOME:-~/.ai}/<project>/ exists. Reads this project's
 lessons/ then ${AI_HOME}/shared/lessons/; lists lessons in force (Active or
 `Shared → ...`, deduped by title; a missing Status counts as Active, legacy
 `Promotion-nominated` reads as Active, an unrecognized Status is not in force) as
-`title — "first paragraph of Future behavior"` (fallback: Lesson), each
+`"title" — "first paragraph of Future behavior"` (fallback: Lesson; both
+sanitized to one quoted span each), each
 capped at ENTRY_MAX chars, at most MAX_ENTRIES entries and MAX_CHARS
 characters of context in total (up to SHARED_SLOTS of the entries are kept
 for shared lessons when any exist), plus a learning-status line (only when
@@ -27,6 +28,7 @@ import _bqhook as h  # noqa: E402
 MAX_ENTRIES = 8
 MAX_CHARS = 3200
 ENTRY_MAX = 300
+TITLE_MAX = ENTRY_MAX - 20
 SHARED_SLOTS = 2
 MAX_BYTES = 64 * 1024
 IN_FORCE = {"Active", "Shared"}
@@ -38,6 +40,7 @@ DATE = r"(\d{4}-\d{2}-\d{2})"
 REVIEWED = re.compile(FIELD.format("Last reviewed") + DATE, re.M)
 DATED = re.compile(FIELD.format("Date") + DATE, re.M)
 FLAGGED = re.compile(r"·\s*(?:Missed|Contradicted)\b")
+CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 LOG_DATE = re.compile(r"^\s*(?:[-*]\s+)?" + DATE)
 # Corrections are model-judged, not regex-detected: one standing reminder instead of a detector hook.
 REFLECT = (
@@ -118,6 +121,11 @@ def status_of(text):
     return word if word in KNOWN else "Unrecognized"
 
 
+def quotable(s):
+    """Safe inside one "..." span: `"` → `'`, control characters dropped."""
+    return CONTROL.sub("", s.replace('"', "'"))
+
+
 def parse(path):
     with open(path, "rb") as f:
         text = f.read(MAX_BYTES).decode("utf-8", errors="replace")
@@ -125,14 +133,14 @@ def parse(path):
     title = next((l[2:].strip() for l in lines if l.startswith("# ")), path.stem)
     status = status_of(text)
     rule = section_lead(lines, "## future behavior") or section_lead(lines, "## lesson")
-    rule = rule.replace('"', "'")  # keep the quoted rule one quoted span
-    entry = f"- {title}"
+    shown = quotable(title)
+    if len(shown) > TITLE_MAX:  # cap the title alone so truncation never cuts its closing quote
+        shown = shown[: TITLE_MAX - 1].rstrip() + "…"
+    entry = f'- "{shown}"'
     if rule:
-        entry += f' — "{rule}"'
-        if len(entry) > ENTRY_MAX:
-            entry = entry[: ENTRY_MAX - 2].rstrip() + '…"'
-    elif len(entry) > ENTRY_MAX:
-        entry = entry[: ENTRY_MAX - 1].rstrip() + "…"
+        entry += f' — "{quotable(rule)}"'
+    if len(entry) > ENTRY_MAX:
+        entry = entry[: ENTRY_MAX - 2].rstrip() + '…"'
     return title, status, entry, flagged_since(text, lines)
 
 

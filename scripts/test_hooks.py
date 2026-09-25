@@ -153,11 +153,11 @@ class SessionStart(HookBase):
         w(self.shared, "2026-08-01-shared.md", lesson("Shared rule", future="Cross-project rule."))
         ctx = self.index()
         self.assertIn("Lessons in force (myproj)", ctx)
-        self.assertIn('- Active one — "Snapshot before testing. continued on a wrapped line."', ctx)
-        self.assertIn('- No status — "Missing Status is Active. continued', ctx)
-        self.assertIn('- Missed one — "Do the thing. continued', ctx)
-        self.assertIn('- Fallback one — "Use the Lesson line."', ctx)
-        self.assertIn('- Shared rule — "Cross-project rule. continued', ctx)
+        self.assertIn('- "Active one" — "Snapshot before testing. continued on a wrapped line."', ctx)
+        self.assertIn('- "No status" — "Missing Status is Active. continued', ctx)
+        self.assertIn('- "Missed one" — "Do the thing. continued', ctx)
+        self.assertIn('- "Fallback one" — "Use the Lesson line."', ctx)
+        self.assertIn('- "Shared rule" — "Cross-project rule. continued', ctx)
         for absent in ("Proposed one", "Old", "Gone", "Promo", "Readme", "Template", "Second paragraph"):
             self.assertNotIn(absent, ctx)
         self.assertLess(ctx.index("Active one"), ctx.index("Shared rule"))  # project before shared
@@ -174,7 +174,7 @@ class SessionStart(HookBase):
             self.write(self.lessons, f"2026-09-{i + 10}-l.md", lesson(f"Lesson {i}", future="x" * 500))
         ctx = self.index()
         self.assertLessEqual(len(ctx), 3200)
-        entries = [l for l in ctx.splitlines() if l.startswith("- Lesson ")]
+        entries = [l for l in ctx.splitlines() if l.startswith('- "Lesson ')]
         self.assertLessEqual(len(entries), 8)
         self.assertTrue(all(len(e) <= 300 for e in entries))
         self.assertIn("more not shown", ctx)
@@ -185,13 +185,32 @@ class SessionStart(HookBase):
         ctx = self.context()
         self.assertEqual(ctx.splitlines()[1], HEADER)
         self.assertNotIn("Apply them", ctx)
-        self.assertIn('- Quoted — "Say \'hi\' first. continued on a wrapped line."', ctx)
+        self.assertIn('- "Quoted" — "Say \'hi\' first. continued on a wrapped line."', ctx)
 
     def test_truncated_rule_keeps_closing_quote(self):
         self.write(self.lessons, "2026-09-01-long.md", lesson("Long", future="w" * 500))
-        entry = next(l for l in self.index().splitlines() if l.startswith("- Long"))
+        entry = next(l for l in self.index().splitlines() if l.startswith('- "Long"'))
         self.assertLessEqual(len(entry), 300)
         self.assertTrue(entry.endswith('…"'), entry)
+
+    def test_title_is_quoted_and_sanitized(self):
+        self.write(self.lessons, "2026-09-01-t.md", lesson('Say "no" \x07to `rm`'))
+        self.assertIn('- "Say \'no\' to `rm`" — "Do the thing.', self.index())
+
+    def test_long_title_without_rule_keeps_closing_quote(self):
+        self.write(self.lessons, "2026-09-01-t.md", "# " + "T" * 400 + "\n\n- **Status:** Active\n")
+        entry = next(l for l in self.index().splitlines() if l.startswith('- "TTT'))
+        self.assertLessEqual(len(entry), 300)
+        self.assertTrue(entry.endswith('…"'), entry)
+
+    def test_long_title_with_rule_keeps_two_quoted_spans(self):
+        for n in range(286, 300):
+            self.write(self.lessons, f"2026-09-01-t{n}.md", lesson("T" * n))
+        entries = [l for l in self.index().splitlines() if l.startswith('- "TTT')]
+        self.assertTrue(entries)
+        for e in entries:
+            self.assertLessEqual(len(e), 300)
+            self.assertEqual(e.count('"'), 4, e)
 
     def test_status_parsing(self):
         w = self.write
@@ -204,7 +223,7 @@ class SessionStart(HookBase):
         w(self.lessons, "2026-09-07-g.md", lesson("Unbulleted proposed", status="**Status:** Proposed\n"))
         ctx = self.index()
         for present in ("Legacy nominated", "Missing state", "Star bullet"):
-            self.assertIn(f"- {present} —", ctx)
+            self.assertIn(f'- "{present}" —', ctx)
         for absent in ("Unbulleted dropped", "Unknown state", "Empty state", "Unbulleted proposed"):
             self.assertNotIn(absent, ctx)
         self.assertIn("Learning status: 1 Proposed", ctx)
@@ -261,7 +280,7 @@ class SessionStart(HookBase):
           log="- 2026-09-09 · /bq:build · Missed — before review"))
         ctx = self.context()
         self.assertNotIn("Learning status", ctx)
-        self.assertIn("- A —", ctx)
+        self.assertIn('- "A" —', ctx)
         self.assertIn(STANDING, ctx)
 
     def test_project_named_shared_is_silent(self):
@@ -286,9 +305,9 @@ class SessionStart(HookBase):
             self.write(self.shared, f"2026-08-0{i + 1}-s.md", lesson(f"Shared {i}", future="y" * 500))
         ctx = self.index()
         self.assertLessEqual(len(ctx), 3200)
-        self.assertEqual(len([l for l in ctx.splitlines() if l.startswith("- Own ")]), 6)
-        self.assertIn("- Shared 2 —", ctx)
-        self.assertIn("- Shared 1 —", ctx)
+        self.assertEqual(len([l for l in ctx.splitlines() if l.startswith('- "Own ')]), 6)
+        self.assertIn('- "Shared 2" —', ctx)
+        self.assertIn('- "Shared 1" —', ctx)
         self.assertIn("(+5 more not shown)", ctx)
 
     def test_symlinked_oversized_and_special_lessons_skipped(self):
@@ -299,7 +318,7 @@ class SessionStart(HookBase):
         os.mkfifo(self.lessons / "2026-09-03-fifo.md")
         self.write(self.lessons, "2026-09-04-ok.md", lesson("Fine one"))
         ctx = self.context()  # must not hang on the FIFO
-        self.assertIn("- Fine one —", ctx)
+        self.assertIn('- "Fine one" —', ctx)
         for absent in ("Via symlink", "Too big"):
             self.assertNotIn(absent, ctx)
         self.assertNotIn("Learning status", ctx)

@@ -11,6 +11,8 @@ manifest in [.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json
 - `commands/*.md` — the `/bq:*` slash commands
 - `skills/*/SKILL.md` — method skills loaded on demand by their `description`, including the
   `bq-team` overview skill
+- `hooks/` — `hooks.json` plus the stdlib `session_start.py` behind the single SessionStart hook
+  (see [Learning loop](#learning-loop))
 - `templates/bq/` — starter content for a project's `~/.ai/<project>/` memory, used by `/bq:init` and
   `/bq:onboard`
 - `.claude-plugin/plugin.json` — the plugin manifest
@@ -19,7 +21,7 @@ manifest in [.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json
 The marketplace entry's `source` is `"./"`, so the whole repo is copied into the plugin cache (a
 local-folder marketplace copies even gitignored files). The rest — `install.sh` and
 `install-copilot.sh`, `scripts/validate.py`, `docs/`, `CHANGELOG.md`, the root `CLAUDE.md` — ships
-but is inert: the plugin loader registers `agents/`, `commands/`, `skills/` and the manifests, and
+but is inert: the plugin loader registers `agents/`, `commands/`, `skills/`, `hooks/` and the manifests, and
 `templates/bq/` is only read at runtime by `/bq:init` and `/bq:onboard` (`claude plugin validate`
 warns that a root `CLAUDE.md` is not loaded as context).
 
@@ -49,6 +51,8 @@ The canonical Claude files feed three targets; the installers rewrite names on t
 keeps that order and only repoints its paths to follow `CLAUDE_CONFIG_DIR`; `install-copilot.sh`
 replaces it with the Copilot templates path plus the generate fallback.
 
+Neither installer copies `hooks/`: the SessionStart hook exists only under a plugin install.
+
 Wording that only fits Claude Code is wrapped in claude-only markers, which `install-copilot.sh`
 swaps for the Copilot alternative — the syntax is in the README's
 [Contributing / validating](../README.md#contributing--validating) section.
@@ -72,13 +76,34 @@ swaps for the Copilot alternative — the syntax is in the README's
 
 ## Always-on identity
 
-A Claude Code plugin **cannot** inject an always-on instruction (there is no equivalent to Copilot's
-always-on `copilot-instructions.md`). The team identity, roster, routing, and standing rules ship as
-the on-demand `skills/bq-team/SKILL.md`, which `agents/maestro.md` loads (rather than
-duplicating), so there is one home for the conventions and no always-on file is required. Load the
-`bq-team` skill (or talk to the Maestro, `bq:maestro`) to bring the conventions into context. The
-Copilot install is the exception: it writes the same skill as an always-on
-`bq-team.instructions.md` (`applyTo: '**'`).
+The team identity, roster, routing, and standing rules ship as the on-demand
+`skills/bq-team/SKILL.md`, which `agents/maestro.md` loads (rather than duplicating), so there is one
+home for the conventions. Load the `bq-team` skill (or talk to the Maestro, `bq:maestro`) to bring
+the conventions into context. The plugin's SessionStart hook (below) injects lessons, not the
+identity. The Copilot install writes the same skill as an always-on `bq-team.instructions.md`
+(`applyTo: '**'`).
+
+## Learning loop
+
+Lessons are applied, checked, and reviewed (the full rules live in the `feedback-loop` skill):
+
+- **Lessons in force.** `/bq:build`, `/bq:debug` and `/bq:ship` select at most 3 relevant Active
+  lessons at Step 0; every specialist brief carries them.
+- **Reviewer-graded Log.** The reviewer grades each `Applied | Missed | Contradicted | n/a` with
+  evidence from the diff or a test; the Maestro appends those verdicts to the lesson's `## Log`
+  (capped per run). Only reviewer verdicts, plus a miss the user confirms, become Log lines.
+- **End-of-run reflection.** On a trigger (user correction, recurring fix round, hard stop,
+  untrustworthy verification) a run offers at most one lesson and ends with one `Learning:` verdict
+  line; nothing becomes Active without the user's yes.
+- **Retro and status.** `/bq:retro` triages `Proposed` lessons and acts on `Missed`/`Contradicted`
+  lines since each lesson's `Last reviewed`; `/bq:status` shows a Learning line when non-zero.
+- **SessionStart hook** (`hooks/hooks.json` → `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/session_start.py"`,
+  5 s timeout). In a project with `${AI_HOME:-~/.ai}/<project>/`, it emits `additionalContext`: a
+  "Lessons in force" index (≤8 entries, ≤3,200 chars, framed as quoted data) and one standing line
+  telling the model to reflect once after a user correction. The model judges what a correction is.
+  It reads `~/.ai`, writes nothing, is silent without bq memory, needs `python3` on PATH, and fails
+  open (always exit 0). Plugin install only: under the manual and Copilot installs the
+  `feedback-loop` skill carries the same behavior on demand.
 
 ## Source of truth
 

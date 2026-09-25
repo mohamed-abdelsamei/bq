@@ -3,6 +3,63 @@
 All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.org/); while
 `0.x`, a minor bump may break.
 
+## [0.5.0] — 2026-09-25
+
+### Added
+
+- **Closed-loop learning.** Lessons now get applied, checked, and reviewed, not just written.
+  - **Lessons in force.** At Step 0 of `/bq:build`, `/bq:debug` and `/bq:ship`, the Maestro picks
+    at most 3 relevant Active lessons (the chain's roles plus the task's keywords; tie-break:
+    task-specific first, then most recent) and every specialist brief carries them.
+  - **A reviewer-graded `## Log`.** The reviewer grades each lesson in force `Applied | Missed |
+    Contradicted | n/a`, citing the diff or a test (no violation seen means `n/a`). The Maestro
+    appends those verdicts to the lesson's `## Log`: at most 3 per run, Missed and Contradicted
+    first, and a fix round never turns a first-pass Missed into Applied. `/bq:ship` logs only
+    Missed/Contradicted per task, under a cap of 3 for the whole run. Only reviewer verdicts are
+    logged, plus a `correction · Missed` line when the user catches a missed lesson that no
+    reviewer flagged, and only once the user confirms it. `/bq:debug` has no reviewer, so it logs
+    nothing. Log lines never count as promotion evidence.
+  - **End-of-run reflection** (`feedback-loop` skill). Triggers: a user correction that would
+    change behavior in other tasks, a blocking fix round likely to recur, a hard stop, or
+    verification that couldn't be trusted. Each run checks for duplicates against existing
+    lessons, offers at most one new lesson (a yes/no ask in build and debug; `Proposed` at
+    `/bq:ship` Step 4), and ends with exactly one `Learning:` verdict line (`Learning: pending — …`
+    while the ask is open). A `Learning:` line is never a Log line.
+  - **`Last reviewed`**, a new lesson field. Any retro decision on a lesson sets it. Missed and
+    Contradicted lines are counted from that date on (if it's missing, from Date).
+  - **`/bq:retro` triage.** A bare `/bq:retro` first offers to triage `Proposed` lessons (Active,
+    or Dropped with a reason, on the user's word), then moves on to housekeeping. 2+ Missed lines
+    lead to a recommendation to make Future behavior checkable or add it to the reviewer's checklist
+    (never promotion). Any Contradicted line leads to a recommendation to supersede or drop.
+  - **`/bq:status` Learning line.** At most 2 lines, shown only when non-zero: Proposed lessons
+    (count and oldest age), and lessons with Missed/Contradicted since Last reviewed.
+- **SessionStart hook** (`hooks/hooks.json`, `hooks/session_start.py`), plugin install only.
+  - **What it does.** In a project that has `~/.ai/<project>/` memory, it injects a "Lessons in
+    force" index framed as quoted data: this project's and shared Active lessons, at most 8
+    entries and 3,200 characters, with 2 slots kept for shared lessons. It adds a learning-status
+    line, plus one standing line: after a user correction, reflect once and end with a `Learning:`
+    line. The model decides what counts as a correction.
+  - **What it doesn't do.** It is silent in projects with no bq memory. It reads `~/.ai` and writes
+    nothing.
+  - **How it runs.** Stdlib `python3` in quoted shell form, with a 5 s timeout. It fails open.
+  - **Where it runs.** Manual and Copilot installs don't get the hook. There, the `feedback-loop`
+    skill carries the same behavior on demand.
+  - **Not shipped.** A regex correction detector (UserPromptSubmit/Stop hooks) was built during this
+    cycle and withdrawn before release, after scoring precision 0.56 / recall 0.17 on held-out
+    prompts.
+- `validate.py`:
+  - checks that the lesson format (fields, Log line, states table) matches between the
+    `feedback-loop` skill and the lesson template;
+  - checks the shape of `hooks/hooks.json` (event, timeout ≤ 5 s, exact quoted `python3` command,
+    script exists), and warns on network or process imports in hook scripts;
+  - warns when the `feedback-loop` skill passes 1,900 words;
+  - `scripts/test_hooks.py` pipes sample JSON through the hook.
+
+### Changed
+
+- The docs no longer say a plugin can't inject context. The hook does, for lessons. The team
+  identity stays the on-demand `bq-team` skill.
+
 ## [0.4.0] — 2026-09-25
 
 ### Added

@@ -138,6 +138,17 @@ Everything the team decides lands in `~/.ai/<project>/`. You can open and read a
 - Run `/bq:status` any time for a read-only snapshot — in-flight tasks, undelivered specs,
   decisions still waiting on code, stale knowledge.
 - `/bq:ask "why did we choose X?"` answers from the record, in plain language.
+- **Lessons get applied and checked.** Build, debug and ship put up to 3 relevant Active lessons in
+  every brief; the reviewer grades each (`Applied`, `Missed`, `Contradicted`, `n/a`) and that verdict
+  lands in the lesson's `## Log`. A run that hit a correction, a recurring fix, or a hard stop ends
+  with one `Learning:` line and at most one yes/no "keep this as a lesson?" — nothing is kept without
+  your yes.
+- **Corrections are picked up in plain chat too (via a standing reminder).** Under a plugin install, a SessionStart hook reminds
+  the model to reflect once after you correct it, and lists the project's lessons in force. Manual
+  and Copilot installs have no hook; the same behavior comes from the feedback-loop skill when it
+  loads.
+- A bare `/bq:retro` triages lessons waiting on your yes (`Proposed`) and flags lessons that keep
+  getting `Missed`; `/bq:status` shows a one- or two-line Learning summary when anything is pending.
 - Lessons that generalize across projects can be **shared** (with your approval) to
   `~/.ai/shared/lessons/`, so they apply everywhere — captured and shared via `/bq:retro`.
 - After a teammate merges changes, run `/bq:refresh` so the team's understanding of the project's
@@ -156,7 +167,10 @@ never silently.
 
 - **Memory is per machine.** `~/.ai/<project>/` lives on *your* machine, keyed by the project folder
   name. Two different projects with the same folder name would share a memory folder — rename one, or
-  set `$AI_HOME` per project, if that ever collides.
+  set `$AI_HOME` per project, if that ever collides. Under a plugin install the SessionStart hook
+  makes that sharing always-on: both repos see the same lessons index.
+- **The hook needs `python3`.** Without it on your PATH the SessionStart hook fails open — the session
+  starts normally, just without the lessons index.
 - **Guardrails are guidance, not a sandbox.** "Stay in your lane" and write-scoping are rules the
   agents follow, not hard permissions. Keep your code under version control so any unintended change
   shows up in the diff.

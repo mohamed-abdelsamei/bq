@@ -160,6 +160,18 @@ class SeededDefects(unittest.TestCase):
         self.assertTrue(any("skills/debugging/SKILL.md: description is" in w for w in rep.warns), rep.warns)
 
 
+    def test_feedback_loop_word_ceiling_warns(self):
+        rel = "skills/feedback-loop/SKILL.md"
+        self.assertEqual([w for w in self.baseline_warns() if "words" in w], [])
+        p = self.root / rel
+        p.write_text(p.read_text(encoding="utf-8") + "\n" + "filler " * 400 + "\n", encoding="utf-8")
+        rep = validate.run(self.root)
+        self.assertEqual(rep.fails, [])
+        self.assertTrue(any(f"WARN: {rel}: " in w and "> 1900 words" in w for w in rep.warns), rep.warns)
+
+    def baseline_warns(self):
+        return validate.run(self.root).warns
+
     def append(self, rel, text):
         p = self.root / rel
         p.write_text(p.read_text(encoding="utf-8") + text, encoding="utf-8")

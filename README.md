@@ -97,13 +97,17 @@ The manual copy uses a clean, collision-proof `bq` namespace:
 | agents    | `~/.claude/agents/bq/`    | agents `bq-maestro`, `bq-architect`, … (a plugin install names them `bq:<role>`) |
 | templates | `~/.claude/bq-templates/` | scaffolding for `/bq:init` and `/bq:onboard` |
 
+The manual copy skips `hooks/`, so there's no SessionStart lessons index (see
+[Learning loop](#learning-loop)); the `feedback-loop` skill carries the same behavior on demand.
+
 It tracks what it wrote in `~/.claude/.bq-install-manifest`, so `uninstall` removes exactly those
 files. Target another dir with `CLAUDE_CONFIG_DIR=/path ./install.sh manual`. Restart Claude Code
 afterward to pick up the changes.
 
-> **Always-on note:** a plugin cannot inject an always-on instruction into your project. The team
-> identity, roster, and routing ship as the on-demand `bq-team` skill, which the Maestro loads —
-> load that skill or talk to the Maestro (`bq:maestro`) to bring the conventions into context.
+> **Always-on note:** the plugin install's one SessionStart hook injects only the lessons index and
+> a reflection reminder (see [Learning loop](#learning-loop)). The team identity, roster, and routing
+> ship as the on-demand `bq-team` skill, which the Maestro loads — load that skill or talk to the
+> Maestro (`bq:maestro`) to bring the conventions into context.
 
 ### Install into GitHub Copilot (VS Code)
 
@@ -138,9 +142,10 @@ manifest sit next to the skills folder). Reload VS Code
 (**Developer: Reload Window**) afterward, then type `/` in Copilot Chat to run `/bq-build`,
 `/bq-brainstorm`, `/bq-status`, ….
 
-> Unlike a Claude plugin, Copilot **can** carry an always-on instruction: the `bq-team` identity is
+> Unlike the Claude plugin, the Copilot install carries the `bq-team` identity always-on: it is
 > installed as a user-level `*.instructions.md` with `applyTo: '**'`, so the roster and routing are
-> in context everywhere without loading a skill.
+> in context everywhere without loading a skill. It installs no hooks, so there's no SessionStart
+> lessons index; the `feedback-loop` skill carries the same behavior on demand.
 
 ## Commands
 
@@ -225,6 +230,28 @@ across projects live in `~/.ai/shared/lessons/`.
   archive/         dropped plans, moved aside by /bq:drop
 ```
 
+### Learning loop
+
+Lessons don't just get written — they get applied and checked:
+
+- **Lessons in force.** `/bq:build`, `/bq:debug` and `/bq:ship` pick at most 3 relevant Active
+  lessons and put them in every specialist's brief.
+- **Reviewer-graded Log.** The reviewer marks each one `Applied | Missed | Contradicted | n/a`, citing
+  the diff or a test, and the Maestro appends that verdict to the lesson's `## Log`. Only reviewer
+  verdicts (and a miss you confirm) are logged — no one grades their own work.
+- **End-of-run reflection.** After a user correction, a recurring fix round, a hard stop, or
+  untrustworthy verification, the run offers at most one new lesson (a yes/no ask) and ends with one
+  `Learning:` verdict line. Nothing becomes Active without your yes.
+- **Triage and follow-up.** A bare `/bq:retro` triages `Proposed` lessons first; repeated `Missed`
+  lines get a rewrite recommendation, a `Contradicted` one a supersede-or-drop recommendation.
+  `/bq:status` shows a short Learning line when anything is pending.
+- **SessionStart hook (plugin install only).** In a project with `~/.ai/<project>/` memory, the
+  plugin's single hook injects a "Lessons in force" index (≤8 entries, about 800 tokens) and one
+  standing line: when you correct the team, reflect once and end with a `Learning:` line. It reads
+  `~/.ai`, writes nothing, stays silent without bq memory, needs `python3` on your PATH, and fails
+  open. Manual and Copilot installs don't get it; the `feedback-loop` skill carries the same
+  behavior on demand.
+
 Durable, polished docs (architecture overviews, guides) live in `docs/` — one home per artifact, no
 duplicates. Conventions are documented in the bundled **memory** skill.
 
@@ -240,7 +267,7 @@ copy-pasted into every persona. Claude loads each on demand when the task matche
 | **codebase-onboarding** | Understanding an unfamiliar repo without modifying it (powers `/bq:onboard`) |
 | **decision-and-spec** | Testable requirements (given/when/then) and ADRs with real rationale |
 | **research-method** | Sourcing, confidence rating, and citation discipline |
-| **feedback-loop** | Capturing lessons learned so future agents change behavior, and sharing proven ones (powers `/bq:retro`) |
+| **feedback-loop** | Capturing lessons, applying the ones in force, end-of-run reflection with a `Learning:` verdict, and sharing proven ones (powers `/bq:retro`) |
 | **plugin-promotion** | The rules for turning proven lessons into approved plugin edits — evidence gate, sanitization, self-edit ban (powers `/bq:improve`) |
 | **facilitation** | Running a debate that ends in a decision (steelman, surface assumptions) |
 | **critique** | Red-teaming a decision/plan/idea — three lenses + a verdict (powers `/bq:review`, `/bq:grill`) |
@@ -257,11 +284,12 @@ The repo **is** the plugin — the files are native Claude Code plugin component
 agents/                 <role>.md — the Maestro + six specialists (subagents)
 commands/               *.md — the /bq:* commands
 skills/                 <name>/SKILL.md — method skills loaded on demand (incl. the bq-team overview)
+hooks/                  hooks.json + session_start.py — the SessionStart lessons index (plugin install only)
 templates/bq/           starting content for a project's ~/.ai/<project>/ memory (init/onboard)
 docs/                   architecture overview + usage guide
 install.sh              Claude Code installer (plugin CLI or manual copy)
 install-copilot.sh      GitHub Copilot installer (transforms the canonical files)
-scripts/                validate.py + its tests
+scripts/                validate.py + tests for the validator and the hook
 .github/workflows/      CI: validator, validator tests, shellcheck + bash -n of the installers
 CLAUDE.md               contributor notes for editing the plugin
 CHANGELOG.md, LICENSE   release notes; MIT license
@@ -277,7 +305,7 @@ Edit the canonical files directly (conventions in [CLAUDE.md](CLAUDE.md)), then 
 
 ```
 python3 scripts/validate.py                                   # manifests, frontmatter, tools, cross-refs, markers
-python3 -m unittest discover -s scripts -p 'test_*.py'        # the validator's own tests
+python3 -m unittest discover -s scripts -p 'test_*.py'        # validator + hook tests
 shellcheck install.sh install-copilot.sh                      # lint the installers
 bash -n install.sh && bash -n install-copilot.sh              # syntax-check the installers
 ```
@@ -325,8 +353,11 @@ catches leftovers.
 
 - **Guardrails are instructional, not enforced.** Memory write-scoping and "stay in your lane" rules
   are prose the model follows, not hard permissions. Agents can do whatever their granted tools allow.
-- **No always-on injection.** A plugin can't ship a project-wide always-on instruction; the team
-  identity is an on-demand skill (`bq-team`) that the Maestro loads.
+- **The hook injects lessons, not the team identity.** The SessionStart hook's index and
+  reflection line are all it adds; the team identity stays an on-demand skill (`bq-team`) that the
+  Maestro loads. The hook needs `python3` on your PATH (it fails open without it) and is
+  plugin-install only. Memory is keyed by folder name, so two repos with the same basename share one
+  lessons index.
 - **Brainstorms cost tokens.** Convening several specialists across rounds is expensive; pick the
   smallest table that still disagrees, and prefer a single rebuttal round.
 

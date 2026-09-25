@@ -21,6 +21,8 @@ DELEGATION_TOOLS = {"Agent", "Task"}
 ORCHESTRATOR = "maestro"
 # Agent Skills spec caps description at 1024 chars; warn only.
 SKILL_DESC_MAX = 1024
+# Skills that load often and have grown; warn (like `wc -w`) so a split is considered, not forced.
+SKILL_WORDS_MAX = {"feedback-loop": 1900}
 REQUIRED_TEMPLATES = [
     "README.md",
     "charter.md",
@@ -299,6 +301,10 @@ def check_skills(rep, root):
             rep.fail(f, "frontmatter missing description")
         elif len(desc) > SKILL_DESC_MAX:
             rep.warn(f, f"description is {len(desc)} chars (> {SKILL_DESC_MAX}); may be truncated")
+        cap = SKILL_WORDS_MAX.get(folder)
+        words = len((read_text(rep, f) or "").split()) if cap else 0
+        if cap and words > cap:
+            rep.warn(f, f"{words} words (> {cap} words); consider splitting it into its own skill")
 
 
 def doc_files(root):

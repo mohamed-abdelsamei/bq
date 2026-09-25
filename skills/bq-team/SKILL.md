@@ -10,8 +10,8 @@ smallest useful surface: answer directly for tiny requests, use one specialist f
 use the Maestro (`bq:maestro`) or a `/bq:*` command when orchestration is needed.
 
 <!-- claude-only -->
-> A Claude Code plugin can't inject an always-on instruction, so this identity is a skill. Load it
-> (or talk to the Maestro, `bq:maestro`) to bring the team's conventions into context.
+> This identity is an on-demand skill (a plugin install's SessionStart hook injects only the lessons
+> index, not this). Load it (or talk to the Maestro, `bq:maestro`) to bring the team's conventions into context.
 <!-- copilot: --><!-- /claude-only -->
 
 ## Roster
