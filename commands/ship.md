@@ -70,8 +70,8 @@ Pick the next pending task in **dependency order** (a task whose deps are all `[
    a clear message (what shipped + the task reference). If this task cleared the **last open item**
    for its requirement, mark that requirement `Status: Delivered` (stamp *Delivered by*) so the shipped spec stops
    reading as `Active`. Append the reviewer's lesson verdicts to `## Log` per the **feedback-loop**
-   skill (cap and priority there). If the task exposed a reusable lesson, capture it with `/bq:retro`
-   before moving on. One task per commit, so the history reads as a clean trail the user can review.
+   skill (cap and priority there); skip reflection here. One task per commit, so the history reads
+   as a clean trail the user can review.
 
 Before each task and during it, watch for the four hard stops. If none fire, move straight to the
 next task — no check-in with the user.
@@ -88,5 +88,6 @@ When the backlog is clear **or** a hard stop fired, stop and report to the user:
 
 Have **scribe** (or do it yourself) record the run — what shipped and any decisions made along the
 way — to `~/.ai/<project>/`. Then offer the next move: resume the loop (`/bq:ship`), open a PR with
-`/bq:mr`, or `/bq:review` the branch. **You commit on the branch; you do not push, open PRs, or
-deploy without the user's word** (hard stop #4).
+`/bq:mr`, or `/bq:review` the branch. Last, do one run-level reflection per the feedback-loop skill's
+End-of-run reflection, listing any Proposed lesson written; end with its `Learning:` line. **You
+commit on the branch; you do not push, open PRs, or deploy without the user's word** (hard stop #4).

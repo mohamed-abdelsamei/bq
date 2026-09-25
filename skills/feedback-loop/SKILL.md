@@ -78,8 +78,8 @@ A lesson with no Status (legacy) is treated as **Active**.
 
 | State | Set by | Leads to |
 |---|---|---|
-| Proposed | legacy lessons, or a future end-of-run reflection (deferred) — `/bq:retro` Step 1 candidates are not saved as files | Active, Dropped |
-| Active | `/bq:retro` Step 3, when the user accepts a lesson | Shared, Promoted, Superseded, Dropped |
+| Proposed | `/bq:ship` Step 4 reflection (and legacy files) — `/bq:retro` Step 1 candidates are not saved as files | Active, Dropped |
+| Active | `/bq:retro` Step 3, when the user accepts a lesson; build/debug close-out reflection on the user's yes | Shared, Promoted, Superseded, Dropped |
 | Shared → {file} | `/bq:retro` Step 4, on approval | Promoted, Superseded, Dropped |
 | Promoted → {file} | `/bq:retro` Step 3, on the user's word, after reading an `Accepted` proposal citing the lesson in the ledger (`/bq:improve` Step 5 records it there and never writes into projects' lessons); the source lesson and its Shared copy, if any, are both stamped — the ledger keeps the source↔shared link | terminal |
 | Superseded by {slug} | `/bq:retro` Step 3, on the user's word, when a newer lesson replaces it | terminal |
@@ -118,6 +118,29 @@ choices.
   (after a fix round, the re-check's verdict); the agent that did the work never writes them, so a
   command with no reviewer logs nothing. Shared lessons get no Log lines: mention their verdicts in
   the report instead.
+
+## End-of-run reflection
+
+**When.** At `/bq:build` and `/bq:debug` close-out, and once per run at `/bq:ship` Step 4 (ship's
+per-task close-outs skip it). <!-- claude-only -->Also when a session hook asks for it after a user
+correction.<!-- copilot: Also at the end of a reply to a user correction. --><!-- /claude-only -->
+
+1. **Trigger.** Form a candidate only if one fired: (a) the user corrected the team; (b) a blocking
+   finding forced a fix round and its cause would recur in a different task; (c) a hard stop fired;
+   (e) a verification result turned out untrustworthy (a proxy signal misled). The candidate must
+   also change behavior in a different task. None → `nothing — no trigger fired`.
+2. **Dedup.** Would applying an existing lesson's Future behavior have prevented this? Yes → no new
+   lesson: if the reviewer graded it Missed it is already logged (`logged on`); otherwise the verdict
+   is `nothing — covered by {lesson}`.
+3. **Cap.** At most 1 new lesson per run.
+4. **Activate.** build/debug ask "Keep as an Active lesson? yes / no". Yes → write it with
+   `Status: Active` in the format above, deleting the `{placeholder}` Log line; no, or no answer →
+   write nothing and keep the candidate text in the report. `/bq:ship` writes it as `Proposed` and
+   lists it in Step 4.
+5. **Verdict.** The close-out's last line is exactly one of `Learning: wrote {lesson}`,
+   `Learning: logged on {lesson}`, or `Learning: nothing — {reason}`.
+
+A `Learning:` line never becomes a `## Log` line; Log lines come only from reviewer verdicts.
 
 ## Sharing across projects
 
