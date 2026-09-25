@@ -269,22 +269,69 @@ class SeededDefects(unittest.TestCase):
             p.write_bytes(p.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
         self.assertEqual(validate.run(self.root).fails, [])
 
-    # 10. lesson Status line stays in sync between the skill and the template
+    # 10. lesson format (fields, Log line) stays in sync; states table matches the Status list
+    SKILL = "skills/feedback-loop/SKILL.md"
+    TMPL = "templates/bq/lessons/lesson-template.md"
+
     def test_status_line_mismatch(self):
-        self.edit("templates/bq/lessons/lesson-template.md", "- **Status:** Proposed |", "- **Status:** Draft |")
-        self.assertCaught("FAIL: templates/bq/lessons/lesson-template.md: '- **Status:**' line differs from skills/feedback-loop/SKILL.md")
+        self.edit(self.TMPL, "- **Status:** Proposed |", "- **Status:** Draft |")
+        self.assertCaught(f"FAIL: {self.TMPL}: '- **Status:**' line differs from {self.SKILL}")
+
+    def test_field_text_mismatch(self):
+        self.edit(self.TMPL, "- **Confidence:** High | Medium | Low", "- **Confidence:** High | Low")
+        self.assertCaught(f"FAIL: {self.TMPL}: '- **Confidence:**' line differs from {self.SKILL}")
+
+    def test_field_added_to_template_only(self):
+        self.edit(self.TMPL, "- **Confidence:**", "- **Owner:** {role}\n- **Confidence:**")
+        self.assertCaught(f"FAIL: {self.TMPL}: field '- **Owner:**' is not in the {self.SKILL} lesson format")
+
+    def test_field_added_to_skill_only(self):
+        self.edit(self.SKILL, "- **Confidence:**", "- **Owner:** {role}\n- **Confidence:**")
+        self.assertCaught(f"FAIL: {self.SKILL}: lesson-format field '- **Owner:**' is not in {self.TMPL}")
 
     def test_status_line_missing(self):
-        self.edit("skills/feedback-loop/SKILL.md", "- **Status:**", "- Status:")
-        self.assertCaught("FAIL: skills/feedback-loop/SKILL.md: expected exactly one '- **Status:**' line, found 0")
+        self.edit(self.SKILL, "- **Status:**", "- Status:")
+        self.assertCaught(f"FAIL: {self.TMPL}: field '- **Status:**' is not in the {self.SKILL} lesson format")
+
+    def test_field_order_mismatch(self):
+        self.edit(self.TMPL, "- **Nominated:** yes — {why}\n", "")
+        self.edit(self.TMPL, "- **Confidence:** High | Medium | Low\n",
+                  "- **Confidence:** High | Medium | Low\n- **Nominated:** yes — {why}\n")
+        self.assertCaught(f"FAIL: {self.TMPL}: lesson field order differs from {self.SKILL}")
 
     def test_status_line_duplicated(self):
-        self.append("templates/bq/lessons/lesson-template.md", "\n- **Status:** Active\n")
-        self.assertCaught("FAIL: templates/bq/lessons/lesson-template.md: expected exactly one '- **Status:**' line, found 2 (a second `- **Status:**` example? rename it, e.g. `Proposal status:`)")
+        self.edit(self.TMPL, "- **Confidence:**", "- **Status:** Active\n- **Confidence:**")
+        self.assertCaught(f"FAIL: {self.TMPL}: duplicate '- **Status:**' field line in the lesson format")
 
-    def test_status_line_second_example_in_skill(self):
-        self.append("skills/feedback-loop/SKILL.md", "\n```markdown\n- **Status:** Drafted | Accepted\n```\n")
-        self.assertCaught("FAIL: skills/feedback-loop/SKILL.md: expected exactly one '- **Status:**' line, found 2 (a second `- **Status:**` example? rename it, e.g. `Proposal status:`)")
+    def test_status_like_line_outside_lesson_block_is_ignored(self):
+        self.append(self.SKILL, "\n```markdown\n- **Status:** Drafted | Accepted\n```\n\n- **Status:** Accepted\n")
+        self.assertEqual(validate.run(self.root).fails, [])
+
+    def test_lesson_block_missing(self):
+        self.edit(self.SKILL, "# {Lesson title}", "# {Title}")
+        self.assertCaught(f"FAIL: {self.SKILL}: no fenced lesson-format block whose first line is '# {{Lesson title}}'")
+
+    def test_log_line_mismatch(self):
+        self.edit(self.TMPL, "Applied | Missed | Contradicted", "Applied | Missed")
+        self.assertCaught(f"FAIL: {self.TMPL}: '## Log' format line differs from {self.SKILL}")
+
+    def test_log_section_missing(self):
+        self.edit(self.SKILL, "## Log\n", "## History\n")
+        self.assertCaught(f"FAIL: {self.SKILL}: lesson format has no '## Log' section with a format line")
+
+    def test_states_table_missing_a_state(self):
+        text = (self.root / self.SKILL).read_text(encoding="utf-8")
+        row = next(l for l in text.splitlines() if l.startswith("| Superseded by {slug} |"))
+        self.edit(self.SKILL, row + "\n", "")
+        self.assertCaught(f"FAIL: {self.SKILL}: '- **Status:**' list names 'Superseded', which is missing from the lesson-states table")
+
+    def test_states_table_extra_state(self):
+        self.edit(self.SKILL, "| Proposed |", "| Archived | x | terminal |\n| Proposed |")
+        self.assertCaught(f"FAIL: {self.SKILL}: lesson-states table names 'Archived', which is not in the '- **Status:**' list")
+
+    def test_states_table_missing(self):
+        self.edit(self.SKILL, "| State | Set by | Leads to |", "| Name | Set by | Leads to |")
+        self.assertCaught(f"FAIL: {self.SKILL}: no lesson-states table (header row starting '| State |')")
 
 
 class Frontmatter(unittest.TestCase):

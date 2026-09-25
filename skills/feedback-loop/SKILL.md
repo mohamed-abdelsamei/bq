@@ -61,7 +61,13 @@ What agents should do differently next time. Make it actionable and checkable.
 
 ## Review date
 When should this lesson be rechecked or pruned?
+
+## Log
+- {YYYY-MM-DD} · {command} · Applied | Missed | Contradicted — {clause}
 ```
+
+`## Log` lines are appended only by the Maestro, from reviewer verdicts (see "Applying lessons").
+The clause names the behavior only: no ticket IDs, paths, or repo names.
 
 `Nominated` is optional and set only by the human: a pin meaning "candidate for plugin promotion".
 It is a field, not a state, so a lesson can be both Shared and nominated.

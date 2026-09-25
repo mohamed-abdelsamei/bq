@@ -43,9 +43,14 @@ BARE_AGENT_REF = re.compile(r"(?<![\w/.:-])bq-([a-z][a-z0-9-]*)")
 COMMAND_REF = re.compile(r"(?<![\w/.])/bq:([a-z][a-z0-9-]*)")
 # Frontmatter keys the checks read; a value the mini-parser can't represent is a FAIL.
 CHECKED_KEYS = {"name", "description", "model", "tools", "argument-hint"}
-# The lesson Status vocabulary lives in both files; they must agree line-for-line.
-STATUS_SYNC = ("skills/feedback-loop/SKILL.md", "templates/bq/lessons/lesson-template.md")
-STATUS_LINE = re.compile(r"(?m)^- \*\*Status:\*\*.*$")
+# The lesson format lives in both files: the skill's fenced block (first line `# {Lesson title}`)
+# and the template. Their `- **X:**` field lines and `## Log` format line must agree exactly.
+LESSON_SKILL = "skills/feedback-loop/SKILL.md"
+LESSON_TEMPLATE = "templates/bq/lessons/lesson-template.md"
+LESSON_BLOCK_START = "# {Lesson title}"
+FIELD_LINE = re.compile(r"^- \*\*([^*]+):\*\*")
+# A state's name is the text before its placeholder: `Shared → {file}`, `Superseded by {slug}`.
+STATE_NAME = re.compile(r"\s+(?:→|by|—)\s.*$")
 # `Name` or `Name(pattern)`, e.g. `Bash(git:*)`; commas inside parens don't split.
 TOOL_ITEM = re.compile(r"\s*([^,(]+?)\s*(\([^)]*\))?\s*(?:,|$)")
 
@@ -381,26 +386,125 @@ def check_cross_refs(rep, root):
                 rep.fail(f, f"references /bq:{c} but commands/{c}.md does not exist")
 
 
-def check_status_sync(rep, root):
-    lines = {}
-    for rel in STATUS_SYNC:
-        p = root / rel
+def lesson_block(text):
+    """Lines of the fenced block whose first line starts `# {Lesson title}`, or None."""
+    block, in_fence = None, False
+    for line in text.splitlines():
+        s = line.rstrip()
+        if s.startswith("```"):
+            if block is not None:
+                return block
+            in_fence = not in_fence
+            first = in_fence
+        elif in_fence and first:
+            first = False
+            if s.startswith(LESSON_BLOCK_START):
+                block = [s]
+        elif block is not None:
+            block.append(s)
+    return None
+
+
+def lesson_fields(rep, path, lines):
+    """[(name, line)] for `- **X:**` lines; FAIL on a duplicated field name."""
+    fields, seen = [], set()
+    for line in lines:
+        m = FIELD_LINE.match(line)
+        if not m:
+            continue
+        if m.group(1) in seen:
+            rep.fail(path, f"duplicate '- **{m.group(1)}:**' field line in the lesson format")
+        seen.add(m.group(1))
+        fields.append((m.group(1), line))
+    return fields
+
+
+def log_format(lines):
+    """First non-blank line after `## Log`, or None."""
+    it = iter(lines)
+    for line in it:
+        if line == "## Log":
+            return next((l for l in it if l.strip()), None)
+    return None
+
+
+def state_name(entry):
+    return STATE_NAME.sub("", entry.strip())
+
+
+def states_table(lines):
+    """State names from the table headed `| State | ...`, or None if absent."""
+    names = None
+    for line in lines:
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if names is None:
+            if line.startswith("|") and cells[0] == "State":
+                names = []
+        elif not line.startswith("|"):
+            break
+        elif not set(cells[0]) <= set("-: "):
+            names.append(state_name(cells[0]))
+    return names
+
+
+def check_lesson_format(rep, root):
+    """The skill's lesson format and the template agree; the states table matches the Status list."""
+    skill, tmpl = root / LESSON_SKILL, root / LESSON_TEMPLATE
+    texts = {}
+    for p in (skill, tmpl):
         if not p.exists():
-            rep.fail(p, "missing (its '- **Status:**' line must match the other lesson file)")
-            continue
-        text = read_text(rep, p)
-        if text is None:
-            continue
-        found = [m.group(0).rstrip() for m in STATUS_LINE.finditer(text)]
-        if len(found) != 1:
-            rep.fail(p, f"expected exactly one '- **Status:**' line, found {len(found)}"
-                     + (" (a second `- **Status:**` example? rename it, e.g. `Proposal status:`)" if len(found) > 1 else ""))
-            continue
-        lines[rel] = found[0]
-    if len(lines) == 2:
-        a, b = STATUS_SYNC
-        if lines[a] != lines[b]:
-            rep.fail(root / b, f"'- **Status:**' line differs from {a}: {lines[b]!r} != {lines[a]!r}")
+            rep.fail(p, f"missing (its lesson format must match {LESSON_SKILL if p == tmpl else LESSON_TEMPLATE})")
+        else:
+            texts[p] = read_text(rep, p)
+    if texts.get(skill) is None or texts.get(tmpl) is None:
+        return
+    skill_all = [l.rstrip() for l in texts[skill].splitlines()]
+    block = lesson_block(texts[skill])
+    if block is None:
+        rep.fail(skill, f"no fenced lesson-format block whose first line is '{LESSON_BLOCK_START}'")
+        return
+    tmpl_lines = [l.rstrip() for l in texts[tmpl].splitlines()]
+
+    # 1. field block: same fields, same text, same order
+    sf, tf = lesson_fields(rep, skill, block), lesson_fields(rep, tmpl, tmpl_lines)
+    s_map, t_map = dict(sf), dict(tf)
+    for name, _ in tf:
+        if name not in s_map:
+            rep.fail(tmpl, f"field '- **{name}:**' is not in the {LESSON_SKILL} lesson format")
+    for name, _ in sf:
+        if name not in t_map:
+            rep.fail(skill, f"lesson-format field '- **{name}:**' is not in {LESSON_TEMPLATE}")
+    for name, line in tf:
+        if name in s_map and s_map[name] != line:
+            rep.fail(tmpl, f"'- **{name}:**' line differs from {LESSON_SKILL}: {line!r} != {s_map[name]!r}")
+    common = [n for n, _ in sf if n in t_map]
+    if common != [n for n, _ in tf if n in s_map]:
+        rep.fail(tmpl, f"lesson field order differs from {LESSON_SKILL}: expected {common}")
+
+    # 2. the `## Log` format line
+    s_log, t_log = log_format(block), log_format(tmpl_lines)
+    for p, log in ((skill, s_log), (tmpl, t_log)):
+        if log is None:
+            rep.fail(p, "lesson format has no '## Log' section with a format line")
+    if s_log is not None and t_log is not None and s_log != t_log:
+        rep.fail(tmpl, f"'## Log' format line differs from {LESSON_SKILL}: {t_log!r} != {s_log!r}")
+
+    # 3. the lesson-states table names exactly the Status states
+    table = states_table(skill_all)
+    if table is None:
+        rep.fail(skill, "no lesson-states table (header row starting '| State |')")
+        return
+    status = s_map.get("Status")
+    if status is None:
+        rep.fail(skill, "lesson format has no '- **Status:**' field to check the states table against")
+        return
+    enum = [state_name(e) for e in status.split(":**", 1)[1].split("|")]
+    for n in table:
+        if n not in enum:
+            rep.fail(skill, f"lesson-states table names '{n}', which is not in the '- **Status:**' list")
+    for n in enum:
+        if n not in table:
+            rep.fail(skill, f"'- **Status:**' list names '{n}', which is missing from the lesson-states table")
 
 
 CHECKS = [
@@ -411,7 +515,7 @@ CHECKS = [
     check_markers,
     check_readme_and_templates,
     check_cross_refs,
-    check_status_sync,
+    check_lesson_format,
 ]
 
 

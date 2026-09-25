@@ -29,3 +29,7 @@ _What agents should do differently next time. Make it actionable and checkable._
 ## Review date
 
 _When should this lesson be rechecked or pruned?_
+
+## Log
+
+- {YYYY-MM-DD} · {command} · Applied | Missed | Contradicted — {clause}
