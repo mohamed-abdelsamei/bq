@@ -11,8 +11,9 @@ needs the other's output. Each specialist starts fresh, so pass results forward 
 ## Step 0 — Locate the task (you)
 
 Find the task in `~/.ai/<project>/tasks/`. Load its requirement (`requirements/`) and any relevant
-`decisions/`, `lessons/`, and `charter.md`. Apply relevant active lessons before handing work to
-specialists. If there's no task/requirement and the change is non-trivial, suggest `/bq:plan` first
+`decisions/`, `lessons/`, and `charter.md`. Select up to 3 **Lessons in force** per the
+**feedback-loop** skill; every specialist brief below carries that block. If there's no
+task/requirement and the change is non-trivial, suggest `/bq:plan` first
 — or, for a genuinely small change, proceed and note that.
 
 ## Step 1 — Implement (engineer)
@@ -34,13 +35,14 @@ one after another:
   fix-first / blocked) with any failing case (exact input, expected vs. observed).
 - **reviewer** (Cass): the diff/changes and the requirement. Charge: correctness, security, and
   quality review against intent per the **mr-review** skill; findings ranked
-  critical/important/minor with concrete fixes.
+  critical/important/minor with concrete fixes, plus one verdict line per Lesson in force.
 
 ## Step 3 — Reconcile (engineer, bounded to one pass)
 
 If either found a blocking issue (fix-first/blocked, or a critical/important finding), hand **Max**
-both reports together for one consolidated fix pass — not two separate loop-backs. Then re-verify narrowly: Vera re-checks the specific failing/fixed case(s), Cass
-re-checks only the touched diff — don't re-run the full chain.
+both reports together for one consolidated fix pass — not two separate loop-backs. Then re-verify
+narrowly: Vera re-checks the failing/fixed case(s); Cass re-checks only the touched diff, with the
+Lessons in force again for fresh per-lesson verdicts (the ones logged) — don't re-run the full chain.
 
 - If a blocking issue survives this one reconciliation round, **stop and surface it to the user**
   instead of looping again — bq's fix-loop cap applies (see the **bq-team** skill): one
@@ -54,5 +56,6 @@ Update the task status in `~/.ai/<project>/tasks/`. Write the verification/revie
 If this task was the **last open one** for its requirement (all tasks now `[x]`), mark that
 requirement `Status: Delivered` and stamp *Delivered by* — don't leave a shipped spec reading as
 `Active`. If the task exposed a repeated failure, user correction, or reusable pattern, run or offer
-`/bq:retro` to capture the lesson. Report to the user: what was built, test result, review verdict,
+`/bq:retro` to capture the lesson. Append Cass's non-n/a lesson verdicts to each lesson's `## Log`
+per the **feedback-loop** skill. Report to the user: what was built, test result, review verdict,
 and anything still open.

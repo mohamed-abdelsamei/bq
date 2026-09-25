@@ -12,8 +12,9 @@ broken; don't add features along the way.
 
 Capture the **symptom**, the **expected vs. actual** behavior, and **where** it shows (command,
 endpoint, screen, test). If it ties to a requirement or a recent change, pull that context from
-`~/.ai/<project>/`, including relevant active `lessons/`. If the report is too vague to act on, ask one
-sharp clarifying question, then go.
+`~/.ai/<project>/`. Select up to 3 **Lessons in force** per the **feedback-loop** skill and put the
+block in the engineer and tester briefs. If the report is too vague to act on, ask one sharp
+clarifying question, then go.
 
 ## Step 1 — Reproduce and fix (engineer, Max)
 
@@ -37,5 +38,6 @@ Report the **root cause**, the **fix** (and why it's minimal), the **regression 
 guards it, and confirmation the suite is green. Record substantive findings to `~/.ai/<project>/`. If
 the root cause hints at a larger problem, note it as a follow-up — don't expand the fix to chase
 it. If the same failure mode could happen again, run or offer `/bq:retro` to capture the
-prevention lesson. Offer the next step — `/bq:review` the change, or `/bq:build` if it grew
+prevention lesson. No reviewer runs here, so no lesson is graded and no `## Log` line is written.
+Offer the next step — `/bq:review` the change, or `/bq:build` if it grew
 into real work.

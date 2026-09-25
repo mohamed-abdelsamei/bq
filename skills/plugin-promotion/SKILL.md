@@ -48,8 +48,9 @@ A group becomes a candidate only if all hold:
 
 Also: an unstructured lesson (no Status) counts toward (b) only after the reviewer has read its body
 and confirms what it says. A single `Nominated` High-confidence lesson may pass as **thin evidence**,
-flagged as such, and needs the user's explicit acknowledgment before it is presented for approval. At
-most **3 candidates** per run. Every rejected group is reported with its reason ("single context",
+flagged as such, and needs the user's explicit acknowledgment before it is presented for approval. A
+lesson's `## Log` lines never count toward (b) and never make a lesson a source; a rationale may quote
+a line but never cites a count. At most **3 candidates** per run. Every rejected group is reported with its reason ("single context",
 "class B", "class C", "not independent", "conflict", "rejected slug", "already covered", "self-edit").
 
 **Rejected slugs.** A group matching a `Rejected — …` proposal's slug or behavior is not proposed

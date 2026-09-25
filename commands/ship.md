@@ -31,8 +31,9 @@ Outside these, **keep going** — finish the task, commit it, start the next.
 
 ## Step 0 — Orient and detect mode (you)
 
-Load `~/.ai/<project>/charter.md`, recent `decisions/`, and relevant active `lessons/`. Then figure out
-what you're shipping:
+Load `~/.ai/<project>/charter.md`, recent `decisions/`, and `lessons/`. Select each task's
+**Lessons in force** as `/bq:build` does (see the **feedback-loop** skill). Then figure out what
+you're shipping:
 
 - **Tasks already exist** (a list in `~/.ai/<project>/tasks/` matching `$ARGUMENTS`, or — if blank — any
   list with pending `[ ]`/`[~]`/`[!]` items) → load it, with its `requirements/` and related
@@ -62,12 +63,14 @@ Pick the next pending task in **dependency order** (a task whose deps are all `[
 1. **Run the task through the `/bq:build` chain** — **engineer** (Max) implements → **tester**
    (Vera) verifies → **reviewer** (Cass) reviews. Defects and critical/important findings loop back
    to **engineer**, then re-verify. **Cap at ~2 fix attempts** (hard stop #2). Don't restate the
-   chain here — `/bq:build` owns it.
+   chain here — `/bq:build` owns it, including the Lessons in force block and the reviewer's
+   per-lesson verdicts.
 2. **Close the task (you).** Mark it `[x]` in `~/.ai/<project>/tasks/`, write substantive verification/
    review notes to `~/.ai/<project>/reviews/`, and **commit just this task's changes** on the branch with
    a clear message (what shipped + the task reference). If this task cleared the **last open item**
    for its requirement, mark that requirement `Status: Delivered` (stamp *Delivered by*) so the shipped spec stops
-   reading as `Active`. If the task exposed a reusable lesson, capture it with `/bq:retro`
+   reading as `Active`. Append the reviewer's lesson verdicts to `## Log` per the **feedback-loop**
+   skill (cap and priority there). If the task exposed a reusable lesson, capture it with `/bq:retro`
    before moving on. One task per commit, so the history reads as a clean trail the user can review.
 
 Before each task and during it, watch for the four hard stops. If none fire, move straight to the

@@ -98,6 +98,27 @@ At the start of substantive work, after the charter and decisions:
 Don't paste all lessons into every answer; use them as a filter for decisions and implementation
 choices.
 
+**Lessons in force** (build, debug, ship):
+- **Select.** At Step 0 the Maestro picks at most **3** Active lessons, from this project and shared.
+  A lesson is relevant if its `Applies to` names any specialist in this command's chain (or `All`,
+  or is missing) **and** it shares a keyword with the task in its Trigger, Lesson, or Future
+  behavior. A lesson with no Status counts as Active. Always read the lesson files to decide.
+  <!-- claude-only -->A session-start lesson index, if one was injected, is only a hint: it omits
+  `Applies to` and lists just 8 entries.<!-- copilot: No lesson index is injected; list both lesson folders. --><!-- /claude-only -->
+- **Inject.** Every specialist brief carries a `Lessons in force` block, one line per lesson:
+  `{lesson name} — {first sentence of Future behavior, ≤200 chars}`. The review brief carries it too.
+- **Grade.** The reviewer returns one line per lesson:
+  `{lesson} — Applied | Missed | Contradicted — {one clause}`, or `{lesson} — n/a`. A verdict other
+  than n/a must cite something in the diff or a test; seeing no violation is n/a, not Applied.
+- **Log.** At close-out the Maestro appends each non-n/a verdict to that lesson's `## Log` in the
+  format above, at most 3 lines per run; when more compete, Missed and Contradicted go before
+  Applied. It replaces the template's `{placeholder}` Log line if one is still there. The Maestro
+  rewrites the reviewer's evidence into behavior-only form (command and behavior; no paths, ticket
+  IDs, or repo names), keeping the verdict word unchanged. Only reviewer verdicts produce Log lines
+  (after a fix round, the re-check's verdict); the agent that did the work never writes them, so a
+  command with no reviewer logs nothing. Shared lessons get no Log lines: mention their verdicts in
+  the report instead.
+
 ## Sharing across projects
 
 Capturing a lesson makes **this project** better; **sharing** it to `~/.ai/shared/lessons/` makes the
