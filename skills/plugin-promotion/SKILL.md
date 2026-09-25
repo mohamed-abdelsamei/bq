@@ -59,7 +59,7 @@ again unless a lesson from a **new independent project** has joined it since the
 
 Quote what the target file already says on the topic; prefer replacing or sharpening that text over
 appending; at most **5 net added lines** (added − deleted) and **15 changed lines** in total
-(added + deleted); show the net line delta at approval. If the target already states the rule,
+(added + deleted); no added line longer than 200 characters; show the net line delta at approval. If the target already states the rule,
 report "already covered" and don't draft. The rationale must say why new wording would change
 behavior where the existing text didn't.
 
@@ -67,38 +67,56 @@ behavior where the existing text didn't.
 
 Not drafted — report "self-edit — route to `/bq:plan`" — when:
 - the target is under a **banned prefix**: `commands/improve.md`, `skills/feedback-loop/`,
-  `skills/plugin-promotion/`, `.claude-plugin/`, `hooks/`;
+  `skills/plugin-promotion/`, `.claude-plugin/`, `hooks/`, and the reviewer that enforces this ban:
+  `agents/reviewer.md`, `skills/critique/`, `skills/mr-review/`;
 - any hunk, in any file, changes wording about **approval, committing, sanitization, evidence or
   gating, or validation** — those are the gatekeepers, wherever they're written. The reviewer checks
   every hunk for this at the gate and again on the draft;
-- by effect: any hunk that removes, narrows, makes optional, or adds an exception to a check, review,
-  test, stop, approval step, or scope rule (including `/bq:ship` hard stops and memory-scope rules) —
-  read `-` lines as closely as `+` lines;
+- by effect: any hunk that removes, narrows, makes optional, loosens a threshold, limit or cap of, or
+  adds an exception to a check, review, test, stop, approval step, or scope rule (including `/bq:ship`
+  hard stops and memory-scope rules) — read `-` lines as closely as `+` lines;
+- any deletion left unaccounted: if the diff is net-negative or has a `-` line in a stop, approval,
+  review, test, or scope section, the reviewer names where each removed constraint went — one it
+  can't place bans the draft;
 - it edits frontmatter or file names, or anything off the allowlist (see Diff rules; `scripts/`,
   CI, `docs/`, …);
-- it edits `skills/bq-team/` without the matching edit to `agents/maestro.md`, or the reverse.
+- it edits `skills/bq-team/` without the matching edit to `agents/maestro.md`, or the reverse — the
+  reviewer confirms the maestro edit mirrors the bq-team change in meaning, not merely touches the file.
 
 ## Diff rules
 
 Checked mechanically on the draft (`git diff --cached --numstat --summary` after `git add -A` in the
 worktree) and again on the saved patch before apply (`git apply --numstat --summary {patch}`). Any
 violation drops the draft, or refuses the apply with no state change:
-1. the diff is non-empty, and every path is one of the proposal's Target files;
-2. every path is on the **allowlist** (`agents/`, `commands/`, `skills/`) and none under a banned prefix;
+1. the diff is non-empty, and every path is one of the proposal's Target files (normalized first:
+   strip any leading `./`, compare repo-relative as git reports them);
+2. every path is on the **allowlist** (`agents/`, `commands/`, `skills/`) and none under a Self-edit
+   ban banned prefix (that list is the single source);
 3. `--summary` prints nothing (no create, delete, rename, or mode change); no path is a symlink
    (`git ls-files -s` mode `120000`) and none is binary (numstat `-`);
-4. within the growth cap: net added ≤ 5, total changed ≤ 15;
+4. within the growth cap: net added ≤ 5, total changed ≤ 15, and no `+` line over 200 characters
+   (read from the patch text — numstat can't show it; `/bq:improve` gives the command);
 5. `skills/bq-team/` and `agents/maestro.md` are both present or both absent;
-6. no hunk touches frontmatter: every hunk start line in `git diff -U0` (on a saved patch, each
-   hunk's first `+`/`-` line) is after the file's closing frontmatter `---`.
+6. no hunk touches frontmatter: in each `git diff -U0` hunk `@@ -a,n +b,m @@` (an omitted count is 1)
+   the removed lines are old lines a…a+n−1 and the added lines new lines b…b+m−1; each must be
+   strictly after the closing frontmatter `---` on its own side (old or new file). On a saved patch
+   with context, count from the header past context lines to each hunk's first `+`/`-` line.
 
 ## Sanitization
 
 The reviewer checks the patch *and* the commit message — none of:
-- project, repo, org, or customer names;
-- ticket or issue IDs;
-- file paths or function names from the source projects;
+- project, repo, org, customer, vendor, or partner names; product codenames, acronyms, or
+  identifier prefixes;
+- ticket or issue IDs, MR/PR numbers, branch names, or the source projects' ADR numbers;
+- file paths, function names, env vars, or config keys from the source projects;
+- internal hostnames, image URIs, account IDs, personal names, or local paths;
+- lesson slugs or wikilinks, anywhere in the patch or message;
+- domain vocabulary or stack terms introduced at draft time that fingerprint an employer;
 - security findings or vulnerability details from the source lessons.
+
+**Identifier intersection.** Mechanically intersect the backticked identifiers in the source lesson
+bodies with the tokens in the patch's `+` lines and the commit message (`/bq:improve` Step 3(b)
+gives the command). Every hit is removed, or justified by the reviewer on the proposal.
 
 The commit message cites the proposal number only ("bq proposal 0003"), never the slug. The
 source-lessons table lives only in the ledger, never in the patch or commit message. Recheck both
@@ -121,6 +139,7 @@ the proposal. A draft that still fails after one fix attempt is dropped and neve
 - **Date:** {YYYY-MM-DD}
 - **Proposal status:** Drafted | Accepted | Rejected — {reason} | Stale
 - **Base commit:** {sha the patch was drafted against}
+- **Patch sha256:** {hex digest only — first field of `shasum -a 256` on the `.patch`; checked before present and apply}
 - **Target files:** {plugin paths}
 - **Net lines:** {+N / -M, net}
 - **Class:** A
@@ -136,7 +155,7 @@ the proposal. A draft that still fails after one fix attempt is dropped and neve
 {validate.py and plugin-validator output on the base commit and on the draft, verbatim tails}
 
 ## Sanitization
-{reviewer's check of patch + commit message, and the gatekeeper-wording check: clean, or what was removed}
+{reviewer's check of patch + commit message, identifier-intersection hits and how each was resolved, and the gatekeeper-wording check: clean, or what was removed}
 
 ## Commit message
 {the sanitization-checked message, used verbatim at apply}

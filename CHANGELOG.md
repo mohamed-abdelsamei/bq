@@ -17,7 +17,8 @@ All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.
   and applies a patch only on the user's own explicit yes — never committing without their word.
   Proposals are kept in a ledger in memory (`~/.ai/shared/bq-proposals/`), not the repo. Outside a
   bq checkout it only lists candidates, read-only. It cannot edit its own mechanism (`improve.md`,
-  `feedback-loop`, `plugin-promotion`, `.claude-plugin/`, `hooks/`), frontmatter, any wording about
+  `feedback-loop`, `plugin-promotion`, `.claude-plugin/`, `hooks/`, and its reviewer:
+  `agents/reviewer.md`, `critique`, `mr-review`), frontmatter, any wording about
   approval, committing, sanitization, evidence, gating, or validation, or anything whose effect
   weakens a check, review, test, stop, approval step, or scope rule.
 - **`plugin-promotion` skill** — the rules `/bq:improve` applies: target classes, evidence gate,

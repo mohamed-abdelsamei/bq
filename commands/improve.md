@@ -78,7 +78,8 @@ Self-edit ban, Growth cap, Diff rules, and Sanitization apply. Max:
    <!-- copilot: Validation is `python3 {wt}/scripts/validate.py` only. --><!-- /claude-only -->
 5. Runs `git -C {wt} add -A && git -C {wt} diff --cached --numstat --summary` (and
    `git -C {wt} diff --cached -U0` for hunk start lines) and checks every one of the skill's
-   **Diff rules**.
+   **Diff rules**. Line length (prints the count over 200, exits non-zero on any):
+   `git -C {wt} diff --cached | python3 -c 'import sys;b=[l for l in sys.stdin if l[:1]=="+" and l[:4]!="+++ " and len(l.rstrip("\n"))>201];print(len(b));sys.exit(bool(b))'`
 6. Drafts a commit message citing the number only — "… (bq proposal {NNNN})", no slug.
 7. On a failure in 4–5, one fix attempt; if it still fails, reports the failure.
 8. Returns the base sha, `git -C {wt} diff --cached`, the numstat, both validation outputs, the
@@ -86,9 +87,26 @@ Self-edit ban, Growth cap, Diff rules, and Sanitization apply. Max:
 
 **(b) Check — reviewer.** Spawn the **reviewer** (Cass): "Load the **plugin-promotion** skill.
 Read-only — write nothing (no `reviews/` files)." Pass `git -C {wt} diff --cached -U10`, the commit
-message, the candidate, the quoted target text, and the source lesson bodies (at minimum their
-project names and identifiers to scrub). Charge: Sanitization on diff and message, the Self-edit ban
-(gatekeeper wording and by effect) on every hunk, and a verdict.
+message, the candidate, the quoted target text, the source lesson bodies (at minimum their
+project names and identifiers to scrub), and the **identifier-intersection** hits. Get those first:
+save `git -C {wt} diff --cached` to `<scratch>/improve-{NNNN}.diff` and the message to
+`<scratch>/improve-{NNNN}.msg` (outside `{wt}`, so `git add -A` never stages them), then run:
+
+```
+python3 - <scratch>/improve-{NNNN}.diff <scratch>/improve-{NNNN}.msg {source lesson paths…} <<'PY'
+import re,sys
+p,m,*ls=sys.argv[1:]
+sp={s.strip() for f in ls for s in re.findall(r"`([^`\n]+)`",open(f).read())}
+ids={t for s in sp for t in re.findall(r"\w+",s) if re.search(r"_|\d|[a-z][A-Z]|^[A-Z]{3,}$",t)}
+ids|={s for s in sp if re.search(r"[^a-z]",s)}
+add="".join(l[1:] for l in open(p) if l[:1]=="+" and l[:4]!="+++ ")+open(m).read()
+print("\n".join(sorted(t for t in ids if t in add)) or "no hits")
+PY
+```
+
+Charge: Sanitization on diff and message, justify or require removal of every intersection hit, the
+Self-edit ban (gatekeeper wording, by effect, and every unaccounted deletion) on every hunk, and a
+verdict.
 
 **(c) One fix.** On a finding, spawn a fresh **engineer** with the same brief as (a) plus the
 findings, the base output, and the base sha — skip worktree creation and base validation; reuse the
@@ -97,13 +115,16 @@ passed base output and `{wt}` — to fix, re-validate (4), re-check the diff (5)
 anything still fails, drop the candidate.
 
 **(d) Save — you.** For a candidate that passed, re-run the (a)5 diff check yourself, then save
-`git -C {wt} diff --cached` to the ledger as `{NNNN}-{slug}.patch` and write
-`{NNNN}-{slug}.md` per the skill's format with `Proposal status: Drafted`, both validation outputs,
-and the checked commit message. A dropped candidate writes nothing to the ledger and is reported
+`git -C {wt} diff --cached` to the ledger as `{NNNN}-{slug}.patch`, record `shasum -a 256 {patch} | cut -d' ' -f1`,
+and write `{NNNN}-{slug}.md` per the skill's format with `Proposal status: Drafted`, that
+`Patch sha256`, both validation outputs, and the checked commit message. A dropped candidate writes nothing to the ledger and is reported
 with its failure. Always — pass or drop —
 `git worktree remove --force {wt} && git worktree prune`.
 
 ## Step 4 — Present (you)
+
+First compare `shasum -a 256 {patch} | cut -d' ' -f1` with the proposal's `Patch sha256`. A mismatch
+means the ledger was edited: refuse, no state change, and report it.
 
 For each proposal show: target files, net line change, source lessons (project, status, confidence),
 independent-context count with the reviewer's reason, validation results (base and draft),
@@ -123,8 +144,10 @@ rule.
    If the checkout is dirty, note that the draft was validated against `{base}`, not this tree. If
    any target file has uncommitted changes (`git status --porcelain -- {targets}`), stop: no state
    change — ask the user to commit or stash those edits first, so theirs and the proposal's don't mix.
-2. **Diff rules.** `git apply --numstat --summary {patch}` against the skill's Diff rules; any
-   violation → refuse, no state change, report.
+2. **Integrity and diff rules.** `shasum -a 256 {patch} | cut -d' ' -f1` must equal the proposal's
+   `Patch sha256` (mismatch: the ledger was edited). Then check `git apply --numstat --summary {patch}`
+   and the (a)5 line-length check (fed `< {patch}`) against the skill's Diff rules. Any failure →
+   refuse, no state change, report.
 3. **Apply.** `git apply --check {patch}` (fails → `Stale`, trigger 2), then `git apply {patch}`.
 4. **Post-check.** Re-run the pre-check validation. Any validate.py failure, or any error or warning
    absent from the pre-apply output → `git apply -R {patch}`, mark `Stale` (trigger 3), report.
