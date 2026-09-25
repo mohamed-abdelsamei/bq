@@ -145,7 +145,7 @@ rewrite_body() {
     s/(?<![\/\w])bq:(maestro|architect|engineer|tester|reviewer|researcher|scribe)\b/bq-$1/g;
     s{/bq:}{/bq-}g;
     s/\*\*(maestro|architect|engineer|tester|reviewer|researcher|scribe)\b/**bq-$1/g;
-    s/\*\*(memory|critique|facilitation|mr-review|debugging|research-method|feedback-loop|decision-and-spec|codebase-onboarding)\b/**bq-$1/g;
+    s/\*\*(memory|critique|facilitation|mr-review|debugging|research-method|feedback-loop|plugin-promotion|decision-and-spec|codebase-onboarding)\b/**bq-$1/g;
     s/`(?:Agent|Task)`\s+tool\b/agent tool/g;
     s/\bAgent-tool-based\b/agent-based/g;
     s/\b(?:Agent|Task)\s+tool\b/agent tool/g;

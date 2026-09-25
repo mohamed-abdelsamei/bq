@@ -76,6 +76,7 @@ Match the command to what you're actually trying to do:
 | Understand a past decision | `/bq:ask <question>` | A plain-language answer from the record |
 | Pressure-test your own thinking | `/bq:grill <idea>` | Cass interrogates you, one sharp question at a time |
 | Capture a lesson | `/bq:retro <what happened>` | A reusable lesson that changes future behavior |
+| Improve bq from proven lessons | `/bq:improve [focus]` | Checked, drafted plugin edits you approve one by one |
 | See where things stand | `/bq:status [area]` | A read-only rollup of memory (changes nothing) |
 | Drop an abandoned plan | `/bq:drop <feature>` | Its spec/decision/tasks archived with a reason |
 
@@ -137,18 +138,19 @@ Everything the team decides lands in `~/.ai/<project>/`. You can open and read a
 - Run `/bq:status` any time for a read-only snapshot — in-flight tasks, undelivered specs,
   decisions still waiting on code, stale knowledge.
 - `/bq:ask "why did we choose X?"` answers from the record, in plain language.
-- Lessons that generalize across projects can be shared (with your approval) to
-  `~/.ai/shared/lessons/`, so they apply everywhere — captured via `/bq:retro`.
+- Lessons that generalize across projects can be **shared** (with your approval) to
+  `~/.ai/shared/lessons/`, so they apply everywhere — captured and shared via `/bq:retro`.
 - After a teammate merges changes, run `/bq:refresh` so the team's understanding of the project's
   rules re-syncs with reality.
 
 ## How the team extends itself
 
 The specialists share deep *method* through **skills** that load only when relevant (debugging,
-research-method, mr-review, critique, decision-and-spec, facilitation, feedback-loop, memory,
-codebase-onboarding, and the bq-team overview). You rarely invoke these directly — the commands and agents pull them in. When a
-lesson from `/bq:retro` proves out across projects, you can promote it into the plugin itself (an
-agent/command/skill edit) — always with your explicit approval, never silently.
+research-method, mr-review, critique, decision-and-spec, facilitation, feedback-loop,
+plugin-promotion, memory, codebase-onboarding, and the bq-team overview). You rarely invoke these directly — the commands and agents pull them in. When a
+lesson from `/bq:retro` proves out across projects, it can be **promoted** into the plugin itself
+(an agent/command/skill edit): `/bq:improve` drafts and validates the edit, and you approve it —
+never silently.
 
 ## Gotchas
 

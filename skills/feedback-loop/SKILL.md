@@ -13,8 +13,8 @@ repeatable way, capture a **lesson** so future agents apply it.
 - **Project lessons** → `~/.ai/<project>/lessons/` — specific to this repo.
 - **Shared lessons** → `~/.ai/shared/lessons/` — proven, general lessons that apply across all your
   projects. A project lesson is copied here only when it generalizes and the user approves (see
-  "Sharing", below). Load both at session start; the memory store is outside the repo, so nothing is
-  committed. (See the **memory** skill for the store layout.)
+  "Sharing across projects", below). Load both at session start; the memory store is outside the
+  repo, so nothing is committed. (See the **memory** skill for the store layout.)
 
 ```
 ~/.ai/<project>/lessons/   {YYYY-MM-DD}-{slug}.md
@@ -39,7 +39,8 @@ Do not record trivia, one-off task details, status updates, or facts better capt
 # {Lesson title}
 
 - **Date:** {YYYY-MM-DD}
-- **Status:** Proposed | Active | Shared → ~/.ai/shared/lessons/{file} | Superseded by {slug}
+- **Status:** Proposed | Active | Shared → ~/.ai/shared/lessons/{file} | Promoted → {file} | Superseded by {slug} | Dropped — {reason}
+- **Nominated:** yes — {why}
 - **Applies to:** maestro | architect | engineer | tester | reviewer | researcher | scribe | All
 - **Confidence:** High | Medium | Low
 
@@ -62,6 +63,22 @@ What agents should do differently next time. Make it actionable and checkable.
 When should this lesson be rechecked or pruned?
 ```
 
+`Nominated` is optional and set only by the human: a pin meaning "candidate for plugin promotion".
+It is a field, not a state, so a lesson can be both Shared and nominated.
+
+## Lesson states
+
+A lesson with no Status (legacy) is treated as **Active**.
+
+| State | Set by | Leads to |
+|---|---|---|
+| Proposed | legacy lessons, or a future end-of-run reflection (deferred) — `/bq:retro` Step 1 candidates are not saved as files | Active, Dropped |
+| Active | `/bq:retro` Step 3, when the user accepts a lesson | Shared, Promoted, Superseded, Dropped |
+| Shared → {file} | `/bq:retro` Step 4, on approval | Promoted, Superseded, Dropped |
+| Promoted → {file} | `/bq:retro` Step 3, on the user's word, after reading an `Accepted` proposal citing the lesson in the ledger (`/bq:improve` Step 5 records it there and never writes into projects' lessons); the source lesson and its Shared copy, if any, are both stamped — the ledger keeps the source↔shared link | terminal |
+| Superseded by {slug} | `/bq:retro` Step 3, on the user's word, when a newer lesson replaces it | terminal |
+| Dropped — {reason} | `/bq:retro` Step 3, when the user declines a pre-existing Proposed lesson or prunes an Active or Shared one | terminal |
+
 ## Applying lessons
 
 At the start of substantive work, after the charter and decisions:
@@ -75,7 +92,7 @@ At the start of substantive work, after the charter and decisions:
 Don't paste all lessons into every answer; use them as a filter for decisions and implementation
 choices.
 
-## Sharing (cross-project promotion)
+## Sharing across projects
 
 Capturing a lesson makes **this project** better; **sharing** it to `~/.ai/shared/lessons/` makes the
 **next project** better too. Sharing happens **only with explicit user approval** and is gated on
@@ -88,10 +105,10 @@ poor general rule. Before sharing:
 - copy it to `~/.ai/shared/lessons/`, then set the source lesson's Status to
   `Shared → ~/.ai/shared/lessons/{file}` so it isn't shared twice.
 
-A rarer, heavier step is **promoting a proven lesson into the bq plugin itself** — editing an
-agent, command, or skill so the behavior ships to everyone. That, too, is user-approved: name the
-exact file, draft the concrete edit, and show it before applying. Never let agents silently rewrite
-their own behavior from one local experience.
+## Promotion into the plugin
+
+**Promotion** — an approved edit to the bq plugin itself — is rarer and heavier than sharing. Its
+rules and the proposal states live in the **plugin-promotion** skill; `/bq:improve` runs the procedure.
 
 ## Ownership
 

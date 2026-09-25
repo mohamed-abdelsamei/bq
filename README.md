@@ -155,6 +155,7 @@ manifest sit next to the skills folder). Reload VS Code
 | Fix a bug: reproduce → root cause → smallest fix → regression test | `/bq:debug <bug>` |
 | Investigate how something works today and document it | `/bq:research <feature/question>` |
 | Learn from completed work, corrections, and repeated failures | `/bq:retro <task/session/correction>` |
+| Turn proven lessons into approved edits to bq itself (run inside the bq checkout) | `/bq:improve [focus]` |
 | Ship the whole backlog autonomously (plan → build → commit per task) | `/bq:ship [feature]` |
 | Review code, or stress-test a decision | `/bq:review <target>` |
 | Open a merge/pull request from a shipped branch | `/bq:mr [branch]` |
@@ -239,7 +240,8 @@ copy-pasted into every persona. Claude loads each on demand when the task matche
 | **codebase-onboarding** | Understanding an unfamiliar repo without modifying it (powers `/bq:onboard`) |
 | **decision-and-spec** | Testable requirements (given/when/then) and ADRs with real rationale |
 | **research-method** | Sourcing, confidence rating, and citation discipline |
-| **feedback-loop** | Capturing lessons learned so future agents change behavior (powers `/bq:retro`) |
+| **feedback-loop** | Capturing lessons learned so future agents change behavior, and sharing proven ones (powers `/bq:retro`) |
+| **plugin-promotion** | The rules for turning proven lessons into approved plugin edits — evidence gate, sanitization, self-edit ban (powers `/bq:improve`) |
 | **facilitation** | Running a debate that ends in a decision (steelman, surface assumptions) |
 | **critique** | Red-teaming a decision/plan/idea — three lenses + a verdict (powers `/bq:review`, `/bq:grill`) |
 | **debugging** | Fixing a bug without breaking what works — root cause, smallest fix, regression test |

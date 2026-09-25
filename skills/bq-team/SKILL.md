@@ -48,6 +48,7 @@ the Maestro (`bq:maestro`) (or just describe the work).
 | Fix a bug | `/bq:debug` | engineer, tester |
 | Investigate how something works | `/bq:research` | researcher |
 | Learn from experience | `/bq:retro` | reviewer, scribe |
+| Improve bq itself from proven lessons | `/bq:improve` | maestro → reviewer, engineer |
 | Ship the backlog autonomously | `/bq:ship` | maestro |
 | Review code or stress-test a decision | `/bq:review` | reviewer, tester |
 | Open a merge/pull request | `/bq:mr` | maestro |

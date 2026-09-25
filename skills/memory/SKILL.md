@@ -14,8 +14,10 @@ Memory lives in a **central store outside the project**, not in the repo:
 
 ```
 $AI_HOME (default: ~/.ai)
-  <project>/     ← this project's memory; <project> = the project directory's basename
-  shared/        ← cross-project lessons and knowledge (see the feedback-loop skill)
+  <project>/            ← this project's memory; <project> = the project directory's basename
+  shared/               ← cross-project lessons and knowledge (see the feedback-loop skill)
+  shared/lessons/       ← shared lessons, copied from a project by /bq:retro
+  shared/bq-proposals/  ← promotion proposal ledger, written by /bq:improve (see the plugin-promotion skill)
 ```
 
 - Resolve the store root from `$AI_HOME`, falling back to `~/.ai` when it is unset.
@@ -116,6 +118,8 @@ needs a human call rather than guessing.
   original home); a dropped decision keeps its original `{NNNN}` rather than being renumbered.
 - **No orphaned links.** A decision/requirement/task that links to another artifact points to one
   that still exists, not one silently removed or moved.
+- **No forgotten proposals.** Every `Drafted` proposal in `shared/bq-proposals/` is resolved
+  (Accepted, Rejected, Stale) or shown first at the next `/bq:improve` run.
 
 ## Templates
 

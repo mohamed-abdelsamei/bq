@@ -3,6 +3,41 @@
 All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.org/); while
 `0.x`, a minor bump may break.
 
+## [0.4.0] — 2026-09-25
+
+### Added
+
+- **`/bq:improve`** — turns proven lessons into approved edits to bq itself. It mines lessons across
+  all projects, has the reviewer gate each group on evidence (general bq behavior only, at least two
+  independent contexts, no conflicts, no previously rejected slug; at most 3 candidates per run),
+  has the engineer draft the smallest edit in a scratch `git worktree` and validate it
+  (`validate.py`, plus `claude plugin validate …/plugin.json` with no warning new versus the base
+  commit), mechanically checks the diff (target files only, no new or deleted files, at most 5 net
+  added and 15 changed lines), checks that nothing identifying reaches the patch or commit message,
+  and applies a patch only on the user's own explicit yes — never committing without their word.
+  Proposals are kept in a ledger in memory (`~/.ai/shared/bq-proposals/`), not the repo. Outside a
+  bq checkout it only lists candidates, read-only. It cannot edit its own mechanism (`improve.md`,
+  `feedback-loop`, `plugin-promotion`, `.claude-plugin/`, `hooks/`), frontmatter, any wording about
+  approval, committing, sanitization, evidence, gating, or validation, or anything whose effect
+  weakens a check, review, test, stop, approval step, or scope rule.
+- **`plugin-promotion` skill** — the rules `/bq:improve` applies: target classes, evidence gate,
+  growth cap and diff rules, sanitization, self-edit ban, validation, consent, proposal states,
+  and Stale (committed changes only; a user's uncommitted edits defer it).
+- `/bq:retro` can stamp a lesson `Promoted → …` from an Accepted proposal, mark it `Superseded by …`,
+  or prune an Active or Shared lesson to `Dropped — …` — each offered only when it applies, and only
+  on the user's word.
+- `validate.py` fails if the lesson `- **Status:**` line differs between the `feedback-loop` skill
+  and the lesson template, so the vocabulary can't drift again.
+
+### Changed
+
+- **One lesson vocabulary.** *Sharing* means copying a lesson into `~/.ai/shared/lessons/`;
+  *promotion* means an approved edit to plugin files. Lesson states are now `Proposed | Active |
+  Shared → … | Promoted → … | Superseded by … | Dropped — …` across the `feedback-loop` skill, the
+  lesson template and README, `/bq:retro`, and USAGE, with state tables naming who sets each state.
+  The old `Promotion-nominated` state is replaced by an optional `Nominated: yes — {why}` field set by
+  the human. The `memory` skill documents the proposal ledger.
+
 ## [0.3.0] — 2026-09-24
 
 ### Breaking

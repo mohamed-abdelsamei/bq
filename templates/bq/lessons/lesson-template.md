@@ -1,8 +1,9 @@
 # {Lesson title}
 
 - **Date:** {YYYY-MM-DD}
-- **Status:** Proposed | Active | Promotion-nominated | Promoted → {file} | Superseded by {slug}
-- **Applies to:** Maestro | architect | engineer | tester | reviewer | researcher | scribe | All
+- **Status:** Proposed | Active | Shared → ~/.ai/shared/lessons/{file} | Promoted → {file} | Superseded by {slug} | Dropped — {reason}
+- **Nominated:** yes — {why}
+- **Applies to:** maestro | architect | engineer | tester | reviewer | researcher | scribe | All
 - **Confidence:** High | Medium | Low
 
 ## Trigger

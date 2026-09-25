@@ -94,5 +94,8 @@ Copilot install is the exception: it writes the same skill as an always-on
 - Keep `plugin.json` / `marketplace.json` aligned with the payload files (the validator checks the
   versions match).
 - Keep the tracked doc, README, and `CLAUDE.md` wording aligned when the architecture changes.
+- Plugin edits drafted from lessons go only through `/bq:improve`: drafted in a scratch worktree,
+  validated, applied on explicit approval. Its proposal ledger lives in memory
+  (`~/.ai/shared/bq-proposals/`), never in the repo.
 - Run `python3 scripts/validate.py` before committing; see the README's
   [Contributing / validating](../README.md#contributing--validating).

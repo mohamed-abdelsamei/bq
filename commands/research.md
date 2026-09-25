@@ -32,7 +32,7 @@ decision it serves, the sourced findings, options and trade-offs if it's a choic
 solid versus unverified.
 
 If the finding should live with the codebase (e.g. an architecture note others need), tell the
-user and offer to promote a polished version into `docs/` instead.
+user and offer to move a polished version into `docs/` instead.
 
 ## Close
 
