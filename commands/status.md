@@ -17,7 +17,7 @@ Load `~/.ai/<project>/` (scoped to `$ARGUMENTS` if given, else the whole folder)
 - `requirements/` — each spec's `Status`.
 - `tasks/` — task markers.
 - `decisions/` — each ADR's `Status`.
-- `lessons/` — which are `Active`, and any past their **Review date**.
+- `lessons/` — which are `Active` or `Proposed`, their `## Log`, and any past their **Review date**.
 - `reviews/`, `research/`, `discussions/` — recent activity, and open questions left in them.
 
 See the **memory** skill's "Status markers" section for the task markers and the
@@ -35,6 +35,9 @@ Present a short, scannable snapshot — lead with what needs attention, not a fi
 - **Decisions waiting on code** — ADRs `Proposed`/`Accepted` but not `Implemented` (intent not yet
   built), and any `Implemented` decision with no *Verified by* evidence.
 - **Lessons** — active lessons relevant now; flag any past their review date.
+- **Learning** — at most 2 lines, only when non-zero: the `Proposed` lesson count and the oldest's
+  age; lessons with `Missed`/`Contradicted` Log lines dated after their **Review date** (or Date;
+  the last retro decision) — point to `/bq:retro`.
 - **Loose ends** — open questions recorded in `research/`, `reviews/`, or `discussions/`.
 
 Keep it proportionate: a small project gets a few lines; only surface a section if it has something
