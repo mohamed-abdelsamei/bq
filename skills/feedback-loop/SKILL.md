@@ -43,6 +43,7 @@ Do not record trivia, one-off task details, status updates, or facts better capt
 - **Nominated:** yes — {why}
 - **Applies to:** maestro | architect | engineer | tester | reviewer | researcher | scribe | All
 - **Confidence:** High | Medium | Low
+- **Last reviewed:** {YYYY-MM-DD}
 
 ## Trigger
 What happened that made this lesson worth recording?
@@ -66,8 +67,12 @@ When should this lesson be rechecked or pruned?
 - {YYYY-MM-DD} · {command} · Applied | Missed | Contradicted — {clause}
 ```
 
-`## Log` lines are appended only by the Maestro, from reviewer verdicts (see "Applying lessons").
-The clause names the behavior only: no ticket IDs, paths, or repo names.
+`## Log` lines are appended only by the Maestro, from reviewer verdicts (see "Applying lessons") or
+a user-graded miss (see "End-of-run reflection"). The clause names the behavior only: no ticket
+IDs, paths, or repo names.
+
+`Last reviewed` is optional, set by `/bq:retro` on any decision about the lesson (keep included);
+Log lines after it are the ones still to act on. `## Review date` stays the future recheck.
 
 `Nominated` is optional and set only by the human: a pin meaning "candidate for plugin promotion".
 It is a field, not a state, so a lesson can be both Shared and nominated.
@@ -79,11 +84,11 @@ A lesson with no Status (legacy) is treated as **Active**.
 | State | Set by | Leads to |
 |---|---|---|
 | Proposed | `/bq:ship` Step 4 reflection (and legacy files) — `/bq:retro` Step 1 candidates are not saved as files | Active, Dropped |
-| Active | `/bq:retro` Step 3, when the user accepts a lesson; build/debug close-out reflection on the user's yes | Shared, Promoted, Superseded, Dropped |
+| Active | `/bq:retro` Step 0 triage or Step 3, when the user accepts a lesson; build/debug close-out reflection, or the reflection after a user correction (written by the main session), on the user's yes | Shared, Promoted, Superseded, Dropped |
 | Shared → {file} | `/bq:retro` Step 4, on approval | Promoted, Superseded, Dropped |
 | Promoted → {file} | `/bq:retro` Step 3, on the user's word, after reading an `Accepted` proposal citing the lesson in the ledger (`/bq:improve` Step 5 records it there and never writes into projects' lessons); the source lesson and its Shared copy, if any, are both stamped — the ledger keeps the source↔shared link | terminal |
 | Superseded by {slug} | `/bq:retro` Step 3, on the user's word, when a newer lesson replaces it | terminal |
-| Dropped — {reason} | `/bq:retro` Step 3, when the user declines a pre-existing Proposed lesson or prunes an Active or Shared one | terminal |
+| Dropped — {reason} | `/bq:retro` Step 0 triage or Step 3, when the user declines a pre-existing Proposed lesson or prunes an Active or Shared one | terminal |
 
 ## Applying lessons
 
@@ -100,9 +105,10 @@ choices.
 
 **Lessons in force** (build, debug, ship):
 - **Select.** At Step 0 the Maestro picks at most **3** Active lessons, from this project and shared.
-  A lesson is relevant if its `Applies to` names any specialist in this command's chain (or `All`,
-  or is missing) **and** it shares a keyword with the task in its Trigger, Lesson, or Future
-  behavior. A lesson with no Status counts as Active. Always read the lesson files to decide.
+  A lesson is relevant if its `Applies to` names any specialist in this command's chain, the
+  Maestro included (or `All`, or is missing) **and** it shares a keyword with the task in its
+  Trigger, Lesson, or Future behavior. More than 3 match → prefer the most task-specific, then the
+  most recent. A lesson with no Status counts as Active. Always read the lesson files to decide.
   <!-- claude-only -->A session-start lesson index, if one was injected, is only a hint: it omits
   `Applies to` and lists just 8 entries.<!-- copilot: No lesson index is injected; list both lesson folders. --><!-- /claude-only -->
 - **Inject.** Every specialist brief carries a `Lessons in force` block, one line per lesson:
@@ -111,35 +117,42 @@ choices.
   `{lesson} — Applied | Missed | Contradicted — {one clause}`, or `{lesson} — n/a`. A verdict other
   than n/a must cite something in the diff or a test; seeing no violation is n/a, not Applied.
 - **Log.** At close-out the Maestro appends each non-n/a verdict to that lesson's `## Log` in the
-  format above, at most 3 lines per run; when more compete, Missed and Contradicted go before
-  Applied. It replaces the template's `{placeholder}` Log line if one is still there. The Maestro
-  rewrites the reviewer's evidence into behavior-only form (command and behavior; no paths, ticket
-  IDs, or repo names), keeping the verdict word unchanged. Only reviewer verdicts produce Log lines
-  (after a fix round, the re-check's verdict); the agent that did the work never writes them, so a
-  command with no reviewer logs nothing. Shared lessons get no Log lines: mention their verdicts in
-  the report instead.
+  format above, at most 3 lines per run (a whole `/bq:ship` run shares the 3, and its per-task
+  closes log only Missed and Contradicted); when more compete, Missed and Contradicted go first. It
+  replaces the template's `{placeholder}` Log line if one is still there. The Maestro rewrites the
+  reviewer's evidence into behavior-only form (command and behavior; no paths, ticket IDs, or repo
+  names), keeping the verdict word unchanged. After a fix round, log the first-pass verdict if it
+  was Missed or Contradicted (that is the signal), else the re-check's. Only reviewer verdicts, or a
+  user-graded miss, produce Log lines; the agent that did the work never grades itself, so with no
+  reviewer and no user grade nothing is logged. Shared lessons get no Log lines: mention their
+  verdicts in the report instead.
 
 ## End-of-run reflection
 
 **When.** At `/bq:build` and `/bq:debug` close-out, and once per run at `/bq:ship` Step 4 (ship's
-per-task close-outs skip it). Also at the end of any reply to a user correction.
+per-task close-outs skip it). Also at the end of a reply to a user correction, but only when the
+correction would change behavior in other tasks; otherwise just fix it (outside a build/debug/ship close-out, no `Learning:` line).
 
 1. **Trigger.** Form a candidate only if one fired: (a) the user corrected the team; (b) a blocking
    finding forced a fix round and its cause would recur in a different task; (c) a hard stop fired;
    (e) a verification result turned out untrustworthy (a proxy signal misled). The candidate must
    also change behavior in a different task. None → `nothing — no trigger fired`.
 2. **Dedup.** Would applying an existing lesson's Future behavior have prevented this? Yes → no new
-   lesson: if the reviewer graded it Missed it is already logged (`logged on`); otherwise the verdict
-   is `nothing — covered by {lesson}`.
+   lesson: if the reviewer graded it Missed it is already logged (`logged on`). If a user correction
+   hit it and no reviewer graded it Missed (plain chat, `/bq:debug`, or a reviewer who missed it), ask whether to log it (`pending —
+   Missed on {lesson}`); on the user's yes the Maestro appends
+   `- {date} · correction · Missed — {behavior}` (graded by the user) and replies `logged on`.
+   Otherwise the verdict is `nothing — covered by {lesson}`.
 3. **Cap.** At most 1 new lesson per run.
-4. **Activate.** build/debug ask "Keep as an Active lesson? yes / no". Yes → write it with
-   `Status: Active` in the format above, deleting the `{placeholder}` Log line; no, or no answer →
-   write nothing and keep the candidate text in the report. `/bq:ship` writes it as `Proposed` and
-   lists it in Step 4.
-5. **Verdict.** The close-out's last line is exactly one of `Learning: wrote {lesson}`,
-   `Learning: logged on {lesson}`, or `Learning: nothing — {reason}`.
+4. **Activate.** build/debug and a user correction ask "Keep as an Active lesson? yes / no" and
+   end with `Learning: pending — {candidate}`. Yes → write it with `Status: Active` in the format
+   above, deleting the `{placeholder}` Log line, and reply `Learning: wrote {lesson}`; no, or no
+   answer → write nothing. `/bq:ship` writes it as `Proposed` and lists it in Step 4.
+5. **Verdict.** The last line is exactly one of `Learning: wrote {lesson}`,
+   `Learning: logged on {lesson}`, `Learning: pending — {candidate}`, or `Learning: nothing — {reason}`.
 
-A `Learning:` line never becomes a `## Log` line; Log lines come only from reviewer verdicts.
+A `Learning:` line never becomes a `## Log` line; Log lines come only from reviewer verdicts or a
+user-graded miss.
 
 ## Sharing across projects
 

@@ -42,7 +42,7 @@ one after another:
 If either found a blocking issue (fix-first/blocked, or a critical/important finding), hand **Max**
 both reports together for one consolidated fix pass — not two separate loop-backs. Then re-verify
 narrowly: Vera re-checks the failing/fixed case(s); Cass re-checks only the touched diff, with the
-Lessons in force again for fresh per-lesson verdicts (the ones logged) — don't re-run the full chain.
+Lessons in force again (log per the feedback-loop skill) — don't re-run the full chain.
 
 - If a blocking issue survives this one reconciliation round, **stop and surface it to the user**
   instead of looping again — bq's fix-loop cap applies (see the **bq-team** skill): one

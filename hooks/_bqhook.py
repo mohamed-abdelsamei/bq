@@ -42,9 +42,12 @@ def ai_home():
 
 
 def memory_dir(data):
-    """${AI_HOME:-~/.ai}/<project> if it exists, else None."""
+    """${AI_HOME:-~/.ai}/<project> if it exists, else None.
+
+    A project named `shared` has no project memory: ~/.ai/shared is the cross-project store.
+    """
     name = project_dir(data).name
-    if not name:
+    if not name or name.casefold() == "shared":  # casefold: macOS FS is case-insensitive
         return None
     d = ai_home() / name
     return d if d.is_dir() else None

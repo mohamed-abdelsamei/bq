@@ -5,6 +5,7 @@
 - **Nominated:** yes — {why}
 - **Applies to:** maestro | architect | engineer | tester | reviewer | researcher | scribe | All
 - **Confidence:** High | Medium | Low
+- **Last reviewed:** {YYYY-MM-DD}
 
 ## Trigger
 

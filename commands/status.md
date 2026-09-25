@@ -36,8 +36,8 @@ Present a short, scannable snapshot — lead with what needs attention, not a fi
   built), and any `Implemented` decision with no *Verified by* evidence.
 - **Lessons** — active lessons relevant now; flag any past their review date.
 - **Learning** — at most 2 lines, only when non-zero: the `Proposed` lesson count and the oldest's
-  age; lessons with `Missed`/`Contradicted` Log lines dated after their **Review date** (or Date;
-  the last retro decision) — point to `/bq:retro`.
+  age; lessons with `Missed`/`Contradicted` Log lines dated on or after their **Last reviewed** (or
+  Date) — point to `/bq:retro`.
 - **Loose ends** — open questions recorded in `research/`, `reviews/`, or `discussions/`.
 
 Keep it proportionate: a small project gets a few lines; only surface a section if it has something

@@ -69,8 +69,8 @@ Pick the next pending task in **dependency order** (a task whose deps are all `[
    review notes to `~/.ai/<project>/reviews/`, and **commit just this task's changes** on the branch with
    a clear message (what shipped + the task reference). If this task cleared the **last open item**
    for its requirement, mark that requirement `Status: Delivered` (stamp *Delivered by*) so the shipped spec stops
-   reading as `Active`. Append the reviewer's lesson verdicts to `## Log` per the **feedback-loop**
-   skill (cap and priority there); skip reflection here. One task per commit, so the history reads
+   reading as `Active`. Log the reviewer's lesson verdicts per the **feedback-loop** skill (its
+   ship rule and run-wide cap); skip reflection here. One task per commit, so the history reads
    as a clean trail the user can review.
 
 Before each task and during it, watch for the four hard stops. If none fire, move straight to the

@@ -37,6 +37,6 @@ case if any.
 Report the **root cause**, the **fix** (and why it's minimal), the **regression test** that now
 guards it, and confirmation the suite is green. Record substantive findings to `~/.ai/<project>/`. If
 the root cause hints at a larger problem, note it as a follow-up — don't expand the fix to chase
-it. No reviewer runs here, so no lesson is graded and no `## Log` line is written. Offer the next
+it. No reviewer runs here, so only a user-graded miss (per the feedback-loop skill) writes a `## Log` line. Offer the next
 step — `/bq:review` the change, or `/bq:build` if it grew into real work. Reflect per the
 feedback-loop skill's End-of-run reflection; end with its `Learning:` line.

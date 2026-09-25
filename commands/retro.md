@@ -22,7 +22,8 @@ Load `~/.ai/<project>/charter.md`, relevant `tasks/`, `requirements/`, `decision
 - **Positive pattern** — something worked especially well and should be repeated.
 
 If `$ARGUMENTS` is empty and this project has `Proposed` lessons, first offer to triage them one
-by one — each becomes Active or `Dropped — {reason}`, only on the user's word.
+by one — each becomes Active or `Dropped — {reason}`, only on the user's word. Empty → then (or
+with nothing to triage) skip to Step 3's housekeeping.
 
 If the input is too vague to extract a lesson, ask one sharp question. Otherwise continue.
 
@@ -61,10 +62,12 @@ only on the user's word:
   `Superseded by {slug}`.
 - **Pruned** — only for lessons within this retro's scope: an Active or Shared lesson that no longer
   holds becomes `Dropped — {reason}`.
-- **Missed / Contradicted** — only for lessons of this project with Log lines dated after their
-  **Review date** (or Date if none; any retro decision here, keep included, sets Review date to today). 2+ `Missed` → recommend
-  rewriting Future behavior as a checkable item or moving it into the reviewer's checklist — never
-  nominate it; any `Contradicted` → recommend Supersede or Drop.
+- **Missed / Contradicted** — only for lessons of this project with Log lines dated on or after their
+  **Last reviewed** (or Date). 2+ `Missed` → recommend rewriting Future behavior as a checkable
+  item or moving it into the reviewer's checklist — never nominate it; any `Contradicted` →
+  recommend Supersede or Drop.
+
+Any decision on a lesson here or in Step 0, keep included, sets its `Last reviewed` to today.
 
 ## Step 4 — Close the loop and share (you)
 
