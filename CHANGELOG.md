@@ -3,6 +3,71 @@
 All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.org/); while
 `0.x`, a minor bump may break.
 
+## [0.6.0] — 2026-09-27
+
+### Added
+
+- **Memory history (opt-in)** — a local git history of the whole `~/.ai` store, kept outside it so
+  it survives the folder being deleted (ADR 0011).
+  - **Where.** A bare repo at `$BQ_MEMORY_GIT_DIR`, default
+    `~/Library/Application Support/bq/ai-history.git` (macOS) or
+    `${XDG_DATA_HOME:-~/.local/share}/bq/ai-history.git`, mode 0700, with `$AI_HOME` as its work
+    tree. No remote; never pushed. Ignore patterns (secrets, OS junk) live in `<history>/info/exclude`,
+    not in the store. Commits use a fixed `bq <bq@localhost>` identity and bypass the user's global
+    git config (signing, hooks, excludes, attributes); every git call has a timeout.
+  - **`scripts/bq_memory.py`** (stdlib, logic in `hooks/_bqmem.py`): `init`, `checkpoint`, `status`,
+    `log [dir] [-n N]`, `restore <dir> [--rev R] [--force]`, `stamp`, `index [project]`. `init`
+    refuses when `$AI_HOME` is inside another git work tree and skips symlinked entries.
+  - **Restore never destroys newer work.** A missing folder is restored in place; a present one is
+    extracted beside it to `<dir>.restored-<rev>/`; `--force` overwrites only after checkpointing the
+    current state and prints the undo command. A symlinked or non-directory target is refused, even
+    with `--force`.
+  - **Background checkpoint hook** (`hooks/checkpoint.py`, a second SessionStart hook with
+    `async: true`), plugin install only. It runs at each session start, takes a non-blocking lock,
+    and detaches (fork + `setsid`) so a CLI exit or hook timeout can't kill git mid-commit; a
+    concurrent checkpoint skips. It never makes the first commit: `init` and the first `checkpoint`
+    run from the CLI on the user's yes. A failure is written to `<history>/bq-last-error` (best
+    effort). Unreadable files are skipped, the rest committed.
+  - **`bq memory:` notices at session start** (plugin install): a project folder missing, or deleted
+    in the last 7 days, with its restore command; a git lock in the history older than 2 minutes
+    (reported, never removed); the last checkpoint error; a nested git repo in the store (only its
+    gitlink is kept). `status` shows the same.
+  - `/bq:init`, `/bq:onboard` and `/bq:refresh` offer the history once and run it only on the user's
+    yes (Claude Code only; the Copilot build drops the offer). The memory skill gains a
+    *Durability and recovery* runbook, including how to purge a secret from history.
+- **Identity stamp.** `bq_memory.py stamp` writes `<mem>/.identity` (repo roots and remotes, remotes
+  stripped of credentials and query strings); it is restored with its folder. When a stamp names
+  neither this repo's root nor any of its remotes, the lessons hook prints one mismatch line and
+  injects no lessons.
+- **Memory index.** `bq_memory.py index` prints a deterministic, read-only index to stdout (open
+  loops first); `/bq:status` starts from it under Claude Code.
+- **Knowledge map.** `/bq:onboard` has the architect write `knowledge/graph.md` (at most ~80 lines,
+  `Verified at: <sha>`, links into `docs/`), from the new template `templates/bq/knowledge/graph.md`.
+- **Skill fitness, report only.** `validate.py` warns on skill descriptions without a "Use when"
+  clause, quoted trigger phrases shared by two skills, `/bq:` commands that don't exist, and skills
+  over a word ceiling (2,500 by default). `scripts/skill_usage.py` reads `skillUsage` from
+  `~/.claude.json` (totals since install; fails soft), and `/bq:improve` lists never-used skills as
+  retire candidates without drafting a deletion.
+
+### Changed
+
+- `hooks/hooks.json` runs two SessionStart hooks. The lessons hook still writes nothing; it also
+  reads the history dir for notices, and emits them even in a project with no memory folder. The
+  checkpoint hook writes only under the history dir, never into `~/.ai`.
+- `validate.py` allows `subprocess` in exactly one hook file, `hooks/_bqmem.py`, accepts a boolean
+  `async` on hook entries, and requires the `knowledge/graph.md` template.
+- `/bq:ship` treats `bq_memory.py` `init`, `restore` or `stamp` on the real store as a hard stop.
+- The Maestro and the `bq-team` skill put the project memory path in every specialist brief.
+- `install-copilot.sh` keeps a paragraph break where an empty Copilot alternative drops a span.
+- README, architecture and USAGE describe the history, restore, identity, the index, the knowledge
+  map and the skill report, and which installs get the hooks (plugin only) and the scripts (plugin,
+  or a bq checkout).
+
+### Fixed
+
+- **Git worktrees got no lessons** (0.5.0). The hooks keyed memory by the worktree's folder name;
+  they now follow the `.git` file through `gitdir` and `commondir` to the main checkout's name.
+
 ## [0.5.0] — 2026-09-25
 
 ### Added

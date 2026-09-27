@@ -136,8 +136,9 @@ needs a human call rather than guessing.
   *outside* it: `$BQ_MEMORY_GIT_DIR`, default `~/Library/Application Support/bq/ai-history.git` on
   macOS, `${XDG_DATA_HOME:-~/.local/share}/bq/ai-history.git` elsewhere. It has no remote, is never
   pushed, and survives `rm -rf ~/.ai`. <!-- claude-only -->Once the user opts in (`/bq:init`, `/bq:onboard`
-  and `/bq:refresh` offer it; on yes, run `init` then `checkpoint`), the SessionStart hook checkpoints
-  in the background at each session start, detached so closing the session can't cut a commit short.
+  and `/bq:refresh` offer it; on yes, run `init` then `checkpoint`), on a plugin install the SessionStart hook
+  checkpoints in the background at each session start (a manual install has no hooks: run `checkpoint`
+  yourself), detached so closing the session can't cut a commit short.
   It never makes the first commit.<!-- copilot: Copilot has no hooks: after `init`, run `checkpoint` yourself. --><!-- /claude-only -->
 - **Limits.** Protection starts at the first checkpoint — nothing older can be recovered, and a crash
   loses writes since the last one. Git doesn't track empty folders, so they aren't restored; a renamed

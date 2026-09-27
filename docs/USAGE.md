@@ -57,7 +57,17 @@ overrides).
   (`CLAUDE.md`, `AGENTS.md`, …) **without changing them**, then writes its own understanding.
 
 Both create the project's memory at **`~/.ai/<project>/`** (`<project>` = the repo's folder name;
-the root is `$AI_HOME`, or `~/.ai` if unset). It lives outside the repo, so it never touches git.
+the root is `$AI_HOME`, or `~/.ai` if unset). It lives outside the repo, so it never touches your
+project's git. `/bq:onboard` also writes `knowledge/graph.md`, a short map of the codebase.
+
+**Protect memory (once per machine, recommended).** Plain files are one `rm -rf` away from gone. At
+the end, `/bq:init`, `/bq:onboard` and `/bq:refresh` offer to start a local git history of `~/.ai`,
+kept outside it and never pushed, and to stamp the folder with this repo's identity. Say yes and
+they run `bq_memory.py init` and the first `checkpoint`; after that, a plugin install checkpoints in
+the background at each session start. A manual or Copilot install has no hook and no bundled
+`scripts/`: run `python3 <bq checkout>/scripts/bq_memory.py checkpoint` yourself now and then (on
+Copilot, run `init` first — `/bq-init` doesn't offer it). Details:
+[Memory history](../README.md#memory-history-opt-in).
 
 ## Which command when
 
@@ -131,8 +141,10 @@ Everything the team decides lands in `~/.ai/<project>/`. You can open and read a
   tasks/          task lists + status
   research/       sourced findings
   reviews/        code reviews + critiques
+  knowledge/      graph.md — a map of the codebase, from /bq:onboard
   lessons/        what to do differently next time
   archive/        dropped plans, moved aside by /bq:drop
+  .identity       optional stamp: which repo this folder belongs to
 ```
 
 - Run `/bq:status` any time for a read-only snapshot — in-flight tasks, undelivered specs,
@@ -147,6 +159,12 @@ Everything the team decides lands in `~/.ai/<project>/`. You can open and read a
   the model to reflect once after you correct it, and lists the project's lessons in force. Manual
   and Copilot installs have no hook; the same behavior comes from the feedback-loop skill when it
   loads.
+- **Lost a folder?** With the history on, a plugin session starts with a `bq memory:` line naming the
+  missing folder and the exact restore command (for 7 days after the deletion). `restore` never
+  overwrites newer work: a missing folder comes back in place, a present one is extracted beside it
+  as `<dir>.restored-<rev>/` to compare. `bq_memory.py status` and `log` show where things stand.
+  The runbook, including stuck locks and purging a secret, is in the memory skill's
+  [Durability and recovery](../skills/memory/SKILL.md#durability-and-recovery).
 - A bare `/bq:retro` triages lessons waiting on your yes (`Proposed`) and flags lessons that keep
   getting `Missed`; `/bq:status` shows a one- or two-line Learning summary when anything is pending.
 - Lessons that generalize across projects can be **shared** (with your approval) to
@@ -161,16 +179,22 @@ research-method, mr-review, critique, decision-and-spec, facilitation, feedback-
 plugin-promotion, memory, codebase-onboarding, and the bq-team overview). You rarely invoke these directly — the commands and agents pull them in. When a
 lesson from `/bq:retro` proves out across projects, it can be **promoted** into the plugin itself
 (an agent/command/skill edit): `/bq:improve` drafts and validates the edit, and you approve it —
-never silently.
+never silently. `/bq:improve` also lists never-used skills as retire candidates, from the usage
+counts in `~/.claude.json` — a report only; it never drafts a deletion.
 
 ## Gotchas
 
 - **Memory is per machine.** `~/.ai/<project>/` lives on *your* machine, keyed by the project folder
-  name. Two different projects with the same folder name would share a memory folder — rename one, or
-  set `$AI_HOME` per project, if that ever collides. Under a plugin install the SessionStart hook
-  makes that sharing always-on: both repos see the same lessons index.
-- **The hook needs `python3`.** Without it on your PATH the SessionStart hook fails open — the session
-  starts normally, just without the lessons index.
+  name (a git worktree counts as its main checkout). Two different projects with the same folder name
+  share a memory folder — rename one, or set `$AI_HOME` per project, if that ever collides. Stamping
+  the folder (`bq_memory.py stamp`, offered by init/onboard/refresh) stops a plugin session in the
+  *other* repo from loading its lessons; the folder itself is still shared.
+- **The history is a local safety net, not a backup.** It protects nothing before its first
+  checkpoint, writes during a session are committed at the next session start, empty folders aren't
+  restored, a renamed folder looks like a deletion, and it lives on the same disk. Keep Time Machine
+  (or another backup) too.
+- **The hooks need `python3`.** Without it on your PATH the SessionStart hooks fail open — the session
+  starts normally, just without the lessons index, memory notices, or background checkpoint.
 - **Guardrails are guidance, not a sandbox.** "Stay in your lane" and write-scoping are rules the
   agents follow, not hard permissions. Keep your code under version control so any unintended change
   shows up in the diff.
