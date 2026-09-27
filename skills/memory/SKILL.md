@@ -45,6 +45,7 @@ Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
   research/         sourced findings:       {slug}.md  (with sources, dates, confidence)
   reviews/          review & critique reports: {slug}.md
   lessons/          feedback loop:          {YYYY-MM-DD}-{slug}.md
+  knowledge/        codebase map:           graph.md (architect, at /bq:onboard; links docs/)
   archive/          dropped plans moved aside by /bq:drop:
                       {YYYY-MM-DD}/{requirements|decisions|tasks}/{file} (with an archive header)
 ```

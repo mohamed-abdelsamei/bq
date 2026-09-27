@@ -41,7 +41,10 @@ or contradict them.
    from the code, so verify before relying on it.
 5. **Scaffold the rest of memory.** Create the `~/.ai/<project>/` folders and `README.md` per the
    **memory** skill's layout, seeding them from the starter templates found via the **memory**
-   skill's *Locating the templates*.
+   skill's *Locating the templates*. Then spawn the **architect (Sol)** to write
+   `~/.ai/<project>/knowledge/graph.md` from the template's `knowledge/graph.md` (≤ ~80 lines;
+   **Verified at** = `git rev-parse --short HEAD` and today): components, edges, entry points,
+   linking `docs/` rather than restating it.
 
 ## After onboarding
 

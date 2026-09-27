@@ -63,6 +63,27 @@ class SkillUsage(unittest.TestCase):
                          ["0", "never"])
         self.assertEqual(next(l for l in out.splitlines() if l.startswith("bq-team ")).split()[1], "1")
 
+    def test_legacy_crew_keys_are_aliases(self):
+        self.write(self.usage(**{
+            "bq:memory": (1, NOON_2026_09_01),
+            "crew-memory": (4, NOON_2026_09_20),    # manual install under the old plugin name
+            "crew:memory": (2, NOON_2026_09_01),
+            "crew-team": (3, NOON_2026_09_01),      # bq-team's old name
+            "crew:status": (5, NOON_2026_09_20),    # old plugin command
+            "crew-status": (7, NOON_2026_09_20),    # commands have no manual key: not counted
+            "crew-knowledge-graph": (6, NOON_2026_09_20),  # removed skill: matches nothing
+        }))
+        code, out = self.run_main("--json")
+        self.assertEqual(code, 0)
+        rows = {(r["kind"], r["name"]): r for r in json.loads(out)["rows"]}
+        mem = rows[("skill", "memory")]
+        self.assertEqual((mem["uses"], mem["last_used"]), (7, "2026-09-20"))
+        self.assertEqual(sorted(mem["keys"]), ["bq:memory", "crew-memory", "crew:memory"])
+        self.assertEqual((rows[("skill", "bq-team")]["uses"], rows[("skill", "bq-team")]["keys"]), (3, ["crew-team"]))
+        st = rows[("command", "status")]
+        self.assertEqual((st["uses"], st["keys"]), (5, ["crew:status"]))
+        self.assertNotIn("bq-team", json.loads(out)["retire_candidates"])
+
     def test_retire_candidates_are_unused_skills_only(self):
         self.write(self.usage(**{"bq:debugging": (1, NOON_2026_09_01)}))
         code, out = self.run_main("--json")

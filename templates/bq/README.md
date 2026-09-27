@@ -17,6 +17,7 @@ between sessions. `<project>` is this project directory's basename; the root is 
 | `research/` | Sourced findings and options comparisons. |
 | `reviews/` | Code reviews and decision critiques. |
 | `lessons/` | Reusable lessons from user corrections, retrospectives, and repeated failures. |
+| `knowledge/` | `graph.md` — a short codebase map (components, edges, entry points) that links `docs/`. |
 
 Cross-project lessons that generalize beyond this repo live in `~/.ai/shared/lessons/`.
 

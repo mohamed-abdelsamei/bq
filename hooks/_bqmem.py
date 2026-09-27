@@ -458,3 +458,109 @@ def stamp(cwd=None, out=print):
     os.replace(tmp, mem / ".identity")
     out(f"bq memory: stamped {mem / '.identity'} (root {data['roots'][0]}, {len(remotes)} remote(s))")
     return 0
+
+
+# ---------------------------------------------------------------- index (X1)
+
+INDEX_MAX_BYTES = 64 * 1024
+CLOSED_REQUIREMENT = {"Delivered", "Dropped", "Rejected", "Withdrawn", "Superseded"}
+OPEN_DECISION = {"Proposed", "Accepted"}
+_FIELD = r"^[ \t]*(?:[-*][ \t]+)?\*\*{}:\*\*[ \t]*(.*)$"
+_STATUS = re.compile(_FIELD.format("Status"), re.M)
+_DATE = re.compile(_FIELD.format("Date"), re.M)
+_OPEN_TASK = re.compile(r"^[ \t]*(?:[-*]|\d+[.)])[ \t]+\[([ ~!])\]", re.M)
+_CUT = re.compile(r" · | — | \(|\*\*|[\x00-\x1f\x7f]")
+_NOISE = re.compile(r"\*\*|[\x00-\x1f\x7f]")
+
+
+def _is_artifact(p):
+    """A regular file bq wrote as a record: not a symlink, dotfile, README.md or *-template.md."""
+    return (p.is_file() and not p.is_symlink() and not p.name.startswith(".")
+            and p.name != "README.md" and not p.stem.endswith("-template"))
+
+
+def _read(p):
+    try:
+        with open(p, "rb") as f:
+            return f.read(INDEX_MAX_BYTES).decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _field(rx, text):
+    m = rx.search(text)
+    return _CUT.split(m.group(1), 1)[0].strip() if m else ""
+
+
+def _lesson_rules():
+    """(status_of, flagged_since, in_force) from the SessionStart hook, so the index and the hook
+    agree; a simple fallback when the hook can't be imported (imported lazily: no cycle)."""
+    try:
+        import session_start as s
+        return s.status_of, s.flagged_since, s.IN_FORCE
+    except Exception:
+        flag = re.compile(r"·\s*(?:Missed|Contradicted)\b")
+        return ((lambda t: _field(_STATUS, t).split(" ")[0] or "Active"),
+                (lambda t, lines: sum(bool(flag.search(ln)) for ln in lines)), {"Active", "Shared"})
+
+
+def _project_mem(project, cwd):
+    if project is None:
+        project = h.project_dir({"cwd": str(cwd)} if cwd else {}).name
+    if (not project or project.startswith(".") or "/" in project or "\\" in project
+            or project.casefold() == "shared"):
+        raise MemError(f"{project!r} is not a project memory name")
+    mem = ai_home() / project
+    if not mem.is_dir():
+        raise MemError(f"no memory folder {mem}")
+    return project, mem
+
+
+def index(project=None, cwd=None, out=print):
+    """Print a deterministic memory index: open loops first (requirements not Delivered/Dropped,
+    open task items, Proposed/Accepted decisions, Proposed lessons, in-force lessons flagged since
+    their last review), then one `path — title — status — date` line per artifact.
+
+    Pure file reads (no git, no timestamps). Skips dotfiles, symlinks, README.md and *-template.md;
+    archive/ is a file count only. Missing title/status/date fields print blank.
+    """
+    project, mem = _project_mem(project, cwd)
+    status_of, flagged_since, in_force = _lesson_rules()
+    rows, loops = [], []
+    folders = sorted(e for e in mem.iterdir() if e.is_dir() and not e.is_symlink()
+                     and not e.name.startswith(".") and e.name != "archive")
+    top = sorted(p for p in mem.iterdir() if _is_artifact(p))
+    for p in top + [f for d in folders for f in sorted(d.rglob("*")) if _is_artifact(f)]:
+        rel = p.relative_to(mem).as_posix()
+        folder = rel.split("/", 1)[0] if "/" in rel else ""
+        text = _read(p) if p.suffix == ".md" else ""
+        lines = text.splitlines()
+        title = next((_NOISE.sub("", ln[2:]).strip() for ln in lines if ln.startswith("# ")), "")
+        status = _field(_STATUS, text)
+        word = status.split(" ")[0]
+        rows.append(f"{rel} — {title} — {status} — {_field(_DATE, text)}")
+        if folder == "requirements" and word not in CLOSED_REQUIREMENT:
+            loops.append((0, f"requirement not delivered: {rel} ({status or 'no status'})"))
+        elif folder == "decisions" and word in OPEN_DECISION:
+            loops.append((2, f"decision not implemented: {rel} ({word})"))
+        elif folder == "tasks":
+            marks = _OPEN_TASK.findall(text)
+            if marks:
+                counts = ", ".join(f"[{c}] {marks.count(c)}" for c in " ~!" if c in marks)
+                loops.append((1, f"open tasks: {rel} — {len(marks)} ({counts})"))
+        elif folder == "lessons" and "/" not in rel[len("lessons/"):]:
+            lesson_status = status_of(text)
+            if lesson_status == "Proposed":
+                loops.append((3, f"lesson Proposed: {rel}"))
+            elif lesson_status in in_force and flagged_since(text, lines):
+                loops.append((4, f"lesson Missed/Contradicted since last review: {rel}"))
+    out(f"# bq memory index: {project}\nmemory: {mem}\n")
+    out("## Open loops")
+    out("\n".join(f"- {ln}" for _, ln in sorted(loops, key=lambda x: x[0])) if loops else "- none")
+    out("\n## Artifacts")
+    out("\n".join(rows) if rows else "(none)")
+    archive = mem / "archive"
+    if archive.is_dir() and not archive.is_symlink():
+        n = sum(1 for p in archive.rglob("*") if p.is_file() and not p.name.startswith("."))
+        out(f"archive/ — {n} file(s)")
+    return 0

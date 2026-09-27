@@ -12,6 +12,8 @@ ${XDG_DATA_HOME:-~/.local/share}/bq/ai-history.git) with ${AI_HOME:-~/.ai} as th
   restore <dir> [--rev R] [--force]
                                bring a folder back; never overwrites newer work without --force
   stamp                        write <AI_HOME>/<project>/.identity for the repo at cwd
+  index [project]              print the memory index: open loops, then one line per artifact
+                               (default project: the repo at cwd); read-only, no git needed
 
 Exit 0 on success and expected no-ops; 1 with one `bq memory:` line on a refusal or failure.
 """
@@ -40,6 +42,8 @@ def main(argv=None):
     rs.add_argument("--force", action="store_true",
                     help="overwrite an existing folder (the current state is checkpointed first)")
     sub.add_parser("stamp", help="write .identity for the repo at the current directory")
+    ix = sub.add_parser("index", help="print the memory index (open loops first)")
+    ix.add_argument("project", nargs="?", help="project name (default: the repo at cwd)")
     a = p.parse_args(argv)
     try:
         if a.cmd == "init":
@@ -52,6 +56,8 @@ def main(argv=None):
             return m.log(a.dir, a.n)
         if a.cmd == "restore":
             return m.restore(a.dir, a.rev, a.force)
+        if a.cmd == "index":
+            return m.index(a.project)
         return m.stamp()
     except m.MemError as e:
         print(f"bq memory: {e}", file=sys.stderr)

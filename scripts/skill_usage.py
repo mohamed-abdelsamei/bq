@@ -8,7 +8,9 @@ $BQ_CLAUDE_JSON overrides the path, for tests). That key is undocumented: each e
 {usageCount (lifetime), lastUsedAt (epoch ms)}, counting model Skill calls and typed commands.
 A missing file or an unknown format prints one line and exits 0 — this is a report, never a gate.
 
-Keys matched per bq name: `bq:<name>` (plugin install) and, for skills, `bq-<name>` (manual install).
+Keys matched per bq name: `bq:<name>` (plugin install) and, for skills, `bq-<name>` (manual install),
+plus the same shapes under the plugin's former name `crew` (`crew:<name>`, `crew-<name>`; the bq-team
+skill was `crew-team`), summed as aliases.
 Bare `<name>` keys are not counted: they collide with built-ins and other plugins (`init`, `review`).
 """
 import json
@@ -60,8 +62,14 @@ def manual_skill_key(name):
     return name if name.startswith("bq-") else f"bq-{name}"  # install.sh bq_name()
 
 
+def legacy_skill_key(name):
+    return "crew-" + (name[3:] if name.startswith("bq-") else name)  # bq-team was crew-team
+
+
 def row(kind, name, usage):
-    keys = [f"bq:{name}"] + ([manual_skill_key(name)] if kind == "skill" else [])
+    keys = [f"bq:{name}", f"crew:{name}"]
+    if kind == "skill":
+        keys += [manual_skill_key(name), legacy_skill_key(name)]
     hits = [usage[k] for k in keys if k in usage]
     last = max((h["lastUsedAt"] for h in hits), default=None)
     return {
