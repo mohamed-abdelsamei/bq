@@ -39,6 +39,10 @@ Specialists can't spawn each other and start fresh, so you chain them and pass r
   source of an `Accepted` or still-`Drafted` proposal (the ledger join — no duplicates).
 - Group the rest by the **behavior they would change**, not by topic or project. Note each lesson's
   project, status, confidence, and `Nominated` pin. Narrow to `$ARGUMENTS` if given.
+- **Retire candidates (report only).** <!-- claude-only -->Run
+  `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/skill_usage.py"` (read-only; uses are totals since
+  install) and show its never-used skills as retire candidates.<!-- copilot: Skill usage data is not available on this install. --><!-- /claude-only -->
+  Never draft a deletion or make a retirement a candidate here; route any retirement to `/bq:plan`.
 
 ## Step 2 — Gate (reviewer)
 

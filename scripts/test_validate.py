@@ -162,7 +162,7 @@ class SeededDefects(unittest.TestCase):
 
     def test_feedback_loop_word_ceiling_warns(self):
         rel = "skills/feedback-loop/SKILL.md"
-        self.assertEqual([w for w in self.baseline_warns() if "words" in w], [])
+        self.assertEqual([w for w in self.baseline_warns() if "words" in w and rel in w], [])
         p = self.root / rel
         p.write_text(p.read_text(encoding="utf-8") + "\n" + "filler " * 400 + "\n", encoding="utf-8")
         rep = validate.run(self.root)
@@ -410,6 +410,84 @@ class SeededDefects(unittest.TestCase):
     def test_hooks_missing_script(self):
         (self.root / "hooks/session_start.py").unlink()
         self.assertCaught(f"FAIL: {self.HOOKS}: hooks.SessionStart[0].hooks[0] references missing file 'hooks/session_start.py'")
+
+
+class DescriptionLint(unittest.TestCase):
+    """S1: skill-description lint and word ceilings warn, never fail."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name) / "repo"
+        shutil.copytree(REPO, self.root, ignore=shutil.ignore_patterns(".git"))
+        base = validate.run(self.root)
+        self.baseline_fails, self.baseline_warns = base.fails, base.warns
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def edit(self, rel, old, new):
+        p = self.root / rel
+        text = p.read_text(encoding="utf-8")
+        self.assertIn(old, text, f"seed anchor not found in {rel}")
+        p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+    def assertWarns(self, rel, fragment, allow_fails=False):
+        prefix = f"WARN: {rel}: "
+        self.assertFalse([w for w in self.baseline_warns if w.startswith(prefix) and fragment in w],
+                         f"baseline already warns {fragment!r} for {rel}")
+        rep = validate.run(self.root)
+        self.assertTrue(any(w.startswith(prefix) and fragment in w for w in rep.warns), rep.warns)
+        if not allow_fails:
+            self.assertEqual(rep.fails, self.baseline_fails)
+        return rep
+
+    def test_missing_use_when_warns(self):
+        rel = "skills/debugging/SKILL.md"
+        self.edit(rel, "Use when fixing", "Handy for fixing")
+        self.assertWarns(rel, 'no "Use when" clause')
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(validate.main([str(self.root)]), 0)
+
+    def test_use_when_is_case_insensitive(self):
+        rel = "skills/debugging/SKILL.md"
+        self.edit(rel, "Use when fixing", "USE WHEN fixing")
+        self.assertFalse([w for w in validate.run(self.root).warns if w.startswith(f"WARN: {rel}: ")])
+
+    def test_duplicate_trigger_phrase_warns(self):
+        # memory sorts after bq-team, so the second occurrence is reported on memory.
+        rel = "skills/memory/SKILL.md"
+        self.edit(rel, 'triggers: "where do we record this"',
+                  'triggers: "Who should  handle this", "where do we record this"')
+        self.assertWarns(rel, 'trigger phrase "Who should  handle this" is also in skills/bq-team/SKILL.md')
+
+    def test_distinct_trigger_phrases_do_not_warn(self):
+        self.assertFalse([w for w in self.baseline_warns if "trigger phrase" in w], self.baseline_warns)
+
+    def test_unknown_command_in_description_warns(self):
+        rel = "skills/facilitation/SKILL.md"
+        self.edit(rel, "/bq:brainstorm", "/bq:roundtable")
+        # check_cross_refs also FAILs a dangling /bq:x anywhere in the file; the lint adds the WARN.
+        self.assertWarns(rel, "description names /bq:roundtable but commands/roundtable.md does not exist",
+                         allow_fails=True)
+
+    def test_known_command_in_description_does_not_warn(self):
+        self.assertFalse([w for w in self.baseline_warns if "description names /bq:" in w], self.baseline_warns)
+
+    def test_default_word_ceiling_warns(self):
+        rel = "skills/debugging/SKILL.md"
+        p = self.root / rel
+        p.write_text(p.read_text(encoding="utf-8") + "\n" + "filler " * validate.SKILL_WORDS_DEFAULT + "\n",
+                     encoding="utf-8")
+        self.assertWarns(rel, f"> {validate.SKILL_WORDS_DEFAULT} words")
+
+    def test_feedback_loop_keeps_its_tighter_ceiling(self):
+        self.assertEqual(validate.SKILL_WORDS_MAX["feedback-loop"], 1900)
+        rel = "skills/feedback-loop/SKILL.md"
+        p = self.root / rel
+        text = p.read_text(encoding="utf-8")
+        # Land between 1900 and the default: only the per-skill ceiling can catch it.
+        p.write_text(text + "\n" + "filler " * (2000 - len(text.split())) + "\n", encoding="utf-8")
+        self.assertWarns(rel, "> 1900 words")
 
 
 class Frontmatter(unittest.TestCase):

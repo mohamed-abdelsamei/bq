@@ -21,8 +21,12 @@ DELEGATION_TOOLS = {"Agent", "Task"}
 ORCHESTRATOR = "maestro"
 # Agent Skills spec caps description at 1024 chars; warn only.
 SKILL_DESC_MAX = 1024
-# Skills that load often and have grown; warn (like `wc -w`) so a split is considered, not forced.
+# Per-skill word ceilings (like `wc -w`); warn so a split is considered, not forced.
+# Skills that load often and have grown get a tighter ceiling than the default.
 SKILL_WORDS_MAX = {"feedback-loop": 1900}
+SKILL_WORDS_DEFAULT = 2500
+# Description lint (warn only): a quoted trigger phrase, e.g. "who should handle this".
+TRIGGER_PHRASE = re.compile(r'"([^"\n]+)"')
 REQUIRED_TEMPLATES = [
     "README.md",
     "charter.md",
@@ -301,10 +305,32 @@ def check_skills(rep, root):
             rep.fail(f, "frontmatter missing description")
         elif len(desc) > SKILL_DESC_MAX:
             rep.warn(f, f"description is {len(desc)} chars (> {SKILL_DESC_MAX}); may be truncated")
-        cap = SKILL_WORDS_MAX.get(folder)
-        words = len((read_text(rep, f) or "").split()) if cap else 0
-        if cap and words > cap:
+        cap = SKILL_WORDS_MAX.get(folder, SKILL_WORDS_DEFAULT)
+        words = len((read_text(rep, f) or "").split())
+        if words > cap:
             rep.warn(f, f"{words} words (> {cap} words); consider splitting it into its own skill")
+
+
+def check_skill_descriptions(rep, root):
+    """Warn-only lint of skill descriptions (they decide when a skill loads): a "Use when" clause,
+    no quoted trigger phrase shared by two skills, and every /bq:<name> names a real command."""
+    commands = {p.stem for p in (root / "commands").glob("*.md")}
+    phrases = {}  # normalized phrase -> first skill file that used it
+    for f in sorted((root / "skills").glob("*/SKILL.md")):
+        text = read_text(rep, f)
+        fm = parse_frontmatter(text)[0] if text is not None else None
+        desc = fm.get("description") if fm else None
+        if not desc or isinstance(desc, Unsupported):
+            continue  # missing/unparseable descriptions are reported by check_skills
+        if "use when" not in desc.lower():
+            rep.warn(f, 'description has no "Use when" clause (it tells the model when to load the skill)')
+        for m in TRIGGER_PHRASE.finditer(desc):
+            key = " ".join(m.group(1).lower().split())
+            first = phrases.setdefault(key, f)
+            if first != f:
+                rep.warn(f, f'trigger phrase "{m.group(1)}" is also in {rep._rel(first)}')
+        for c in sorted(set(COMMAND_REF.findall(desc)) - commands):
+            rep.warn(f, f"description names /bq:{c} but commands/{c}.md does not exist")
 
 
 def doc_files(root):
@@ -532,6 +558,8 @@ def check_hooks(rep, root):
     hooks/*.py imports socket/urllib/http/subprocess (WARN) (ADR 0010)."""
     for py in sorted((root / "hooks").glob("*.py")):
         for m in HOOK_BANNED_IMPORT.finditer(py.read_text(encoding="utf-8", errors="replace")):
+            if py.name == "_bqmem.py" and m.group(1) == "subprocess":
+                continue  # the one named exemption: memory history runs git (ADR 0011)
             rep.warn(py, f"imports '{m.group(1)}' (hooks make no network calls and spawn no processes)")
     path = root / HOOKS_JSON
     data = load_json(rep, path, ["hooks"])
@@ -593,6 +621,7 @@ CHECKS = [
     check_agents,
     check_commands,
     check_skills,
+    check_skill_descriptions,
     check_markers,
     check_readme_and_templates,
     check_cross_refs,
