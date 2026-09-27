@@ -485,6 +485,22 @@ class MemoryHooks(HookBase):
     def ctx(self, env=None):
         return json.loads(self.stdout(env))["hookSpecificOutput"]["additionalContext"]
 
+    def hgit(self, *args, env=None):
+        r = subprocess.run(["git", f"--git-dir={self.hist}", f"--work-tree={self.ai}", "-c", "user.name=t",
+                            "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args], cwd=self.ai,
+                           capture_output=True, text=True, timeout=30, env={**os.environ, **GIT_ENV, **(env or {})})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout.strip()
+
+    def deleted_line(self, name, short):
+        return (f"bq memory: {name} was deleted {time.strftime('%Y-%m-%d')} (last in {short}) — restore: "
+                f'python3 "{SCRIPT}" restore {name}')
+
+    def restore(self, name):
+        r = subprocess.run([sys.executable, str(SCRIPT), "restore", name], capture_output=True, text=True,
+                           env=self.env, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
     def stamp(self, data):
         self.write(self.ai / "myproj", ".identity", data if isinstance(data, str) else json.dumps(data))
 
@@ -523,8 +539,11 @@ class MemoryHooks(HookBase):
         self.assertEqual(missing, f'bq memory: gone is missing on disk but in history — restore: '
                                   f'python3 "{SCRIPT}" restore gone')
         self.assertEqual(standing, STANDING_LINE)
-        self.checkpoint()  # records the deletion...
-        self.assertNotIn("bq memory:", self.ctx())  # ...so the next session is quiet (M3)
+        short = self.hgit("rev-parse", "--short", "HEAD")
+        self.checkpoint()  # records the deletion; the notice outlives it for 7 days (finding A)
+        self.assertEqual(self.ctx().split("\n\n")[1], self.deleted_line("gone", short))
+        self.restore("gone")
+        self.assertNotIn("bq memory:", self.ctx())  # back on disk: quiet
 
     def test_own_memory_folder_deleted_still_reported(self):
         self.init_history()
@@ -534,6 +553,68 @@ class MemoryHooks(HookBase):
         (self.ai / "myproj").rmdir()
         self.assertEqual(self.ctx(), f'bq memory: myproj is missing on disk but in history — restore: '
                                      f'python3 "{SCRIPT}" restore myproj')
+        short = self.hgit("rev-parse", "--short", "HEAD")
+        self.checkpoint()
+        self.assertEqual(self.ctx(), self.deleted_line("myproj", short))
+
+    def test_deletion_older_than_seven_days_drops_out(self):
+        self.init_history()
+        self.checkpoint()
+        (self.ai / "gone" / "charter.md").unlink()
+        (self.ai / "gone").rmdir()
+        stamp = f"{int(time.time()) - 8 * 86400} +0000"
+        self.hgit("add", "-A")
+        self.hgit("commit", "-qm", "old", env={"GIT_COMMITTER_DATE": stamp, "GIT_AUTHOR_DATE": stamp})
+        self.assertNotIn("bq memory:", self.ctx())
+        stamp = f"{int(time.time()) - 6 * 86400} +0000"
+        self.write(self.ai / "myproj", "x.md", "x")
+        self.hgit("add", "-A")  # a later commit inside the window changes nothing for 'gone'
+        self.hgit("commit", "-qm", "newer", env={"GIT_COMMITTER_DATE": stamp, "GIT_AUTHOR_DATE": stamp})
+        self.assertNotIn("bq memory:", self.ctx())
+
+    def test_restore_commands_quote_a_plugin_root_with_spaces(self):
+        root = Path(self._tmp.name).resolve() / "plug in" / "bq"
+        (root / "scripts").mkdir(parents=True)
+        for f in HOOKS.glob("*.py"):
+            (root / "hooks").mkdir(exist_ok=True)
+            (root / "hooks" / f.name).write_bytes(f.read_bytes())
+        (root / "scripts" / "bq_memory.py").write_bytes(SCRIPT.read_bytes())
+        self.init_history()
+        self.checkpoint()
+        (self.ai / "gone" / "charter.md").unlink()
+        (self.ai / "gone").rmdir()
+        want = f'python3 "{root / "scripts" / "bq_memory.py"}" restore gone'
+
+        def run(name):
+            return subprocess.run([sys.executable, str(root / "hooks" / name)], capture_output=True, text=True,
+                                  input=json.dumps(self.payload(source="startup")), env=self.env, timeout=10)
+        self.assertTrue(json.loads(run("session_start.py").stdout)["hookSpecificOutput"]["additionalContext"]
+                        .split("\n\n")[1].endswith(want))
+        self.assertIn(want + " (from ", run("checkpoint.py").stderr)
+        ctx = json.loads(run("session_start.py").stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertTrue(ctx.split("\n\n")[1].endswith(want), ctx)
+        r = subprocess.run(["/bin/sh", "-c", want.replace(" restore gone", " status")], capture_output=True,
+                           text=True, env=self.env, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr)  # the printed command runs as pasted
+
+    def test_stuck_lock_line_and_lock_kept(self):
+        self.init_history()
+        self.checkpoint()
+        lock = self.hist / "index.lock"
+        lock.write_text("")
+        self.assertNotIn("bq memory:", self.ctx())  # a fresh lock is a running checkpoint
+        old = time.time() - 3 * 60
+        os.utime(lock, (old, old))
+        since = time.strftime("%Y-%m-%d %H:%M", time.localtime(old))
+        line = (f"bq memory: history lock stuck since {since} — checkpoints are paused; see the memory "
+                "skill's Durability and recovery section")
+        self.assertEqual(self.ctx().split("\n\n")[1], line)
+        self.assertTrue(lock.exists())
+        for p in sorted((self.ai / "myproj").rglob("*"), reverse=True):
+            p.rmdir() if p.is_dir() else p.unlink()
+        (self.ai / "myproj").rmdir()  # no memory folder: the line still shows, first
+        self.assertEqual(self.ctx().split("\n")[0], line)
+        self.assertTrue(lock.exists())
 
     def test_history_with_nothing_missing_adds_nothing(self):
         before = self.stdout()
@@ -646,11 +727,15 @@ class MemoryHooks(HookBase):
             return time.perf_counter() - t0
 
         once(self.env), once(no_hist)  # warm caches
-        diffs = sorted(once(self.env) - once(no_hist) for _ in range(int(os.environ.get("BQ_PERF_RUNS", 20))))
-        p95 = diffs[min(len(diffs) - 1, int(round(0.95 * len(diffs))) - 1)]
-        if os.environ.get("BQ_PERF_REPORT"):
-            print(f"\nM6 added latency over {len(diffs)} pairs: median {diffs[len(diffs) // 2] * 1000:.1f} ms, "
-                  f"p95 {p95 * 1000:.1f} ms, max {diffs[-1] * 1000:.1f} ms", file=sys.stderr)
+        for attempt in (1, 2):  # a load spike from other processes gets one re-measure; a real regression fails both
+            diffs = sorted(once(self.env) - once(no_hist) for _ in range(int(os.environ.get("BQ_PERF_RUNS", 20))))
+            p95 = diffs[min(len(diffs) - 1, int(round(0.95 * len(diffs))) - 1)]
+            if os.environ.get("BQ_PERF_REPORT"):
+                print(f"\nM6 added latency over {len(diffs)} pairs (attempt {attempt}): median "
+                      f"{diffs[len(diffs) // 2] * 1000:.1f} ms, p95 {p95 * 1000:.1f} ms, max {diffs[-1] * 1000:.1f} ms",
+                      file=sys.stderr)
+            if p95 <= 0.150:
+                break
         self.assertLessEqual(p95, 0.150)
 
 

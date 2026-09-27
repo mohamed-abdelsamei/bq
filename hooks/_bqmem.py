@@ -22,6 +22,7 @@ import datetime
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -35,12 +36,21 @@ import _bqhook as h  # noqa: E402
 
 READ_TIMEOUT = 5
 WRITE_TIMEOUT = 60
-LOCK_STALE = 600  # seconds: an index.lock older than this is reported, never removed
+LOCK_STALE = 120  # seconds: a checkpoint takes ~0.2 s, so an older index.lock is stuck (reported, never removed)
+RECENT_DAYS = 7  # deletions recorded within this many days keep their restore notice
 EXCLUDES = ["*.env", ".env", "*.pem", "*.key", "id_rsa*", "id_ed25519*", "id_ecdsa*", "id_dsa*", ".DS_Store", "*.restored-*/"]
 # Store bytes exactly as on disk: no eol conversion, filters or export tweaks from any .gitattributes.
 ATTRIBUTES = "* -text -filter -ident -working-tree-encoding -export-ignore -export-subst\n"
 EXCLUDE_HEADER = "# bq memory (ADR 0011): secrets, OS junk, restore extracts, symlinked entries\n"
 SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "bq_memory.py"
+
+
+def command(*args):
+    """A copy-pasteable `python3 "<SCRIPT>" <args>` line (the plugin root may contain spaces)."""
+    script = str(SCRIPT)
+    script = shlex.quote(script) if re.search(r'["$`\\]', script) else f'"{script}"'
+    return f"python3 {script}" + "".join(" " + shlex.quote(str(a)) for a in args)
+
 GIT_CONFIG = ["-c", "user.name=bq", "-c", "user.email=bq@localhost", "-c", "commit.gpgsign=false",
               "-c", "core.hooksPath=/dev/null", "-c", "core.quotepath=false"]
 
@@ -210,7 +220,7 @@ def init(out=print):
         out(f"bq memory: warning: history has remote(s) {remotes.split()} — bq never pushes; remove them")
     verb = "created" if created else "already initialized:"
     out(f"bq memory: {verb} history {hist} (work tree {home}); "
-        f"first checkpoint: python3 {SCRIPT} checkpoint")
+        f"first checkpoint: {command('checkpoint')}")
     return 0
 
 
@@ -225,14 +235,14 @@ def checkpoint(out=print, warn=None):
         return 0
     if not repo.home.is_dir():
         warn(f"bq memory: {repo.home} is missing — nothing committed; restore folders with: "
-             f"python3 {SCRIPT} restore <dir>")
+             f"{command('restore')} <dir>")
         return 0
     lock = repo.hist / "index.lock"
     if lock.exists():
         age = time.time() - lock.stat().st_mtime
         if age >= LOCK_STALE:
             warn(f"bq memory: stale lock {lock} ({int(age // 60)} min old); checkpoint skipped — "
-                 "remove it by hand once no git process is running")
+                 "see the memory skill's Durability and recovery section (never remove it while git runs)")
         return 0
     _sync_info(repo, warn)
     before = repo.head()
@@ -254,27 +264,103 @@ def checkpoint(out=print, warn=None):
     if before:
         short = repo.short(before)
         for d in sorted(old_dirs - repo.top_dirs("HEAD")):
-            out(f"bq memory: {d} deleted — restore: python3 {SCRIPT} restore {d} (from {short})")
+            out(f"bq memory: {d} deleted — restore: {command('restore', d)} (from {short})")
     return 0
 
 
 # ---------------------------------------------------------------- status / log
 
 
+def _head_dirs(repo):
+    """Top-level folders in HEAD, or None without history or commits. One git call."""
+    if not has_history(repo.hist):
+        return None
+    rc, out, _ = repo.run("ls-tree", "-d", "-z", "--name-only", "HEAD", check=False)
+    return {os.fsdecode(n) for n in out.split(b"\0") if n} if rc == 0 else None
+
+
+def _missing(repo, head_dirs):
+    return sorted(d for d in head_dirs if not (repo.home / d).is_dir())
+
+
+def _recent(repo, head_dirs, days):
+    """See recent_deletions. One git call.
+
+    The log lists deleted files, not folders; a folder d not in HEAD was deleted by the newest
+    commit C that deleted a file under it (a later re-add + delete would be a newer C), so C^ still
+    has d. Names without a slash are top-level files and are skipped."""
+    cutoff = int(time.time()) - days * 86400
+    raw = repo.run("log", f"--since={days}.days.ago", "--no-renames", "--diff-filter=D", "--name-only",
+                   "-z", "--format=%x01%p %ct", "HEAD")
+    found, commit = {}, None
+    for tok in raw.split(b"\0"):
+        tok = tok.lstrip(b"\n")
+        if tok.startswith(b"\x01"):  # a commit header: "<parent> <committer time>" (none on the root)
+            parent, _, ct = tok[1:].decode().partition(" ")
+            commit = (parent.split()[0], int(ct)) if parent and ct.isdigit() else None
+        elif b"/" in tok and commit:
+            found.setdefault(os.fsdecode(tok.split(b"/", 1)[0]), commit)  # newest first: keep the latest
+    return sorted((d, rev, ct) for d, (rev, ct) in found.items()
+                  if ct >= cutoff and d not in head_dirs and not (repo.home / d).is_dir())
+
+
 def missing_dirs():
     """Top-level folders in HEAD that are missing on disk ([] without history or commits)."""
     repo = Repo()
-    if not has_history(repo.hist) or not repo.head():
-        return []
-    return sorted(d for d in repo.top_dirs("HEAD") if not (repo.home / d).is_dir())
+    head_dirs = _head_dirs(repo)
+    return _missing(repo, head_dirs) if head_dirs is not None else []
+
+
+def recent_deletions(days=RECENT_DAYS):
+    """[(dir, rev_before, deleted_at)] for top-level folders whose deletion a checkpoint committed
+    in the last `days` days and that are still missing on disk: newest deletion per folder, sorted
+    by name. rev_before is the short parent of the deleting commit, deleted_at its committer time
+    (epoch seconds). Folders still in HEAD are missing_dirs()' business, not listed here."""
+    repo = Repo()
+    head_dirs = _head_dirs(repo)
+    return _recent(repo, head_dirs, days) if head_dirs is not None else []
+
+
+def restore_notices(days=RECENT_DAYS):
+    """(missing_dirs(), recent_deletions()) sharing one HEAD listing: two git calls."""
+    repo = Repo()
+    head_dirs = _head_dirs(repo)
+    if head_dirs is None:
+        return [], []
+    return _missing(repo, head_dirs), _recent(repo, head_dirs, days)
+
+
+def lock_stuck(hist=None):
+    """The mtime of H/index.lock when it is older than LOCK_STALE, else None. A stat, no git."""
+    try:
+        mtime = (Path(hist or history_dir()) / "index.lock").stat().st_mtime
+    except OSError:
+        return None
+    return mtime if time.time() - mtime >= LOCK_STALE else None
+
+
+def when(epoch, fmt="%Y-%m-%d %H:%M"):
+    return datetime.datetime.fromtimestamp(epoch).strftime(fmt)
+
+
+def lock_line(mtime):
+    return (f"bq memory: history lock stuck since {when(mtime)} — checkpoints are paused; "
+            "see the memory skill's Durability and recovery section")
 
 
 def status(out=print):
     repo = Repo()
     if not has_history(repo.hist):
-        out(f"bq memory: no history at {repo.hist} (opt in with: python3 {SCRIPT} init)")
+        out(f"bq memory: no history at {repo.hist} (opt in with: {command('init')})")
         return 0
     out(f"history: {repo.hist}\nwork tree: {repo.home}")
+    lock = repo.hist / "index.lock"
+    stuck = lock_stuck(repo.hist)
+    if stuck:
+        out("history lock: stuck since " + when(stuck) + " — checkpoints are paused; "
+            "see the memory skill's Durability and recovery section")
+    else:
+        out("history lock: " + ("held (a checkpoint is running)" if lock.exists() else "none"))
     if not repo.head():
         out("last checkpoint: none yet")
         return 0
@@ -283,8 +369,11 @@ def status(out=print):
         entries = repo.run("status", "--porcelain", "-z", "--no-renames", "--untracked-files=all")
         count = len([e for e in entries.split(b"\0") if e])
         out(f"uncommitted changes: {count}")
-    missing = missing_dirs()
+    missing, recent = restore_notices()
     out("missing folders: " + (", ".join(missing) if missing else "none"))
+    out(f"deleted in the last {RECENT_DAYS} days: " + ("" if recent else "none"))
+    for d, rev, ct in recent:
+        out(f"  {d} — deleted {when(ct, '%Y-%m-%d')}, last in {rev} — restore: {command('restore', d)}")
     return 0
 
 
@@ -419,7 +508,7 @@ def restore(name, rev=None, force=False, out=print):
         skipped = _write_tree(_blobs(repo, rev, name), dest)
         out(f"bq memory: {name} exists, so {short} was extracted to {dest} (nothing overwritten)\n"
             f"compare: diff -ru {target} {dest}\n"
-            f"overwrite instead: python3 {SCRIPT} restore {name} --rev {short} --force")
+            f"overwrite instead: {command('restore', name, '--rev', short, '--force')}")
     for rel in skipped:
         out(f"bq memory: skipped {name}/{rel} (path conflict)")
     return 0

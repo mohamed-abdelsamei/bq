@@ -265,13 +265,55 @@ class Deletion(MemBase):
         self.assertEqual(len(lines), 1, r.stdout)
         self.assertIn("p1 deleted", lines[0])
         self.assertIn(f"restore p1 (from {before})", lines[0])
-        self.assertIn(f"python3 {CLI} restore p1", lines[0])
+        self.assertIn(f'python3 "{CLI}" restore p1', lines[0])
         self.assertEqual(self.commits(), 2)
         self.assertEqual(self.hgit("ls-tree", "--name-only", "HEAD").split(), ["p2"])
         with mock.patch.dict(os.environ, self.env):
             self.assertEqual(m.missing_dirs(), [])
         self.put("p2/new.md", "n")
         self.assertEqual(self.cli("checkpoint").stdout, "")  # the notice appears once
+        with mock.patch.dict(os.environ, self.env):  # ...but the deletion stays listed for 7 days
+            recent = m.recent_deletions()
+        self.assertEqual([(d, rev) for d, rev, _ in recent], [("p1", before)])
+        self.assertLess(abs(recent[0][2] - time.time()), 120)
+
+    def backdated_commit(self, days):
+        """Commit the index as a checkpoint whose committer date is `days` days ago."""
+        stamp = f"{int(time.time()) - days * 86400} +0000"
+        self.hgit("add", "-A")
+        r = subprocess.run(["git", f"--git-dir={self.hist}", f"--work-tree={self.ai}", "-c", "user.name=t",
+                            "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-qm", "old"],
+                           cwd=self.ai, capture_output=True, timeout=30,
+                           env={**os.environ, **GIT_ENV, "GIT_COMMITTER_DATE": stamp, "GIT_AUTHOR_DATE": stamp})
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_recent_deletions_window_and_restore(self):
+        self.ready()
+        import shutil
+        shutil.rmtree(self.ai / "p1")
+        self.backdated_commit(8)  # recorded 8 days ago: outside the window
+        shutil.rmtree(self.ai / "p2")
+        self.backdated_commit(6)  # 6 days ago: inside
+        self.put("p3/x.md", "x")
+        self.cli("checkpoint")  # a newer checkpoint does not hide it
+        with mock.patch.dict(os.environ, self.env):
+            self.assertEqual([d for d, _, _ in m.recent_deletions()], ["p2"])
+            self.assertEqual([d for d, _, _ in m.recent_deletions(days=9)], ["p1", "p2"])
+            self.assertEqual(m.missing_dirs(), [])
+        out = self.cli("status").stdout
+        self.assertIn("deleted in the last 7 days: \n  p2 — deleted ", out)
+        self.assertIn(f'restore: python3 "{CLI}" restore p2', out)
+        self.assertNotIn("p1 —", out)
+        self.cli("restore", "p2")
+        self.assertTrue((self.ai / "p2" / "lessons" / "a.md").is_file())
+        with mock.patch.dict(os.environ, self.env):
+            self.assertEqual(m.recent_deletions(), [])  # back on disk: no notice, even before a checkpoint
+        (self.ai / "top.md").write_text("t")
+        self.cli("checkpoint")
+        (self.ai / "top.md").unlink()
+        self.cli("checkpoint")
+        with mock.patch.dict(os.environ, self.env):
+            self.assertEqual(m.recent_deletions(), [])  # a deleted top-level file is not a folder
 
 
 # ---------------------------------------------------------------- M4
@@ -366,11 +408,22 @@ class Locks(MemBase):
         self.assertEqual(self.commits(), 1)
         self.assertTrue(lock.exists())
 
+    def test_lock_under_two_minutes_skips_quietly(self):
+        self.ready()
+        lock = self.hist / "index.lock"
+        lock.write_text("")
+        old = time.time() - 90
+        os.utime(lock, (old, old))
+        self.put("p1/b.md", "b")
+        self.assertEqual(self.cli("checkpoint").stderr, "")
+        self.assertIn("history lock: held", self.cli("status").stdout)
+        self.assertEqual(self.commits(), 1)
+
     def test_stale_lock_warns_once_and_is_kept(self):
         self.ready()
         lock = self.hist / "index.lock"
         lock.write_text("")
-        old = time.time() - 11 * 60
+        old = time.time() - 3 * 60
         os.utime(lock, (old, old))
         self.put("p1/b.md", "b")
         r = self.cli("checkpoint")
@@ -379,6 +432,11 @@ class Locks(MemBase):
         self.assertIn("stale lock", r.stderr)
         self.assertTrue(lock.exists())
         self.assertEqual(self.commits(), 1)
+        out = self.cli("status").stdout
+        since = time.strftime("%Y-%m-%d %H:%M", time.localtime(old))
+        self.assertIn(f"history lock: stuck since {since} — checkpoints are paused; see the memory "
+                      "skill's Durability and recovery section", out)
+        self.assertTrue(lock.exists())
 
     def test_timeout_terminates_child(self):
         start = time.time()
@@ -398,6 +456,8 @@ class StatusLog(MemBase):
         out = self.cli("status").stdout
         self.assertIn("uncommitted changes: 2", out)
         self.assertIn("missing folders: p1", out)
+        self.assertIn("history lock: none", out)
+        self.assertIn("deleted in the last 7 days: none", out)
         self.assertIn("Changed: p1, p2", self.cli("log").stdout)
         self.assertEqual(len(self.cli("log", "p2").stdout.splitlines()), 1)
 

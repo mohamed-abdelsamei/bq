@@ -21,16 +21,19 @@ Memory layer (ADR 0011, I2 and M6):
   repo, one mismatch line replaces the lessons index. The standing reflection line stays: it is
   project-agnostic. A missing, unreadable or malformed .identity counts as absent.
 - Missing folders: only when the history repo exists, the lessons are built first and a
-  quick git check (_bqmem.missing_dirs) then runs under a GIT_DEADLINE-second deadline. It adds one
-  restore line per top-level folder that is in history but missing on disk. On a timeout or any
-  error the check is skipped and the lessons are emitted anyway. Everything goes out as one JSON
-  object, so "lessons first" means built first and never dropped, not printed first.
+  quick git check (_bqmem.missing_dirs + _bqmem.recent_deletions) then runs under one
+  GIT_DEADLINE-second deadline. It adds one restore line per top-level folder that is in history
+  but missing on disk, and per folder whose deletion a checkpoint recorded in the last
+  RECENT_DAYS days and is still missing (so the notice outlives the checkpoint). On a timeout or
+  any error the check is skipped and the lessons are emitted anyway. Everything goes out as one
+  JSON object, so "lessons first" means built first and never dropped, not printed first.
   The check also runs when this project has no memory folder (it may be the deleted one); then
-  only the restore lines are emitted, with no index and no reflection line.
+  only the memory lines are emitted, with no index and no reflection line.
+- Stuck lock: with history present, an index.lock older than _bqmem.LOCK_STALE adds one line
+  (a stat, outside the git deadline; the lock is never touched).
 """
 import json
 import re
-import shlex
 import stat
 import sys
 import threading
@@ -46,7 +49,7 @@ ENTRY_MAX = 300
 TITLE_MAX = ENTRY_MAX - 20
 SHARED_SLOTS = 2
 MAX_BYTES = 64 * 1024
-GIT_DEADLINE = 1.0  # seconds for the missing-folder check; the hook itself is killed at 5
+GIT_DEADLINE = 1.0  # seconds for the missing/deleted-folder check; the hook itself is killed at 5
 IN_FORCE = {"Active", "Shared"}
 KNOWN = {"Proposed", "Active", "Shared", "Promoted", "Superseded", "Dropped"}
 LEGACY = {"Promotion-nominated": "Active"}
@@ -243,18 +246,22 @@ def stamp_mismatch(data, mem):
             "loaded (run /bq:refresh to re-stamp if this is the same project)")
 
 
-def missing_lines():
-    """One restore line per top-level folder in history but missing on disk; [] if there is no
-    history, the check fails, or it overruns GIT_DEADLINE (fail open, never raises)."""
+def memory_lines():
+    """The memory layer's lines: a stuck-lock line, then one restore line per top-level folder that
+    is missing on disk but in history, or was deleted in the last RECENT_DAYS days and is still
+    missing. [] without history; the git part is dropped on an error or a GIT_DEADLINE overrun
+    (fail open, never raises)."""
     try:
         import _bqmem  # lazy: a broken memory module must never cost the lessons
         if not _bqmem.has_history():
             return []
+        stuck = _bqmem.lock_stuck()  # a stat outside the deadline: a hung git can't hide it
+        lines = [quotable(_bqmem.lock_line(stuck))] if stuck else []
         found = []
 
         def check():
             try:
-                found.append(_bqmem.missing_dirs())
+                found.append(_bqmem.restore_notices())
             except Exception:
                 pass
 
@@ -262,10 +269,17 @@ def missing_lines():
         t.start()
         t.join(GIT_DEADLINE)
         if t.is_alive() or not found:
-            return []
-        script = quotable(str(_bqmem.SCRIPT))
-        return [f'bq memory: {quotable(d)} is missing on disk but in history — restore: '
-                f'python3 "{script}" restore {shlex.quote(quotable(d))}' for d in found[0]]
+            return lines
+        missing, recent = found[0]
+
+        def restore(d):
+            return CONTROL.sub("", _bqmem.command("restore", d))
+
+        lines += [f"bq memory: {quotable(d)} is missing on disk but in history — restore: {restore(d)}"
+                  for d in missing]
+        lines += [f"bq memory: {quotable(d)} was deleted {_bqmem.when(ct, '%Y-%m-%d')} (last in {rev}) — "
+                  f"restore: {restore(d)}" for d, rev, ct in recent]
+        return lines
     except Exception:
         return []
 
@@ -273,13 +287,13 @@ def missing_lines():
 def main(data):
     mem = h.memory_dir(data)
     if mem is None:  # this project's own folder may be the one that was deleted
-        missing = missing_lines()
-        if missing:
-            h.emit_context("SessionStart", "\n".join(missing))
+        notes = memory_lines()
+        if notes:
+            h.emit_context("SessionStart", "\n".join(notes))
         return
     index = stamp_mismatch(data, mem) or build(mem, h.ai_home() / "shared" / "lessons")
-    missing = missing_lines()
-    parts = [index, "\n".join(missing), REFLECT] if missing else [index, REFLECT]
+    notes = memory_lines()
+    parts = [index, "\n".join(notes), REFLECT] if notes else [index, REFLECT]
     h.emit_context("SessionStart", "\n\n".join(parts))
 
 

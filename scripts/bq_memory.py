@@ -7,7 +7,8 @@ ${XDG_DATA_HOME:-~/.local/share}/bq/ai-history.git) with ${AI_HOME:-~/.ai} as th
 
   init                         opt in: create the history repo (refuses when unsafe)
   checkpoint                   commit every change; notices for deleted project folders
-  status                       history, last checkpoint, uncommitted count, missing folders
+  status                       history, lock state, last checkpoint, uncommitted count, missing
+                               folders, folders deleted in the last 7 days
   log [dir] [-n N]             short history, optionally for one folder
   restore <dir> [--rev R] [--force]
                                bring a folder back; never overwrites newer work without --force
@@ -32,7 +33,7 @@ def main(argv=None):
     sub.required = True
     sub.add_parser("init", help="create the history repo outside AI_HOME")
     sub.add_parser("checkpoint", help="commit every change in AI_HOME")
-    sub.add_parser("status", help="show history state and missing folders")
+    sub.add_parser("status", help="show history state, lock, missing and recently deleted folders")
     lg = sub.add_parser("log", help="short history")
     lg.add_argument("dir", nargs="?")
     lg.add_argument("-n", type=int, default=20, help="how many checkpoints (default 20)")
