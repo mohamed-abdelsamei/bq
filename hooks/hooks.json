@@ -1,5 +1,5 @@
 {
-  "description": "bq learning loop: index lessons in force at session start and remind the model to reflect once after a user correction (ADR 0010). Reads ~/.ai memory; writes nothing.",
+  "description": "bq learning loop and memory history: index lessons in force at session start and remind the model to reflect once after a user correction (ADR 0010); in the background, checkpoint ~/.ai into its history repo if one was opted into (ADR 0011). The lessons hook writes nothing; the checkpoint writes only to the history repo.",
   "hooks": {
     "SessionStart": [
       {
@@ -8,6 +8,12 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/session_start.py\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/checkpoint.py\"",
+            "async": true,
             "timeout": 5
           }
         ]

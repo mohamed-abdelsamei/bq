@@ -396,6 +396,33 @@ class SeededDefects(unittest.TestCase):
         for i, mod in enumerate(("subprocess", "urllib", "http", "socket")):
             self.assertIn(f"WARN: hooks/extra{i}.py: imports '{mod}'", "\n".join(warns))
 
+    def test_subprocess_exemption_is_bqmem_and_subprocess_only(self):
+        """M6: only hooks/_bqmem.py may import subprocess, and nothing else banned."""
+        self.assertEqual([w for w in validate.run(self.root).warns if "imports" in w], [])
+        with open(self.root / "hooks/session_start.py", "a", encoding="utf-8") as f:
+            f.write("\nimport subprocess\n")
+        with open(self.root / "hooks/_bqmem.py", "a", encoding="utf-8") as f:
+            f.write("\nimport socket\n")
+        warns = [w for w in validate.run(self.root).warns if "imports" in w]
+        self.assertEqual(sorted(warns), sorted([
+            "WARN: hooks/_bqmem.py: imports 'socket' (hooks make no network calls and spawn no processes)",
+            "WARN: hooks/session_start.py: imports 'subprocess' (hooks make no network calls and spawn no processes)",
+        ]))
+
+    def test_async_hook_entry_still_checked(self):
+        data = self.hooks_data()
+        entry = data["hooks"]["SessionStart"][0]["hooks"][1]
+        self.assertIs(entry["async"], True)
+        entry["command"] = "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/checkpoint.py"
+        del entry["timeout"]
+        entry["async"] = "yes"
+        self.write_hooks(data)
+        rep = validate.run(self.root)
+        for frag in ("hooks.SessionStart[0].hooks[1].command must be exactly python3",
+                     "hooks.SessionStart[0].hooks[1].timeout must be a number in (0, 5]",
+                     "hooks.SessionStart[0].hooks[1].async must be true or false, got 'yes'"):
+            self.assertTrue(any(frag in f for f in rep.fails), (frag, rep.fails))
+
     def test_hooks_wrong_type(self):
         self.edit(self.HOOKS, '"type": "command"', '"type": "prompt"')
         self.assertCaught(f"FAIL: {self.HOOKS}: hooks.SessionStart[0].hooks[0].type must be 'command'")

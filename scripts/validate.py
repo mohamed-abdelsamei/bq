@@ -32,6 +32,7 @@ REQUIRED_TEMPLATES = [
     "charter.md",
     "decision-template.md",
     "discussions/discussion-template.md",
+    "knowledge/graph.md",
     "lessons/README.md",
     "lessons/lesson-template.md",
     "requirements/requirement-template.md",
@@ -553,7 +554,7 @@ def check_lesson_format(rep, root):
 
 
 def check_hooks(rep, root):
-    """hooks/hooks.json: {"hooks": {Event: [{matcher?, hooks: [{type: command, command, args?, timeout<=5}]}]}},
+    """hooks/hooks.json: {"hooks": {Event: [{matcher?, hooks: [{type: command, command, args?, async?, timeout<=5}]}]}},
     every command is `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<x>.py"` and the file exists, and no
     hooks/*.py imports socket/urllib/http/subprocess (WARN) (ADR 0010)."""
     for py in sorted((root / "hooks").glob("*.py")):
@@ -607,6 +608,8 @@ def check_hook_entry(rep, root, path, where, hook):
     if command and not HOOK_COMMAND.fullmatch(command):
         rep.fail(path, f'{where}.command must be exactly python3 "${{CLAUDE_PLUGIN_ROOT}}/hooks/<name>.py", '
                        f"got {command!r}")
+    if "async" in hook and not isinstance(hook["async"], bool):
+        rep.fail(path, f"{where}.async must be true or false, got {hook['async']!r}")
     timeout = hook.get("timeout")
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not 0 < timeout <= HOOK_TIMEOUT_MAX:
         rep.fail(path, f"{where}.timeout must be a number in (0, {HOOK_TIMEOUT_MAX}] seconds, got {timeout!r}")

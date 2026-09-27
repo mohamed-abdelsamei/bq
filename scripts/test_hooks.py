@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -408,9 +409,249 @@ class Hygiene(HookBase):
         self.assertFalse((HOOKS / "__pycache__").exists())
 
     def test_only_session_start_ships(self):
-        self.assertEqual(sorted(p.name for p in HOOKS.glob("*.py")), ["_bqhook.py", "_bqmem.py", "session_start.py"])
+        self.assertEqual(sorted(p.name for p in HOOKS.glob("*.py")),
+                         ["_bqhook.py", "_bqmem.py", "checkpoint.py", "session_start.py"])
         events = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]
         self.assertEqual(list(events), ["SessionStart"])
+        entries = [e for g in events["SessionStart"] for e in g["hooks"]]
+        self.assertEqual([(e["command"].rsplit("/", 1)[-1], e.get("async", False)) for e in entries],
+                         [('session_start.py"', False), ('checkpoint.py"', True)])
+
+
+V050 = "7040759"  # last commit before the memory-layer hook wiring (M1 baseline)
+SCRIPT = (REPO / "scripts" / "bq_memory.py").resolve()
+
+
+def pinned_hooks(dest):
+    """session_start.py + _bqhook.py as of V050 into dest, or None if the commit is unavailable."""
+    dest.mkdir()
+    for name in ("session_start.py", "_bqhook.py"):
+        r = subprocess.run(["git", "show", f"{V050}:hooks/{name}"], cwd=REPO, capture_output=True,
+                           env={**os.environ, **GIT_ENV}, timeout=30)
+        if r.returncode:
+            return None
+        (dest / name).write_bytes(r.stdout)
+    return dest
+
+
+class MemoryHooks(HookBase):
+    """M1, M3 (hook side), M6, I2 and the checkpoint hook, on temp AI_HOME/HOME/history only."""
+
+    def setUp(self):
+        super().setUp()
+        t = Path(self._tmp.name)
+        self.hist = t / "hist.git"
+        (t / "home").mkdir()
+        self.env.update(HOME=str(t / "home"), XDG_DATA_HOME=str(t / "home" / "xdg"))
+        for k in ("AI_HOME", "BQ_MEMORY_GIT_DIR", "HOME", "XDG_DATA_HOME"):  # M7
+            self.assertTrue(self.env[k].startswith(str(t)), k)
+        self.write(self.lessons, "2026-09-01-a.md", lesson("Keep the loop", future="Close it."))
+        (self.ai / "gone").mkdir()
+        self.write(self.ai / "gone", "charter.md", "# gone\n")
+
+    # fixtures
+    def init_history(self):
+        subprocess.run(["git", "init", "-q", "--bare", "--initial-branch=main", str(self.hist)],
+                       check=True, capture_output=True, env={**os.environ, **GIT_ENV}, timeout=30)
+
+    def checkpoint(self, env=None):
+        r = self.run_hook("checkpoint.py", self.payload(source="startup"), env=env)
+        self.assertEqual(r.stdout, "")
+        return r
+
+    def commits(self):
+        r = subprocess.run(["git", f"--git-dir={self.hist}", "rev-list", "--count", "HEAD"],
+                           capture_output=True, text=True, env={**os.environ, **GIT_ENV})
+        return int(r.stdout.strip()) if r.returncode == 0 else 0
+
+    def fake_git(self, body):
+        """A PATH whose first `git` runs the shell `body`."""
+        d = Path(self._tmp.name) / f"fakebin{len(body)}"
+        d.mkdir(exist_ok=True)
+        g = d / "git"
+        g.write_text(f"#!/bin/sh\n{body}\n", encoding="utf-8")
+        g.chmod(0o755)
+        return {**self.env, "PATH": f"{d}{os.pathsep}{os.environ.get('PATH', '')}"}
+
+    def fake_history(self):
+        (self.hist / "objects").mkdir(parents=True)
+        (self.hist / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+
+    def stdout(self, env=None, script="session_start.py"):
+        r = self.run_hook(script, self.payload(source="startup"), env=env)
+        self.assertEqual(r.stderr, "")
+        return r.stdout
+
+    def ctx(self, env=None):
+        return json.loads(self.stdout(env))["hookSpecificOutput"]["additionalContext"]
+
+    def stamp(self, data):
+        self.write(self.ai / "myproj", ".identity", data if isinstance(data, str) else json.dumps(data))
+
+    # M1
+    def test_no_history_output_byte_identical_to_v050_and_no_git(self):
+        old = pinned_hooks(Path(self._tmp.name) / "v050")
+        if old is None:
+            self.skipTest(f"{V050} not available (no git history)")
+        marker = Path(self._tmp.name) / "git-was-run"
+        env = self.fake_git(f'touch "{marker}"; exit 1')
+        other = Path(self._tmp.name) / "elsewhere"
+        other.mkdir()
+        for payload in (self.payload(source="startup"), {"cwd": str(other)}, {}):
+            outs = []
+            for hooks_dir in (old, HOOKS):
+                r = subprocess.run([sys.executable, str(hooks_dir / "session_start.py")],
+                                   input=json.dumps(payload).encode(), capture_output=True, env=env, timeout=10)
+                self.assertEqual((r.returncode, r.stderr), (0, b""))
+                outs.append(r.stdout)
+            self.assertEqual(outs[0], outs[1], payload)
+            if payload.get("source"):
+                self.assertIn(b"Keep the loop", outs[1])
+        self.assertFalse(marker.exists(), "session_start spawned git without a history repo")
+        self.assertFalse(self.hist.exists())
+
+    # M6 / M3
+    def test_missing_folder_line_after_lessons(self):
+        self.init_history()
+        self.checkpoint()
+        (self.ai / "gone" / "charter.md").unlink()
+        (self.ai / "gone").rmdir()
+        ctx = self.ctx()
+        index, missing, standing = ctx.split("\n\n")
+        self.assertIn("Lessons in force (myproj)", index)
+        self.assertIn("Keep the loop", index)
+        self.assertEqual(missing, f'bq memory: gone is missing on disk but in history — restore: '
+                                  f'python3 "{SCRIPT}" restore gone')
+        self.assertEqual(standing, STANDING_LINE)
+        self.checkpoint()  # records the deletion...
+        self.assertNotIn("bq memory:", self.ctx())  # ...so the next session is quiet (M3)
+
+    def test_own_memory_folder_deleted_still_reported(self):
+        self.init_history()
+        self.checkpoint()
+        for p in sorted((self.ai / "myproj").rglob("*"), reverse=True):
+            p.rmdir() if p.is_dir() else p.unlink()
+        (self.ai / "myproj").rmdir()
+        self.assertEqual(self.ctx(), f'bq memory: myproj is missing on disk but in history — restore: '
+                                     f'python3 "{SCRIPT}" restore myproj')
+
+    def test_history_with_nothing_missing_adds_nothing(self):
+        before = self.stdout()
+        self.init_history()
+        self.checkpoint()
+        self.assertEqual(self.commits(), 1)
+        self.assertEqual(self.stdout(), before)
+
+    def test_git_hang_or_failure_keeps_lessons(self):
+        self.fake_history()
+        for body in ("sleep 30", "echo boom >&2; exit 1", "exit 0"):
+            env = self.fake_git(body)
+            t0 = time.monotonic()
+            ctx = self.ctx(env)
+            self.assertLess(time.monotonic() - t0, 3, body)
+            self.assertIn("Keep the loop", ctx, body)
+            self.assertNotIn("bq memory:", ctx, body)
+            self.assertTrue(ctx.endswith(STANDING_LINE), body)
+
+    # I2
+    def test_identity_absent_is_unchanged(self):
+        before = self.stdout()
+        self.stamp({"roots": [str(self.proj)], "remotes": []})
+        (self.ai / "myproj" / ".identity").unlink()
+        self.assertEqual(self.stdout(), before)
+
+    def test_identity_root_match_via_unresolved_path(self):
+        before = self.stdout()
+        link = Path(self._tmp.name) / "link-to-work"
+        link.symlink_to(self.proj.parent)
+        self.stamp({"roots": [str(link / "myproj")], "remotes": ["https://example.com/other/repo"]})
+        self.assertEqual(self.stdout(), before)
+        self.stamp({"roots": [str(self.proj)], "remotes": []})  # /var vs /private/var on macOS
+        self.assertEqual(self.stdout(), before)
+
+    def test_identity_remote_match_ignores_credentials_and_suffix(self):
+        (self.proj / ".git" / "config").write_text(
+            '[core]\n\tbare = false\n[remote "origin"]\n\turl = https://user:tok@github.com/acme/myproj.git\n'
+            '\tfetch = +refs/heads/*:refs/remotes/origin/*\n', encoding="utf-8")
+        self.stamp({"roots": ["/somewhere/else/myproj"], "remotes": ["https://github.com/acme/myproj"]})
+        self.assertIn("Keep the loop", self.ctx())
+
+    def test_identity_mismatch_one_line_no_lessons(self):
+        self.write(self.lessons, "2026-09-02-p.md", lesson("Pending", status="- **Status:** Proposed\n"))
+        self.stamp({"roots": ["/somewhere/else/myproj"], "remotes": ["https://github.com/acme/other"]})
+        ctx = self.ctx()
+        mismatch, standing = ctx.split("\n\n")
+        self.assertEqual(mismatch, f"bq memory: {self.ai / 'myproj'} is stamped for /somewhere/else/myproj; "
+                                   "this repo doesn't match — no lessons loaded (run /bq:refresh to re-stamp "
+                                   "if this is the same project)")
+        self.assertEqual(standing, STANDING_LINE)
+        for absent in ("Lessons in force", "Keep the loop", "Pending", "Learning status"):
+            self.assertNotIn(absent, ctx)
+
+    def test_identity_under_home_is_shown_with_tilde(self):
+        home = Path(self.env["HOME"])
+        ai = home / ".ai"
+        (ai / "myproj").mkdir(parents=True)
+        (ai / "myproj" / ".identity").write_text('{"roots": ["/x/myproj"]}', encoding="utf-8")
+        ctx = self.ctx({**self.env, "AI_HOME": ""})
+        self.assertTrue(ctx.startswith("bq memory: ~/.ai/myproj is stamped for /x/myproj;"), ctx)
+
+    def test_identity_corrupt_fails_open(self):
+        before = self.stdout()
+        for bad in ("not json", "[1, 2]", '{"roots": "x"}', "{}", '{"roots": [], "remotes": []}',
+                    '{"roots": [3], "remotes": [null]}', "\xff\xfe", "null"):
+            self.stamp(bad)
+            self.assertEqual(self.stdout(), before, bad)
+        p = self.ai / "myproj" / ".identity"
+        p.unlink()
+        p.symlink_to(self.ai / "myproj" / "lessons" / "2026-09-01-a.md")
+        self.assertEqual(self.stdout(), before)
+
+    # checkpoint.py
+    def test_checkpoint_without_history_is_silent_noop(self):
+        r = self.checkpoint()
+        self.assertEqual(r.stderr, "")
+        self.assertFalse(self.hist.exists())
+
+    def test_checkpoint_commits_quietly_and_reports_deletion_on_stderr(self):
+        self.init_history()
+        self.assertEqual(self.checkpoint().stderr, "")
+        self.assertEqual(self.commits(), 1)
+        self.assertEqual(self.checkpoint().stderr, "")
+        self.assertEqual(self.commits(), 1)  # nothing changed, no commit
+        (self.ai / "gone" / "charter.md").unlink()
+        (self.ai / "gone").rmdir()
+        r = self.checkpoint()
+        self.assertEqual(self.commits(), 2)
+        self.assertIn("bq memory: gone deleted — restore:", r.stderr)
+
+    def test_checkpoint_git_failure_exits_zero(self):
+        self.fake_history()
+        r = self.checkpoint(self.fake_git("echo boom >&2; exit 1"))
+        self.assertTrue(r.stderr.startswith("bq hook:"), r.stderr)
+
+    # M6 latency
+    def test_missing_folder_check_latency_p95(self):
+        for i in range(150):  # ~150 files over 15 project folders
+            d = self.ai / f"p{i % 15}"
+            d.mkdir(exist_ok=True)
+            self.write(d, f"f{i}.md", f"file {i}\n" * 20)
+        no_hist = {**self.env, "BQ_MEMORY_GIT_DIR": str(Path(self._tmp.name) / "none.git")}
+        self.init_history()
+        self.checkpoint()
+
+        def once(env):
+            t0 = time.perf_counter()
+            self.stdout(env)
+            return time.perf_counter() - t0
+
+        once(self.env), once(no_hist)  # warm caches
+        diffs = sorted(once(self.env) - once(no_hist) for _ in range(int(os.environ.get("BQ_PERF_RUNS", 20))))
+        p95 = diffs[min(len(diffs) - 1, int(round(0.95 * len(diffs))) - 1)]
+        if os.environ.get("BQ_PERF_REPORT"):
+            print(f"\nM6 added latency over {len(diffs)} pairs: median {diffs[len(diffs) // 2] * 1000:.1f} ms, "
+                  f"p95 {p95 * 1000:.1f} ms, max {diffs[-1] * 1000:.1f} ms", file=sys.stderr)
+        self.assertLessEqual(p95, 0.150)
 
 
 class FailOpen(HookBase):

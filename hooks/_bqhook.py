@@ -2,12 +2,19 @@
 
 Contract for every hook script: always exit 0, print nothing on stdout unless
 there is something to say, send one diagnostic line to stderr on error, make no
-network calls, and write nothing anywhere (no lessons, no plugin files, no state).
+network calls, and write nothing anywhere (no lessons, no plugin files, no state). The one
+exception is checkpoint.py, which writes only into the opt-in history repo (ADR 0011).
 """
 import json
 import os
+import re
 import sys
 from pathlib import Path
+
+REMOTE_SECTION = re.compile(r'^\s*\[\s*remote\s+"[^"]*"\s*\]', re.I)
+SECTION = re.compile(r"^\s*\[")
+URL_KEY = re.compile(r"^\s*url\s*=\s*(.*?)\s*$", re.I)
+USERINFO = re.compile(r"^([A-Za-z][\w+.-]*://)[^/@]*@")  # same as _bqmem.stamp: no credentials
 
 
 def read_input():
@@ -69,6 +76,32 @@ def project_dir(data):
         if (p / ".git").exists():
             return main_root(p)
     return cwd
+
+
+def normalize_remote(url):
+    """A remote URL without credentials, trailing slash or `.git`, for comparison only."""
+    url = USERINFO.sub(r"\1", url.strip().strip('"')).rstrip("/")
+    return url[:-4] if url.endswith(".git") else url
+
+
+def remote_urls(root):
+    """Normalized remote URLs from the checkout's shared git config, read as a file (no git
+    process); an empty set if unreadable. `include` directives are not followed."""
+    common = git_common_dir(root) if (root / ".git").exists() else None
+    if common is None:
+        return set()
+    try:
+        with open(common / "config", "rb") as f:
+            text = f.read(64 * 1024).decode("utf-8", errors="replace")
+    except OSError:
+        return set()
+    urls, inside = set(), False
+    for line in text.splitlines():
+        if SECTION.match(line):
+            inside = bool(REMOTE_SECTION.match(line))
+        elif inside and (m := URL_KEY.match(line)) and m.group(1):
+            urls.add(normalize_remote(m.group(1)))
+    return urls
 
 
 def ai_home():

@@ -15,10 +15,25 @@ Contradicted `## Log` lines dated after Last reviewed, else Date) and one
 standing reflection line (outside the index cap; emitted even with no
 lessons). A project named `shared` is silent (that dir is the shared store). Only regular, non-symlink files of at most MAX_BYTES are read.
 Read-only: writes nothing.
+
+Memory layer (ADR 0011, I2 and M6):
+- Stamp check: if <mem>/.identity exists and neither its roots (resolved) nor its remotes match this
+  repo, one mismatch line replaces the lessons index. The standing reflection line stays: it is
+  project-agnostic. A missing, unreadable or malformed .identity counts as absent.
+- Missing folders: only when the history repo exists, the lessons are built first and a
+  quick git check (_bqmem.missing_dirs) then runs under a GIT_DEADLINE-second deadline. It adds one
+  restore line per top-level folder that is in history but missing on disk. On a timeout or any
+  error the check is skipped and the lessons are emitted anyway. Everything goes out as one JSON
+  object, so "lessons first" means built first and never dropped, not printed first.
+  The check also runs when this project has no memory folder (it may be the deleted one); then
+  only the restore lines are emitted, with no index and no reflection line.
 """
+import json
 import re
+import shlex
 import stat
 import sys
+import threading
 from pathlib import Path
 
 sys.dont_write_bytecode = True  # no __pycache__ inside the plugin dir
@@ -31,6 +46,7 @@ ENTRY_MAX = 300
 TITLE_MAX = ENTRY_MAX - 20
 SHARED_SLOTS = 2
 MAX_BYTES = 64 * 1024
+GIT_DEADLINE = 1.0  # seconds for the missing-folder check; the hook itself is killed at 5
 IN_FORCE = {"Active", "Shared"}
 KNOWN = {"Proposed", "Active", "Shared", "Promoted", "Superseded", "Dropped"}
 LEGACY = {"Promotion-nominated": "Active"}
@@ -200,12 +216,71 @@ def build(mem, shared):
     return head + "\n".join(body) + status_line
 
 
+def stamp_mismatch(data, mem):
+    """The one-line I2 notice if <mem>/.identity names neither this repo's root nor any of its
+    remotes, else None (also None when .identity is absent, unreadable or malformed)."""
+    path = mem / ".identity"
+    if not readable(path):
+        return None
+    try:
+        stamp = json.loads(path.read_bytes().decode("utf-8"))
+        roots, remotes = stamp.get("roots", []), stamp.get("remotes", [])
+        if not isinstance(roots, list) or not isinstance(remotes, list):
+            return None
+        roots = [Path(r).expanduser().resolve() for r in roots if isinstance(r, str) and r]
+        remotes = {h.normalize_remote(u) for u in remotes if isinstance(u, str) and u.strip()}
+    except (ValueError, AttributeError, OSError, RuntimeError):
+        return None
+    if not roots and not remotes:
+        return None
+    root = h.project_dir(data).resolve()
+    if root in roots or remotes & h.remote_urls(root):
+        return None
+    shown = quotable(str(roots[0]) if roots else ", ".join(sorted(remotes)))
+    home = Path.home()
+    where = f"~/{mem.relative_to(home)}" if home in mem.parents else str(mem)
+    return (f"bq memory: {quotable(where)} is stamped for {shown}; this repo doesn't match — no lessons "
+            "loaded (run /bq:refresh to re-stamp if this is the same project)")
+
+
+def missing_lines():
+    """One restore line per top-level folder in history but missing on disk; [] if there is no
+    history, the check fails, or it overruns GIT_DEADLINE (fail open, never raises)."""
+    try:
+        import _bqmem  # lazy: a broken memory module must never cost the lessons
+        if not _bqmem.has_history():
+            return []
+        found = []
+
+        def check():
+            try:
+                found.append(_bqmem.missing_dirs())
+            except Exception:
+                pass
+
+        t = threading.Thread(target=check, daemon=True)  # an overrunning git is left behind, read-only
+        t.start()
+        t.join(GIT_DEADLINE)
+        if t.is_alive() or not found:
+            return []
+        script = quotable(str(_bqmem.SCRIPT))
+        return [f'bq memory: {quotable(d)} is missing on disk but in history — restore: '
+                f'python3 "{script}" restore {shlex.quote(quotable(d))}' for d in found[0]]
+    except Exception:
+        return []
+
+
 def main(data):
     mem = h.memory_dir(data)
-    if mem is None:
+    if mem is None:  # this project's own folder may be the one that was deleted
+        missing = missing_lines()
+        if missing:
+            h.emit_context("SessionStart", "\n".join(missing))
         return
-    index = build(mem, h.ai_home() / "shared" / "lessons")
-    h.emit_context("SessionStart", index + "\n\n" + REFLECT)
+    index = stamp_mismatch(data, mem) or build(mem, h.ai_home() / "shared" / "lessons")
+    missing = missing_lines()
+    parts = [index, "\n".join(missing), REFLECT] if missing else [index, REFLECT]
+    h.emit_context("SessionStart", "\n\n".join(parts))
 
 
 if __name__ == "__main__":
