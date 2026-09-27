@@ -39,6 +39,9 @@ Never modify them. Only refresh `~/.ai/<project>/` memory artifacts.
      the controlling source.
 6. **Close with next action**
    - Summarize what changed in plain language and cite files.
+<!-- claude-only -->   - Offer once, run only on the user's yes (**memory** skill, *Durability and recovery*): `init` +
+     first `checkpoint` if `bq_memory.py status` reports no history; `stamp` if `.identity` is missing,
+     or mismatched and the user confirms it's the same project.<!-- copilot: --><!-- /claude-only -->
 
 ## Output format
 

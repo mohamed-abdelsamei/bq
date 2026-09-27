@@ -28,6 +28,14 @@ $AI_HOME (default: ~/.ai)
 
 Below, `<mem>/` means the project memory folder `$AI_HOME/<project>/`.
 
+**Resolve `<mem>` once, then pass it in every specialist brief** — subagents don't see the
+session-start context. If that context names this project — the `## bq: Lessons in force (<project>)`
+header, or the stamp-mismatch `bq memory:` line's folder — use it: the hook resolves a git worktree
+to its main repo's name. (Restore and deletion `bq memory:` lines name *other* folders; never take
+the project from them.) Otherwise (manual/Copilot installs, no hook output) use
+`$AI_HOME/<project basename>`, where a worktree's basename is its main checkout's:
+`basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"`.
+
 > Sibling skills own *what* to write: **decision-and-spec** (specs + ADRs), **research-method**
 > (findings), **facilitation** (discussion summaries), **codebase-onboarding** (the charter on a new
 > repo), **feedback-loop** (lessons).
@@ -121,6 +129,53 @@ needs a human call rather than guessing.
   that still exists, not one silently removed or moved.
 - **No forgotten proposals.** Every `Drafted` proposal in `shared/bq-proposals/` is resolved
   (Accepted, Rejected, Stale) or shown first at the next `/bq:improve` run.
+
+## Durability and recovery
+
+- **What protects memory.** An opt-in local git history of the whole store, kept in a bare repo
+  *outside* it: `$BQ_MEMORY_GIT_DIR`, default `~/Library/Application Support/bq/ai-history.git` on
+  macOS, `${XDG_DATA_HOME:-~/.local/share}/bq/ai-history.git` elsewhere. It has no remote, is never
+  pushed, and survives `rm -rf ~/.ai`. <!-- claude-only -->Once the user opts in (`/bq:init`, `/bq:onboard`
+  and `/bq:refresh` offer it), the SessionStart hook checkpoints in the background at each session
+  start.<!-- copilot: Copilot has no hooks: after `init`, run `checkpoint` yourself. --><!-- /claude-only -->
+- **Limits.** Protection starts at the first checkpoint — nothing older can be recovered, and a crash
+  loses writes since the last one. The history is one copy on the same disk, so recommend Time Machine
+  (or another backup) as well.
+- **Hard stops.** `init` and the first `checkpoint` on the real store, any `restore` on it, and
+  `stamp` run only on the user's yes — never inside an autonomous `/bq:ship`.
+- **Commands** — <!-- claude-only -->`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/bq_memory.py" <command>`
+  (unexpanded or a manual install: the newest `~/.claude/plugins/cache/bq/bq/*/scripts/`, or
+  `scripts/` in a bq checkout; every `bq memory:` line prints the full path)<!-- copilot: `python3 <bq checkout>/scripts/bq_memory.py <command>` --><!-- /claude-only -->:
+  - `init` — create the history; then `checkpoint` makes the first commit.
+  - `checkpoint` — commit every change; skips quietly while another checkpoint holds the lock.
+  - `status` — history path, last checkpoint, uncommitted changes, missing folders.
+  - `log [dir]` — recent checkpoints, optionally only those touching one top-level folder.
+  - `restore <dir> [--rev R] [--force]` — bring back a top-level folder, by default from the last
+    revision where it existed. It **never destroys newer work**: a missing folder is restored in place;
+    a present one is extracted beside it to `<dir>.restored-<rev>/` to compare; `--force` overwrites
+    only after checkpointing the current state (the output names the revision to undo with).
+  - `stamp` — write `<mem>/.identity` for the git repo at the current directory.
+  - `index [project]` — print the memory index, open loops first.
+- **`bq memory:` notices** (at session start, or from `checkpoint` and `status`).
+  - *Folder missing or recently deleted* — the line carries the exact restore command. Confirm with
+    the user before running it.
+  - *Stuck lock* — checkpoints are paused. Confirm no git process is using it (`pgrep -fl ai-history`), then
+    delete `<history>/index.lock` by hand. bq never removes it.
+  - *Stamp mismatch* — see Identity.
+- **Identity.** `.identity` records the repo root and remotes a memory folder belongs to; it is
+  restored with its folder. When it names neither this repo's root nor any of its remotes, the hook
+  loads **no lessons**, so same-named repos can't read each other's. Only if it really is the same
+  project (moved or re-cloned) does `/bq:refresh` re-stamp; a stamp replaces the recorded root.
+- **Secrets.** The history ignores `*.env`, `.env`, `*.pem`, `*.key`, SSH key files (`id_rsa*`,
+  `id_ed25519*`, …) and `.DS_Store`. Everything else is kept for good — never write secrets to memory.
+  To purge one already committed (`<history>` is the path `status` prints):
+  1. Remove it from the store, then `checkpoint`.
+  2. Either **rewrite**, if `git filter-repo` is installed:
+     `cd "<history>" && git filter-repo --invert-paths --path <project>/<file> --force` —
+     or **re-init**: move `<history>` aside, run `init` and `checkpoint`, and delete the old copy once
+     sure (all earlier history goes with it).
+  3. Check: `git --git-dir="<history>" log --all --oneline -- <project>/<file>` prints nothing.
+  4. Backups (Time Machine) of `<history>` still hold the secret; purge those too.
 
 ## Templates
 

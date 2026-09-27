@@ -27,11 +27,15 @@ conventions; draw the charter's shape from **decision-and-spec** and **codebase-
    - What are the non-negotiable principles or constraints?
    - What's explicitly out of scope for v1?
 3. **Scaffold the structure** per the **memory** skill's layout, seeding it from the starter
-   templates found via the **memory** skill's *Locating the templates*. Fill
+   templates found via the **memory** skill's *Locating the templates* — all but
+   `knowledge/graph.md`, which only `/bq:onboard` writes. Fill
    `charter.md` from the interview — not left as blanks — and include the standing rule: *never
    modify existing AI-context files (`CLAUDE.md`, `AGENTS.md`, `copilot-instructions.md`,
    `context.md`, …) — they're authoritative.*
 4. **Confirm.** Show the user the filled-in `charter.md` and confirm the setup.
+<!-- claude-only -->5. **Offer protection once; run it only on the user's yes.** Per the **memory** skill's *Durability
+   and recovery*: if `bq_memory.py status` reports no history, offer `init` and a first `checkpoint`;
+   if this is a git repo, offer `stamp`.<!-- copilot: --><!-- /claude-only -->
 
 ## Notes
 

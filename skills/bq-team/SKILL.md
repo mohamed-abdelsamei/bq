@@ -67,8 +67,9 @@ description — you name it. To bring a specialist in:
    exactly as it appears in your available agents list — <!-- claude-only -->`bq:<role>` when bq is installed as a
    plugin (e.g. `bq:engineer`), `bq-<role>` for a manual/global install<!-- /claude-only --> — where `<role>` is
    `architect`, `engineer`, `tester`, `reviewer`, `researcher` or `scribe`.
-2. Hand it a **compact brief** — the goal, the context that matters, constraints, expected output —
-   not a whole-file dump. It runs in **isolation** and returns its result.
+2. Hand it a **compact brief** — the goal, the context that matters, constraints, expected output, and
+   the project memory path (see the **memory** skill) — not a whole-file dump. It runs in
+   **isolation** and returns its result.
 3. **Integrate the result** in the main session and pass what the next specialist needs forward
    (each starts fresh, so state doesn't carry unless you carry it).
 

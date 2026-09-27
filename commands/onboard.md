@@ -45,6 +45,9 @@ or contradict them.
    `~/.ai/<project>/knowledge/graph.md` from the template's `knowledge/graph.md` (≤ ~80 lines;
    **Verified at** = `git rev-parse --short HEAD` and today): components, edges, entry points,
    linking `docs/` rather than restating it.
+<!-- claude-only -->6. **Offer protection once; run it only on the user's yes.** Per the **memory** skill's *Durability
+   and recovery*: if `bq_memory.py status` reports no history, offer `init` and a first `checkpoint`;
+   offer `stamp` to record this repo's identity.<!-- copilot: --><!-- /claude-only -->
 
 ## After onboarding
 
