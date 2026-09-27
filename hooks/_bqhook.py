@@ -13,7 +13,8 @@ from pathlib import Path
 
 REMOTE_SECTION = re.compile(r'^\s*\[\s*remote\s+"[^"]*"\s*\]', re.I)
 SECTION = re.compile(r"^\s*\[")
-URL_KEY = re.compile(r"^\s*url\s*=\s*(.*?)\s*$", re.I)
+# a quoted value runs to its closing quote; an unquoted one stops at a ` ;`/` #` inline comment
+URL_KEY = re.compile(r'^\s*url\s*=\s*(?:"((?:[^"\\]|\\.)*)"|(.*?))(?:\s+[;#].*)?\s*$', re.I)
 USERINFO = re.compile(r"^([A-Za-z][\w+.-]*://)[^/@]*@")
 QUERY = re.compile(r"[?#].*$", re.S)  # a query string or fragment can carry a token
 
@@ -90,9 +91,10 @@ def normalize_remote(url):
     return url[:-4] if url.endswith(".git") else url
 
 
-def remote_urls(root):
-    """Normalized remote URLs from the checkout's shared git config, read as a file (no git
-    process); an empty set if unreadable. `include` directives are not followed."""
+def clean_remote_urls(root):
+    """clean_remote() URLs of the checkout's remotes, from its shared git config read as a file (no
+    git process); an empty set if unreadable. `include` directives are not followed. What stamp
+    records."""
     common = git_common_dir(root) if (root / ".git").exists() else None
     if common is None:
         return set()
@@ -105,13 +107,56 @@ def remote_urls(root):
     for line in text.splitlines():
         if SECTION.match(line):
             inside = bool(REMOTE_SECTION.match(line))
-        elif inside and (m := URL_KEY.match(line)) and m.group(1):
-            urls.add(normalize_remote(m.group(1)))
+        elif inside and (m := URL_KEY.match(line)):
+            quoted, url = m.group(1) is not None, m.group(1) if m.group(1) is not None else m.group(2)
+            url = re.sub(r"\\(.)", r"\1", url) if quoted else url
+            if url.strip() and (quoted or url[0] not in ";#"):  # `url = ; note` has no value
+                urls.add(clean_remote(url))
     return urls
+
+
+def remote_urls(root):
+    """clean_remote_urls() normalized, for comparison."""
+    return {normalize_remote(u) for u in clean_remote_urls(root)}
 
 
 def ai_home():
     return Path(os.environ.get("AI_HOME") or Path.home() / ".ai").expanduser()
+
+
+def default_history_dir():
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "bq" / "ai-history.git"
+    base = os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
+    return Path(base).expanduser() / "bq" / "ai-history.git"
+
+
+def history_dir():
+    """The memory history repo (ADR 0011): $BQ_MEMORY_GIT_DIR, else the per-OS default."""
+    env = os.environ.get("BQ_MEMORY_GIT_DIR")
+    return Path(env).expanduser() if env else default_history_dir()
+
+
+def has_history(hist=None):
+    """Stats only: lets a hook skip importing the memory module when there is no history."""
+    hist = Path(hist or history_dir())
+    return (hist / "HEAD").is_file() and (hist / "objects").is_dir()
+
+
+def has_commits(hist=None):
+    """True when the history's HEAD names a commit. Plain file reads, no git."""
+    hist = Path(hist or history_dir())
+    try:
+        head = (hist / "HEAD").read_text(encoding="utf-8").strip()
+        if not head.startswith("ref:"):
+            return bool(head)
+        ref = head[4:].strip()
+        if (hist / ref).is_file():
+            return True
+        with open(hist / "packed-refs", encoding="utf-8") as f:
+            return any(line.rstrip("\n").endswith(" " + ref) for line in f)
+    except (OSError, UnicodeDecodeError):
+        return False
 
 
 def memory_dir(data):

@@ -67,6 +67,11 @@ def tearDownModule():
 
 # ---------------------------------------------------------------- helpers
 
+def budget(seconds):
+    """A wall-clock limit: strict locally, x3 under CI (shared runners stall)."""
+    return seconds * 3 if os.environ.get("CI") else seconds
+
+
 def git(*args, cwd, check=True):
     r = subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false",
                         *args], cwd=cwd, capture_output=True, timeout=30, env={**os.environ, **GIT_ENV})
@@ -202,7 +207,7 @@ class Init(MemBase):
         self.assertIn("no history", self.cli("status").stdout)
         self.assertFalse(self.hist.exists())
         with mock.patch.dict(os.environ, self.env):
-            self.assertEqual(m.missing_dirs(), [])
+            self.assertEqual(m.restore_notices(), ([], []))
 
 
 # ---------------------------------------------------------------- M2
@@ -262,7 +267,7 @@ class Deletion(MemBase):
         (self.ai / "p1" / "charter.md").unlink()
         (self.ai / "p1").rmdir()
         with mock.patch.dict(os.environ, self.env):
-            self.assertEqual(m.missing_dirs(), ["p1"])
+            self.assertEqual(m.restore_notices()[0], ["p1"])
         r = self.cli("checkpoint")
         lines = r.stdout.splitlines()
         self.assertEqual(len(lines), 1, r.stdout)
@@ -272,11 +277,11 @@ class Deletion(MemBase):
         self.assertEqual(self.commits(), 2)
         self.assertEqual(self.hgit("ls-tree", "--name-only", "HEAD").split(), ["p2"])
         with mock.patch.dict(os.environ, self.env):
-            self.assertEqual(m.missing_dirs(), [])
+            self.assertEqual(m.restore_notices()[0], [])
         self.put("p2/new.md", "n")
         self.assertEqual(self.cli("checkpoint").stdout, "")  # the notice appears once
         with mock.patch.dict(os.environ, self.env):  # ...but the deletion stays listed for 7 days
-            recent = m.recent_deletions()
+            recent = m.restore_notices()[1]
         self.assertEqual([(d, rev) for d, rev, _ in recent], [("p1", before)])
         self.assertLess(abs(recent[0][2] - time.time()), 120)
 
@@ -300,9 +305,9 @@ class Deletion(MemBase):
         self.put("p3/x.md", "x")
         self.cli("checkpoint")  # a newer checkpoint does not hide it
         with mock.patch.dict(os.environ, self.env):
-            self.assertEqual([d for d, _, _ in m.recent_deletions()], ["p2"])
-            self.assertEqual([d for d, _, _ in m.recent_deletions(days=9)], ["p1", "p2"])
-            self.assertEqual(m.missing_dirs(), [])
+            self.assertEqual([d for d, _, _ in m.restore_notices()[1]], ["p2"])
+            self.assertEqual([d for d, _, _ in m.restore_notices(days=9)[1]], ["p1", "p2"])
+            self.assertEqual(m.restore_notices()[0], [])
         out = self.cli("status").stdout
         self.assertIn("deleted in the last 7 days: \n  p2 — deleted ", out)
         self.assertIn(f'restore: python3 "{CLI}" restore p2', out)
@@ -310,13 +315,13 @@ class Deletion(MemBase):
         self.cli("restore", "p2")
         self.assertTrue((self.ai / "p2" / "lessons" / "a.md").is_file())
         with mock.patch.dict(os.environ, self.env):
-            self.assertEqual(m.recent_deletions(), [])  # back on disk: no notice, even before a checkpoint
+            self.assertEqual(m.restore_notices()[1], [])  # back on disk: no notice, even before a checkpoint
         (self.ai / "top.md").write_text("t")
         self.cli("checkpoint")
         (self.ai / "top.md").unlink()
         self.cli("checkpoint")
         with mock.patch.dict(os.environ, self.env):
-            self.assertEqual(m.recent_deletions(), [])  # a deleted top-level file is not a folder
+            self.assertEqual(m.restore_notices()[1], [])  # a deleted top-level file is not a folder
 
 
 # ---------------------------------------------------------------- M4
@@ -445,7 +450,7 @@ class Locks(MemBase):
         start = time.time()
         with self.assertRaises(m.MemError):
             m._spawn([sys.executable, "-c", "import time; time.sleep(30)"], 0.3)
-        self.assertLess(time.time() - start, 5)
+        self.assertLess(time.time() - start, budget(5))
 
 
 # ---------------------------------------------------------------- status / log
@@ -628,7 +633,7 @@ class CheckpointFailures(MemBase):
             self.assertIn(f"history lock: stuck since {since}", out)
             self.assertIn(f"  {lock} (since {since})", out)
             self.assertNotIn("last checkpoint failed", out)  # the lock line already explains it
-            self.assertEqual(m.lock_stuck(self.hist), os.stat(lock).st_mtime)
+            self.assertEqual(m.stale_locks(self.hist)[0][1], os.stat(lock).st_mtime)
             self.assertTrue(lock.exists())
             lock.unlink()
         self.cli("checkpoint")
@@ -646,7 +651,7 @@ class CheckpointFailures(MemBase):
         self.assertEqual(self.commits(), 1)
         self.assertIn("history lock: held", self.cli("status").stdout)
         (self.hist / "HEAD.lock").unlink()
-        self.assertIsNone(m.lock_stuck(self.hist))
+        self.assertEqual(m.stale_locks(self.hist), [])
         self.assertIn("history lock: none", self.cli("status").stdout)
         self.cli("checkpoint")
         self.assertEqual(self.commits(), 2)

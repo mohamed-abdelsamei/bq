@@ -34,7 +34,8 @@ header, or the stamp-mismatch `bq memory:` line's folder — use it: the hook re
 to its main repo's name. (Restore and deletion `bq memory:` lines name *other* folders; never take
 the project from them.) Otherwise (manual/Copilot installs, no hook output) use
 `$AI_HOME/<project basename>`, where a worktree's basename is its main checkout's:
-`basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"`.
+if the common dir (`git rev-parse --path-format=absolute --git-common-dir`) is named `.git`, use its
+parent's basename; else `basename "$(git rev-parse --show-toplevel)"`.
 
 > Sibling skills own *what* to write: **decision-and-spec** (specs + ADRs), **research-method**
 > (findings), **facilitation** (discussion summaries), **codebase-onboarding** (the charter on a new
@@ -139,7 +140,9 @@ needs a human call rather than guessing.
   and `/bq:refresh` offer it; on yes, run `init` then `checkpoint`), on a plugin install the SessionStart hook
   checkpoints in the background at each session start (a manual install has no hooks: run `checkpoint`
   yourself), detached so closing the session can't cut a commit short.
-  It never makes the first commit.<!-- copilot: Copilot has no hooks: after `init`, run `checkpoint` yourself. --><!-- /claude-only -->
+  It never makes the first commit. To verify: the hook needs the plugin at 0.6.0+ (check with
+  `/plugin`); after the first checkpoint, change something in memory, open a new session and run
+  `bq_memory.py log` — expect a second commit.<!-- copilot: Copilot has no hooks: after `init`, run `checkpoint` yourself. --><!-- /claude-only -->
 - **Limits.** Protection starts at the first checkpoint — nothing older can be recovered, and a crash
   loses writes since the last one. Git doesn't track empty folders, so they aren't restored; a renamed
   folder shows as a deletion of the old name. A nested git repo in the store (a folder with its own
@@ -168,7 +171,8 @@ needs a human call rather than guessing.
   - `index [project]` — print the memory index, open loops first.
 - **`bq memory:` notices** (<!-- claude-only -->at session start, or <!-- copilot: --><!-- /claude-only -->from `checkpoint` and `status`).
   - *Folder missing or recently deleted* — the line carries the exact restore command. Confirm with
-    the user before running it.
+    the user before running it. An intentional deletion also shows for 7 days (no dismiss yet).
+<!-- claude-only -->  - *No checkpoint yet* — `init` ran but the first `checkpoint` didn't; run it on the user's yes.<!-- copilot: --><!-- /claude-only -->
   - *Last checkpoint failed* — the time and reason (unreadable files, disk full, a git error). Fix the
     cause; the next successful checkpoint clears it.
   - *Stuck lock* — checkpoints are paused. `status` lists each git `*.lock` in `<history>` older than

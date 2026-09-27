@@ -18,7 +18,7 @@ REPO = Path(__file__).resolve().parent.parent
 HOOKS = REPO / "hooks"
 sys.dont_write_bytecode = True  # keep hooks/ free of __pycache__
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_bq_memory import fingerprint, real_locations  # noqa: E402  (M7 guard, functions only)
+from test_bq_memory import budget, fingerprint, real_locations  # noqa: E402  (M7 guard, CI budget; functions only)
 
 _BEFORE = {}
 
@@ -32,6 +32,8 @@ def tearDownModule():
     for p, before in _BEFORE.items():
         if fingerprint(p) != before:
             raise AssertionError(f"M7: hook tests changed real {p}")
+
+
 STANDING = "When the user corrects the team, fix it;"
 STANDING_LINE = (
     "When the user corrects the team, fix it; if the correction would change behavior in other "
@@ -460,9 +462,9 @@ class MemoryHooks(HookBase):
         if first:
             self.cli("checkpoint")
 
-    def cli(self, *args, env=None):
+    def cli(self, *args, env=None, cwd=None):
         r = subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True,
-                           env=env or self.env, timeout=60)
+                           env=env or self.env, timeout=60, cwd=cwd)
         self.assertEqual(r.returncode, 0, r.stderr)
         return r
 
@@ -514,6 +516,8 @@ class MemoryHooks(HookBase):
     def fake_history(self):
         (self.hist / "objects").mkdir(parents=True)
         (self.hist / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+        (self.hist / "refs" / "heads").mkdir(parents=True)  # a commit, so the git check runs
+        (self.hist / "refs" / "heads" / "main").write_text("1" * 40 + "\n", encoding="utf-8")
 
     def stdout(self, env=None, script="session_start.py"):
         r = self.run_hook(script, self.payload(source="startup"), env=env)
@@ -669,7 +673,7 @@ class MemoryHooks(HookBase):
             env = self.fake_git(body)
             t0 = time.monotonic()
             ctx = self.ctx(env)
-            self.assertLess(time.monotonic() - t0, 3, body)
+            self.assertLess(time.monotonic() - t0, budget(3), body)
             self.assertIn("Keep the loop", ctx, body)
             self.assertNotIn("bq memory:", ctx, body)
             self.assertTrue(ctx.endswith(STANDING_LINE), body)
@@ -707,6 +711,18 @@ class MemoryHooks(HookBase):
         import _bqhook
         self.assertEqual(_bqhook.normalize_remote("https://u:p@h.example/a/b.git/?t=1#f"), "https://h.example/a/b")
         self.assertEqual(_bqhook.clean_remote("git@h.example:a/b.git#frag"), "git@h.example:a/b.git")
+
+    def test_remote_parser_drops_inline_comments_outside_quotes(self):
+        (self.proj / ".git" / "config").write_text(
+            '[remote "a"]\n\turl = https://h.example/a.git ; note\n[remote "b"]\n\turl = https://h.example/b # x\n'
+            '[remote "c"]\n\turl = "https://h.example/c.git?t=1#f" ; note\n[remote "d"]\n\turl = ; empty\n',
+            encoding="utf-8")
+        sys.path.insert(0, str(HOOKS))
+        import _bqhook
+        self.assertEqual(_bqhook.clean_remote_urls(self.proj),
+                         {"https://h.example/a.git", "https://h.example/b", "https://h.example/c.git"})
+        self.assertEqual(_bqhook.remote_urls(self.proj),
+                         {"https://h.example/a", "https://h.example/b", "https://h.example/c"})
 
     def test_stale_ref_lock_last_error_and_notice_lines(self):
         self.init_history()
@@ -783,11 +799,45 @@ class MemoryHooks(HookBase):
         self.assertEqual(self.ctx().split("\n\n")[1], self.deleted_line("gone", short))
 
     def test_checkpoint_skips_history_without_a_first_commit(self):
+        before = self.stdout()
         self.init_history(first=False)
         self.checkpoint()
         self.assertEqual(self.commits(), 0)  # N4: the first checkpoint needs the user's yes
+        index, note, standing = self.ctx().split("\n\n")  # ...but it is not silent about it
+        self.assertIn("Keep the loop", index)
+        self.assertEqual(note, "bq memory: history initialized but has no checkpoint yet — run "
+                               f'python3 "{SCRIPT}" checkpoint')
+        self.assertEqual(standing, STANDING_LINE)
         self.cli("checkpoint")
         self.assertEqual(self.commits(), 1)
+        self.assertEqual(self.stdout(), before)
+
+    def test_stamp_then_move_repo_matches_via_remote(self):
+        t = Path(self._tmp.name)
+        repo = t / "repos" / "a" / "myproj"
+        repo.mkdir(parents=True)
+        git = ["git", "-c", "init.defaultBranch=main"]
+        genv = {**self.env, **GIT_ENV}
+        subprocess.run([*git, "init", "-q"], cwd=repo, check=True, capture_output=True, env=genv, timeout=30)
+        subprocess.run([*git, "remote", "add", "origin", "https://u:tok@github.com/acme/myproj.git"], cwd=repo,
+                       check=True, capture_output=True, env=genv, timeout=30)
+        with open(repo / ".git" / "config", "a", encoding="utf-8") as f:
+            f.write('[remote "mirror"]\n\turl = git@example.com:acme/myproj.git ; a note\n')
+        self.cli("stamp", cwd=repo)
+        ident = json.loads((self.ai / "myproj" / ".identity").read_text(encoding="utf-8"))
+        self.assertEqual(ident["remotes"], ["git@example.com:acme/myproj.git", "https://github.com/acme/myproj.git"])
+        moved = t / "repos" / "b" / "myproj"
+        moved.parent.mkdir()
+        repo.rename(moved)
+
+        def ctx():
+            r = self.run_hook("session_start.py", {"cwd": str(moved)})
+            return json.loads(r.stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("Keep the loop", ctx())  # root no longer matches; the remotes do
+        self.assertNotIn("is stamped for", ctx())
+        cfg = moved / ".git" / "config"
+        cfg.write_text(cfg.read_text(encoding="utf-8").replace("acme/myproj", "acme/other"), encoding="utf-8")
+        self.assertIn("is stamped for", ctx())  # control: the match above came from the remotes
 
     def test_checkpoint_git_failure_exits_zero_and_is_recorded(self):
         self.init_history()
@@ -807,11 +857,11 @@ class MemoryHooks(HookBase):
     def test_checkpoint_detaches_and_the_commit_still_lands(self):
         self.init_history()
         real = subprocess.run(["sh", "-c", "command -v git"], capture_output=True, text=True).stdout.strip()
-        env = self.fake_git(f'case "$*" in *" commit "*) sleep 6;; esac; exec "{real}" "$@"')
+        env = self.fake_git(f'case "$*" in *" commit "*) sleep {budget(3) + 3};; esac; exec "{real}" "$@"')
         self.write(self.ai / "gone", "new.md", "x")
         t0 = time.monotonic()
         r = self.run_hook("checkpoint.py", self.payload(source="startup"), env=env)
-        self.assertLess(time.monotonic() - t0, 3, "hook waited for git")
+        self.assertLess(time.monotonic() - t0, budget(3), "hook waited for git")
         self.assertEqual((r.stdout, r.stderr), ("", ""))
         self.assertEqual(self.commits(), 1)  # still committing in the background
         self.wait_checkpoint()
@@ -841,9 +891,9 @@ class MemoryHooks(HookBase):
                 print(f"\nM6 added latency over {len(diffs)} pairs (attempt {attempt}): median "
                       f"{diffs[len(diffs) // 2] * 1000:.1f} ms, p95 {p95 * 1000:.1f} ms, max {diffs[-1] * 1000:.1f} ms",
                       file=sys.stderr)
-            if p95 <= 0.150:
+            if p95 <= budget(0.150):
                 break
-        self.assertLessEqual(p95, 0.150)
+        self.assertLessEqual(p95, budget(0.150))
 
 
 class FailOpen(HookBase):

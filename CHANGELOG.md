@@ -31,7 +31,7 @@ All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.
   - **`bq memory:` notices at session start** (plugin install): a project folder missing, or deleted
     in the last 7 days, with its restore command; a git lock in the history older than 2 minutes
     (reported, never removed); the last checkpoint error; a nested git repo in the store (only its
-    gitlink is kept). `status` shows the same.
+    gitlink is kept); a history with no checkpoint yet. `status` shows the same.
   - `/bq:init`, `/bq:onboard` and `/bq:refresh` offer the history once and run it only on the user's
     yes (Claude Code only; the Copilot build drops the offer). The memory skill gains a
     *Durability and recovery* runbook, including how to purge a secret from history.
@@ -56,7 +56,8 @@ All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.
   checkpoint hook writes only under the history dir, never into `~/.ai`.
 - `validate.py` allows `subprocess` in exactly one hook file, `hooks/_bqmem.py`, accepts a boolean
   `async` on hook entries, and requires the `knowledge/graph.md` template.
-- `/bq:ship` treats `bq_memory.py` `init`, `restore` or `stamp` on the real store as a hard stop.
+- `/bq:ship` treats `bq_memory.py` `init`, the first checkpoint, `restore` or `stamp` on the real
+  store as a hard stop.
 - The Maestro and the `bq-team` skill put the project memory path in every specialist brief.
 - `install-copilot.sh` keeps a paragraph break where an empty Copilot alternative drops a span.
 - README, architecture and USAGE describe the history, restore, identity, the index, the knowledge

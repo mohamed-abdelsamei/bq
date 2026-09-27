@@ -282,7 +282,8 @@ git history of the whole store, **outside** it, so it survives the folder being 
   once the history exists (in any project): a project folder that is missing or was deleted in the
   last 7 days (with the exact restore command), a history lock older than 2 minutes (reported, never
   removed automatically), the last checkpoint error, and a nested git repo in the store (only its
-  commit pointer is kept). A stamp mismatch (below) needs no history.
+  commit pointer is kept), or a history with no checkpoint yet. A stamp mismatch (below) needs no
+  history.
 - **Restore never destroys newer work.** `restore <dir>` puts a missing folder back in place. If the
   folder exists, it extracts the old version beside it as `<dir>.restored-<rev>/`; `--force`
   overwrites only after checkpointing the current state, then prints a diff summary and the undo

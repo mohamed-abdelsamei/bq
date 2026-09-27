@@ -20,17 +20,20 @@ Memory layer (ADR 0011, I2 and M6):
 - Stamp check: if <mem>/.identity exists and neither its roots (resolved) nor its remotes match this
   repo, one mismatch line replaces the lessons index. The standing reflection line stays: it is
   project-agnostic. A missing, unreadable or malformed .identity counts as absent.
-- Missing folders: only when the history repo exists, the lessons are built first and a
-  quick git check (_bqmem.missing_dirs + _bqmem.recent_deletions) then runs under one
-  GIT_DEADLINE-second deadline. It adds one restore line per top-level folder that is in history
-  but missing on disk, and per folder whose deletion a checkpoint recorded in the last
-  RECENT_DAYS days and is still missing (so the notice outlives the checkpoint). On a timeout or
-  any error the check is skipped and the lessons are emitted anyway. Everything goes out as one
-  JSON object, so "lessons first" means built first and never dropped, not printed first.
-  The check also runs when this project has no memory folder (it may be the deleted one); then
-  only the memory lines are emitted, with no index and no reflection line.
-- Stuck lock: with history present, any git *.lock in the history dir (top level and refs/)
-  older than _bqmem.LOCK_STALE adds one line (stats, outside the git deadline; never touched).
+- History check first: a stat of the history dir (_bqhook.has_history); without history nothing
+  below runs and _bqmem is never imported (the output is byte-identical to 0.5.0).
+- No checkpoint yet: a history whose HEAD names no commit (plain file reads) adds one line asking
+  for the first checkpoint, and the git check below is skipped.
+- Missing folders: the lessons are built first and a quick git check (_bqmem.restore_notices)
+  then runs under one GIT_DEADLINE-second deadline. It adds one restore line per top-level folder
+  that is in history but missing on disk, and per folder whose deletion a checkpoint recorded in
+  the last RECENT_DAYS days and is still missing (so the notice outlives the checkpoint). On a
+  timeout or any error the check is skipped and the lessons are emitted anyway. Everything goes
+  out as one JSON object, so "lessons first" means built first and never dropped, not printed
+  first. The check also runs when this project has no memory folder (it may be the deleted one);
+  then only the memory lines are emitted, with no index and no reflection line.
+- Stuck lock: any git *.lock in the history dir (top level and refs/) older than
+  _bqmem.LOCK_STALE adds one line (stats, outside the git deadline; never touched).
 - Last failure: <history>/bq-last-error adds one "last checkpoint failed" line (unless the stuck
   lock line already explains it), and a <history>/bq-notice younger than RECENT_DAYS (a nested git
   repo in the store) one more. Plain file reads, outside the git deadline.
@@ -250,19 +253,21 @@ def stamp_mismatch(data, mem):
 
 
 def memory_lines():
-    """The memory layer's lines: a stuck-lock line, then one restore line per top-level folder that
-    is missing on disk but in history, or was deleted in the last RECENT_DAYS days and is still
-    missing. [] without history; the git part is dropped on an error or a GIT_DEADLINE overrun
-    (fail open, never raises)."""
+    """The memory layer's lines: a stuck-lock (else last-failure) line, a nested-repo notice, a
+    no-checkpoint-yet line, then one restore line per top-level folder that is missing on disk but
+    in history, or was deleted in the last RECENT_DAYS days and is still missing. [] without
+    history; the git part is dropped on an error or a GIT_DEADLINE overrun (fail open, never
+    raises)."""
     try:
-        import _bqmem  # lazy: a broken memory module must never cost the lessons
-        if not _bqmem.has_history():
+        if not h.has_history():  # a stat: no history, no memory-module import
             return []
-        stuck = _bqmem.lock_stuck()  # stats outside the deadline: a hung git can't hide it
-        lines = [_bqmem.lock_line(stuck)] if stuck else []
-        if not stuck:
-            lines.append(_bqmem.last_error_line())
+        import _bqmem  # lazy: a broken memory module must never cost the lessons
+        stale = _bqmem.stale_locks()  # stats outside the deadline: a hung git can't hide it
+        lines = [_bqmem.lock_line(stale[0][1])] if stale else [_bqmem.last_error_line()]
         lines = [quotable(ln) for ln in [*lines, _bqmem.notice_line()] if ln]
+        if not h.has_commits():  # nothing to restore from yet; the first checkpoint needs the user
+            cmd = CONTROL.sub("", _bqmem.command("checkpoint"))
+            return [*lines, f"bq memory: history initialized but has no checkpoint yet — run {cmd}"]
         found = []
 
         def check():

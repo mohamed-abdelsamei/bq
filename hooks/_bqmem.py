@@ -94,37 +94,10 @@ def ai_home():
     return h.ai_home()
 
 
-def default_history_dir():
-    if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "bq" / "ai-history.git"
-    base = os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
-    return Path(base).expanduser() / "bq" / "ai-history.git"
-
-
-def history_dir():
-    env = os.environ.get("BQ_MEMORY_GIT_DIR")
-    return Path(env).expanduser() if env else default_history_dir()
-
-
-def has_history(hist=None):
-    hist = hist or history_dir()
-    return (hist / "HEAD").is_file() and (hist / "objects").is_dir()
-
-
-def has_commits(hist=None):
-    """True when H's HEAD names a commit. Plain file reads, no git."""
-    hist = Path(hist or history_dir())
-    try:
-        head = (hist / "HEAD").read_text(encoding="utf-8").strip()
-        if not head.startswith("ref:"):
-            return bool(head)
-        ref = head[4:].strip()
-        if (hist / ref).is_file():
-            return True
-        with open(hist / "packed-refs", encoding="utf-8") as f:
-            return any(line.rstrip("\n").endswith(" " + ref) for line in f)
-    except (OSError, UnicodeDecodeError):
-        return False
+default_history_dir = h.default_history_dir
+history_dir = h.history_dir
+has_history = h.has_history
+has_commits = h.has_commits
 
 
 # ---------------------------------------------------------------- process plumbing
@@ -497,7 +470,7 @@ def _missing(repo, head_dirs):
 
 
 def _recent(repo, head_dirs, days):
-    """See recent_deletions. One git call.
+    """restore_notices()' `recent`. One git call.
 
     The log lists deleted files, not folders; a folder d not in HEAD was deleted by the newest
     commit C that deleted a file under it (a later re-add + delete would be a newer C), so C^ still
@@ -517,25 +490,13 @@ def _recent(repo, head_dirs, days):
                   if ct >= cutoff and d not in head_dirs and not (repo.home / d).is_dir())
 
 
-def missing_dirs():
-    """Top-level folders in HEAD that are missing on disk ([] without history or commits)."""
-    repo = Repo()
-    head_dirs = _head_dirs(repo)
-    return _missing(repo, head_dirs) if head_dirs is not None else []
-
-
-def recent_deletions(days=RECENT_DAYS):
-    """[(dir, rev_before, deleted_at)] for top-level folders whose deletion a checkpoint committed
-    in the last `days` days and that are still missing on disk: newest deletion per folder, sorted
-    by name. rev_before is the short parent of the deleting commit, deleted_at its committer time
-    (epoch seconds). Folders still in HEAD are missing_dirs()' business, not listed here."""
-    repo = Repo()
-    head_dirs = _head_dirs(repo)
-    return _recent(repo, head_dirs, days) if head_dirs is not None else []
-
-
 def restore_notices(days=RECENT_DAYS):
-    """(missing_dirs(), recent_deletions()) sharing one HEAD listing: two git calls."""
+    """(missing, recent) sharing one HEAD listing, both ([], []) without history or commits: two
+    git calls. missing: top-level folders in HEAD that are missing on disk. recent: [(dir,
+    rev_before, deleted_at)] for top-level folders whose deletion a checkpoint committed in the last
+    `days` days and that are still missing on disk: newest deletion per folder, sorted by name.
+    rev_before is the short parent of the deleting commit, deleted_at its committer time (epoch
+    seconds). Folders still in HEAD are `missing`'s business, not listed in `recent`."""
     repo = Repo()
     head_dirs = _head_dirs(repo)
     if head_dirs is None:
@@ -543,18 +504,12 @@ def restore_notices(days=RECENT_DAYS):
     return _missing(repo, head_dirs), _recent(repo, head_dirs, days)
 
 
-def lock_stuck(hist=None):
-    """The mtime of the oldest git *.lock in H older than LOCK_STALE, else None. Stats, no git."""
-    stale = stale_locks(hist)
-    return stale[0][1] if stale else None
-
-
 def when(epoch, fmt="%Y-%m-%d %H:%M"):
     return datetime.datetime.fromtimestamp(epoch).strftime(fmt)
 
 
-def lock_line(mtime):
-    return f"bq memory: history lock stuck since {when(mtime)} — checkpoints are paused; {RECOVERY}"
+def lock_line(mtime, prefix="bq memory: history lock"):
+    return f"{prefix} stuck since {when(mtime)} — checkpoints are paused; {RECOVERY}"
 
 
 def status(out=print):
@@ -565,7 +520,7 @@ def status(out=print):
     out(f"history: {repo.hist}\nwork tree: {repo.home}")
     stale = stale_locks(repo.hist)
     if stale:
-        out(f"history lock: stuck since {when(stale[0][1])} — checkpoints are paused; {RECOVERY}")
+        out(lock_line(stale[0][1], prefix="history lock:"))
         for path, mtime in stale:
             out(f"  {path} (since {when(mtime)})")
     else:
@@ -750,14 +705,7 @@ def stamp(cwd=None, out=print):
     mem = ai_home() / name
     if not mem.is_dir():
         raise MemError(f"no memory folder {mem}; create it with /bq:init or /bq:onboard first")
-    remotes = []
-    common = h.git_common_dir(found)
-    if common is not None and (common / "config").is_file():
-        rc, text, _ = _spawn(["git", "config", "--file", str(common / "config"), "--get-regexp",
-                              r"^remote\..*\.url$"], READ_TIMEOUT)
-        if rc == 0:
-            remotes = sorted({h.clean_remote(ln.split(None, 1)[1])
-                              for ln in text.decode("utf-8", "replace").splitlines() if " " in ln})
+    remotes = sorted(h.clean_remote_urls(root))  # the hook's own parser: one reading of the config
     data = {"project": name, "roots": [str(root.resolve())], "remotes": remotes,
             "stamped": datetime.date.today().isoformat()}
     tmp = mem / ".identity.tmp"

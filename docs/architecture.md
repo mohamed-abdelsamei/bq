@@ -145,7 +145,8 @@ notices, recovery, purging a secret — lives in the memory skill's
   timeout the check is skipped): folders in history but missing on disk, deletions recorded in the
   last 7 days and still missing (each with its restore command), `*.lock` files in the history older
   than 2 minutes (reported, never removed), the last error, and a `<history>/bq-notice` younger
-  than 7 days (a nested git repo, stored only as a gitlink). They also appear in a project with no
+  than 7 days (a nested git repo, stored only as a gitlink); a history with no commit yet gets a
+  run-`checkpoint` line instead of the git check. They also appear in a project with no
   memory folder, since that folder may be the deleted one.
 - **Restore** extracts from history, never with `git checkout` onto a partly present folder: in
   place only into a missing folder, else beside it as `<dir>.restored-<rev>/`, or over it with

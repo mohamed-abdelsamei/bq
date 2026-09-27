@@ -73,6 +73,8 @@ PLUGIN_ROOT_PATH = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([^\s\"']+)")
 # The one command shape bq ships: quoted so a plugin root with spaces still works, python3, no args.
 HOOK_COMMAND = re.compile(r'python3 "\$\{CLAUDE_PLUGIN_ROOT\}/hooks/[\w.-]+\.py"')
 # Hooks make no network calls and spawn nothing (ADR 0010); an import of these is suspicious.
+# One exemption (ADR 0011): `_bqmem.py` may import subprocess to spawn git, and `checkpoint.py` forks
+# (os.fork, no import); the other hooks only import those two modules.
 HOOK_BANNED_IMPORT = re.compile(r"^\s*(?:import\s+(?:[\w.]+\s*,\s*)*|from\s+)(socket|urllib|http|subprocess)\b", re.M)
 
 
