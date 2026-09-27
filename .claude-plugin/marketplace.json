@@ -1,14 +1,23 @@
 {
-  "name": "co-agents",
+  "name": "bq",
   "owner": {
-    "name": "Mohamed Abdelsamei",
-    "url": "https://github.com/mohamed-abdelsamei"
+    "name": "Mohamed Abdelsamei"
+  },
+  "metadata": {
+    "description": "Marketplace for the bq agent-team plugin.",
+    "version": "0.6.0"
   },
   "plugins": [
     {
-      "name": "co-agents",
-      "source": "./",
-      "description": "A persona-driven agent team — six specialists (architect, engineer, tester, reviewer, researcher, scribe) with distinct personalities, a master conductor that brainstorms and delegates, and per-project memory."
+      "name": "bq",
+      "description": "A team of AI agents — a Maestro conductor plus six specialists — for research → decision → delivery workflows, with durable per-project memory in ~/.ai/<project>/.",
+      "version": "0.6.0",
+      "keywords": [
+        "agents",
+        "orchestration",
+        "workflow"
+      ],
+      "source": "./"
     }
   ]
 }

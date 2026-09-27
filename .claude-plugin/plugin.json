@@ -1,11 +1,19 @@
 {
-  "name": "co-agents",
-  "version": "0.2.0",
-  "description": "A persona-driven agent team for your work and pet projects. Six specialists with distinct personalities run a full feature lifecycle — brainstorm, plan, build, test, review, document — orchestrated by a master conductor, with per-project memory.",
+  "name": "bq",
+  "displayName": "bq",
+  "description": "A team of AI agents — a Maestro conductor plus six specialists — that run a real feature lifecycle: brainstorm, decide, plan, build, test, review, and document, with durable per-project memory in ~/.ai/<project>/.",
+  "version": "0.6.0",
   "author": {
-    "name": "Mohamed Abdelsamei",
-    "url": "https://github.com/mohamed-abdelsamei"
+    "name": "Mohamed Abdelsamei"
   },
-  "repository": "https://github.com/mohamed-abdelsamei/co-agents",
-  "license": "MIT"
+  "license": "MIT",
+  "homepage": "https://github.com/mohamed-abdelsamei/co-agents#readme",
+  "repository": "https://github.com/mohamed-abdelsamei/co-agents.git",
+  "keywords": [
+    "agents",
+    "orchestration",
+    "commands",
+    "skills",
+    "workflow"
+  ]
 }

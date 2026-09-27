@@ -1,8 +1,7 @@
 ---
 name: facilitation
-description: "How to run a productive multi-perspective debate that ends in a decision — steelman before critique, surface the unstated assumption, keep viewpoints genuinely distinct (anti-groupthink), force a call, and right-size the session. Use when conducting /team-brainstorm or any roundtable where the team must reason together and decide."
+description: 'How to run a productive multi-perspective debate that ends in a decision — steelman before critique, surface the unstated assumption, keep viewpoints genuinely distinct (anti-groupthink), force a call, and right-size the session. Use when conducting /bq:brainstorm or any roundtable where the team must reason together and decide.'
 ---
-
 # Facilitation
 
 A brainstorm that ends in mush has failed. The conductor's job is to extract genuinely different
@@ -35,4 +34,4 @@ Name the agreements and the real tensions, then **make the call** (or present th
 a recommended default for the user). State which arguments won, which lost, the tradeoffs accepted,
 and what's still open. **Right-size** the session to the stakes: a small question gets a quick
 two-voice take, not a full roundtable; cap re-routes so it doesn't ping-pong. Record the outcome —
-a conclusion that isn't written down didn't happen. See [[team-memory]].
+a conclusion that isn't written down didn't happen. See the **memory** skill.

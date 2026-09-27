@@ -1,12 +1,11 @@
 ---
 name: research-method
-description: "Discipline for evidence-based research — frame the question to the decision it serves, prefer primary sources and the codebase, compare options honestly, rate confidence, separate fact from inference from speculation, and cite. Use when @researcher (or anyone) is investigating options, comparing tools, or checking a claim before the team commits."
+description: 'Discipline for evidence-based research — frame the question to the decision it serves, prefer primary sources and the codebase, compare options honestly, rate confidence, separate fact from inference from speculation, and cite. Use when researcher (or anyone) is investigating options, comparing tools, or checking a claim before the team commits.'
 ---
-
 # Research method
 
 Turn "we're not sure" into "here's what we know, with sources and a recommendation" — without
-guessing or rabbit-holing. See [[team-memory]] for where findings are recorded.
+guessing or rabbit-holing. See the **memory** skill for where findings are recorded.
 
 ## Process
 
@@ -30,3 +29,14 @@ guessing or rabbit-holing. See [[team-memory]] for where findings are recorded.
 - **Cite** sources with dates. Mark speculative claims as speculative.
 - End with a **clear recommendation** and the **open questions** that remain — what still needs a
   spike before fully committing.
+
+## Where research sits in the pipeline
+
+Research feeds a decision; it is not the record on its own. The flow is
+**research → decision → implementation**: findings and options inform an ADR, and the ADR is
+implemented in code. Record findings in `research/`, and let the decision and its implementation
+carry them forward — don't treat an unbuilt option as if it were the shipped system.
+
+In loop terms this is the **research loop**: it opens with an unknown and closes only when the
+findings feed a decision or plan — research that changes nothing is an open loop. See the
+**bq-team** skill's Loop engineering section.

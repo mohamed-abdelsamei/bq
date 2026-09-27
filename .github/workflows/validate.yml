@@ -1,0 +1,34 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate plugin structure
+        run: python3 scripts/validate.py
+
+      - name: Test the validator
+        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+
+      - name: Shellcheck install scripts
+        run: shellcheck install.sh install-copilot.sh
+
+      - name: Syntax-check install scripts
+        run: |
+          bash -n install.sh
+          bash -n install-copilot.sh

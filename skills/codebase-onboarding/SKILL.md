@@ -1,8 +1,7 @@
 ---
 name: codebase-onboarding
-description: "A systematic method to understand an unfamiliar codebase before working in it — locate entry points, build/run, dependencies, data flow, and conventions, and read existing context files without modifying them. Use during /team-onboard or whenever you (or @architect/@researcher) are dropped into a repo you don't know yet."
+description: 'A systematic method to understand an unfamiliar codebase before working in it — locate entry points, build/run, dependencies, data flow, and conventions, and read existing context files without modifying them. Use during /bq:onboard or whenever you (or architect/researcher) are dropped into a repo you don''t know yet.'
 ---
-
 # Codebase onboarding
 
 How to understand a repo you've never seen, fast and without breaking anything. The goal is an
@@ -13,7 +12,7 @@ accurate mental model and a short written summary — not a refactor.
 Existing AI-context files are authoritative and **read-only** during onboarding: `CLAUDE.md`,
 `AGENTS.md`, `.github/copilot-instructions.md`, `context.md`, `.cursorrules`, existing `docs/`,
 `README`, ADRs. Understand them; never edit, "improve", or override them. The only thing you
-create is `.coagents/`. (See [[team-memory]].)
+create is the project memory folder under `~/.ai/`. (See the **memory** skill.)
 
 ## Method
 
@@ -27,9 +26,11 @@ create is `.coagents/`. (See [[team-memory]].)
    lives (db, cache, files); external services it talks to. Sketch the data flow.
 4. **Infer the conventions.** How is code organized, named, tested? Error handling, logging,
    config patterns? Match these later — the cheapest code looks like the code already there.
-5. **Read the existing context files.** Distill what they mandate: principles, "always/never"
+5. **Read the tests.** They encode intended behavior and the edge cases that matter, and they show
+   how to run the suite — often the fastest way to learn what "correct" means here.
+6. **Read the existing context files.** Distill what they mandate: principles, "always/never"
    rules, style. Treat as source of truth.
-6. **Note the unknowns and risks** as *observations*, not a work plan — the gaps you couldn't
+7. **Note the unknowns and risks** as *observations*, not a work plan — the gaps you couldn't
    resolve, the parts that look fragile.
 
 ## Output
@@ -37,4 +38,4 @@ create is `.coagents/`. (See [[team-memory]].)
 A short, plain-language **understanding summary**: what this project is, the stack, how to build/
 run/test, the architecture in a few lines, the conventions to follow, where authoritative rules
 live, and the open questions. Confirm it with the user — you inferred it, so verify before relying
-on it. Feed it into `.coagents/charter.md`.
+on it. Feed it into `charter.md` in the project memory folder.

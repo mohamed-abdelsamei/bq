@@ -1,0 +1,202 @@
+# Using bq
+
+A practical guide to driving the team day to day. If you just want the command list, that's in the
+[README](../README.md); this is about *how to actually use it well*.
+
+## The mental model
+
+bq is a **routed team**, not a single assistant. You talk to the **Maestro** (the conductor), and
+it pulls in the right specialist — or convenes several when a question is genuinely contested. Six
+specialists carry deliberate, opposing biases so debates produce real tension, not agreement theater:
+
+- **architect** (Sol) — scope, design, task breakdown
+- **engineer** (Max) — implementation, debugging, spikes
+- **tester** (Vera) — test plans, verification, edge cases
+- **reviewer** (Cass) — code review + red-teaming decisions
+- **researcher** (Ada) — options, prior art, sourced findings
+- **scribe** (Quill) — docs and the written record
+
+Two ideas make it work:
+
+1. **Every unit of work is a loop.** It opens with intent and isn't done until it *closes* — the
+   outcome lands in its home, or it's explicitly dropped. Nothing is left dangling in chat.
+2. **Memory is the product.** Decisions and their *why* are written to `~/.ai/<project>/` in plain
+   language, so you (or the team, next session) can pick up exactly where you left off.
+
+You don't need to memorize which specialist does what — describe the work and the Maestro routes it.
+
+## Setup (once per machine, once per project)
+
+**Install the plugin:**
+
+```
+/plugin marketplace add mohamed-abdelsamei/co-agents
+/plugin install bq@bq
+```
+
+(For a local checkout, `/plugin marketplace add /path/to/co-agents` instead. If the plugin flow is
+blocked, `./install.sh install` from the repo falls back to a manual copy into `~/.claude/` — see the
+README's "Install script" section. To upgrade: `/plugin marketplace update bq`, then
+`/plugin update bq@bq`; coming from 0.2, also check the [CHANGELOG](../CHANGELOG.md).)
+
+**GitHub Copilot (VS Code)** — no marketplace; run the bundled transform-installer from the repo:
+
+```
+./install-copilot.sh install
+```
+
+Reload VS Code, then use the commands with a **dash**: `/bq-init`, `/bq-build`, `/bq-status`, … (see
+the README's "Install into GitHub Copilot" section for details, `status`/`verify`/`uninstall`, and
+overrides).
+
+**Point the team at a project** — do this once inside each repo you use it on:
+
+- **New / empty project** → `/bq:init` — a short interview (what you're building, for whom, the
+  stack, the principles), then it scaffolds the memory folder.
+- **Existing codebase** → `/bq:onboard` — the team reads your code *and* any existing context files
+  (`CLAUDE.md`, `AGENTS.md`, …) **without changing them**, then writes its own understanding.
+
+Both create the project's memory at **`~/.ai/<project>/`** (`<project>` = the repo's folder name;
+the root is `$AI_HOME`, or `~/.ai` if unset). It lives outside the repo, so it never touches your
+project's git. `/bq:onboard` also writes `knowledge/graph.md`, a short map of the codebase.
+
+**Protect memory (once per machine, recommended).** Plain files are one `rm -rf` away from gone. At
+the end, `/bq:init`, `/bq:onboard` and `/bq:refresh` offer to start a local git history of `~/.ai`,
+kept outside it and never pushed, and to stamp the folder with this repo's identity. Say yes and
+they run `bq_memory.py init` and the first `checkpoint`; after that, a plugin install checkpoints in
+the background at each session start. A manual or Copilot install has no hook and no bundled
+`scripts/`: run `python3 <bq checkout>/scripts/bq_memory.py checkpoint` yourself now and then (on
+Copilot, run `init` first — `/bq-init` doesn't offer it). Details:
+[Memory history](../README.md#memory-history-opt-in).
+
+## Which command when
+
+Match the command to what you're actually trying to do:
+
+| You want to… | Use | It gives you |
+|---|---|---|
+| Decide between real options | `/bq:brainstorm <topic>` | A multi-view debate → one recommendation, recorded |
+| Turn a feature into a plan | `/bq:plan <feature>` | A spec + an ordered task list |
+| Do one task end to end | `/bq:build <task>` | implement → test → review, then closed out |
+| Clear a whole backlog hands-off | `/bq:ship [feature]` | Each task built + committed on a branch, autonomously |
+| Fix a bug | `/bq:debug <bug>` | reproduce → root cause → smallest fix → regression test |
+| Understand how something works | `/bq:research <question>` | A sourced, confidence-rated findings doc |
+| Review code or a decision | `/bq:review <target>` | Findings + a clear verdict |
+| Open / review an MR | `/bq:mr` / `/bq:review-mr <ref>` | A drafted request / a two-axis review |
+| Understand a past decision | `/bq:ask <question>` | A plain-language answer from the record |
+| Pressure-test your own thinking | `/bq:grill <idea>` | Cass interrogates you, one sharp question at a time |
+| Capture a lesson | `/bq:retro <what happened>` | A reusable lesson that changes future behavior |
+| Improve bq from proven lessons | `/bq:improve [focus]` | Checked, drafted plugin edits you approve one by one |
+| See where things stand | `/bq:status [area]` | A read-only rollup of memory (changes nothing) |
+| Drop an abandoned plan | `/bq:drop <feature>` | Its spec/decision/tasks archived with a reason |
+
+Not sure which to use? Just describe the work in plain language and hand it to the **maestro** —
+routing is its job.
+
+## A typical feature, start to finish
+
+```
+/bq:brainstorm should we cache the pricing API or precompute nightly?
+      → the team debates; you get a recommendation, written to decisions/
+
+/bq:plan nightly precompute of pricing
+      → a spec in requirements/ + an ordered task list in tasks/
+
+/bq:build task 1        (repeat per task — or…)
+/bq:ship nightly precompute
+      → the whole backlog built, tested, reviewed, committed per task
+
+/bq:review current changes     (extra scrutiny before merge, optional)
+/bq:mr                         (draft the MR from what actually shipped; opens only on your go-ahead)
+
+/bq:retro that build           (capture anything the team should do differently next time)
+```
+
+Not every job needs the full arc. A one-line fix can go straight to `/bq:build` or `/bq:debug`.
+A quick "how does X work?" is just `/bq:research` or even a direct question. **Scale the machinery
+to the stakes** — that's the whole point of the loop model.
+
+## Working with the team
+
+- **Talk to the Maestro by default.** Describe the work; it routes. Only address a specialist
+  directly (e.g. "have the reviewer look at this diff") when you already know the lane.
+- **Expect pushback.** No agent is a yes-man — they'll challenge a weak premise (yours included)
+  before acting. That's a feature. If you want to be challenged on purpose, use `/bq:grill`.
+- **Brainstorms cost tokens.** Convening several specialists across rounds is expensive. For a small
+  question, ask for a "quick take" (two voices, no rebuttal); save the full roundtable for genuinely
+  contested, hard-to-reverse calls.
+- **Right-size the table.** The Maestro defaults to *one* specialist and only convenes several on a
+  real tradeoff, a one-way door, or a safety/data risk. If it's over-convening, say so.
+
+## Your memory folder
+
+Everything the team decides lands in `~/.ai/<project>/`. You can open and read any of it:
+
+```
+~/.ai/<project>/
+  charter.md      what you're building + principles (read first)
+  discussions/    brainstorm summaries — who argued what, and the call
+  decisions/      the decision log (ADRs) with the *why*
+  requirements/   specs
+  tasks/          task lists + status
+  research/       sourced findings
+  reviews/        code reviews + critiques
+  knowledge/      graph.md — a map of the codebase, from /bq:onboard
+  lessons/        what to do differently next time
+  archive/        dropped plans, moved aside by /bq:drop
+  .identity       optional stamp: which repo this folder belongs to
+```
+
+- Run `/bq:status` any time for a read-only snapshot — in-flight tasks, undelivered specs,
+  decisions still waiting on code, stale knowledge.
+- `/bq:ask "why did we choose X?"` answers from the record, in plain language.
+- **Lessons get applied and checked.** Build, debug and ship put up to 3 relevant Active lessons in
+  every brief; the reviewer grades each (`Applied`, `Missed`, `Contradicted`, `n/a`) and that verdict
+  lands in the lesson's `## Log`. A run that hit a correction, a recurring fix, or a hard stop ends
+  with one `Learning:` line and at most one yes/no "keep this as a lesson?" — nothing is kept without
+  your yes.
+- **Corrections are picked up in plain chat too (via a standing reminder).** Under a plugin install, a SessionStart hook reminds
+  the model to reflect once after you correct it, and lists the project's lessons in force. Manual
+  and Copilot installs have no hook; the same behavior comes from the feedback-loop skill when it
+  loads.
+- **Lost a folder?** With the history on, a plugin session starts with a `bq memory:` line naming the
+  missing folder and the exact restore command (for 7 days after the deletion). `restore` never
+  overwrites newer work: a missing folder comes back in place, a present one is extracted beside it
+  as `<dir>.restored-<rev>/` to compare. `bq_memory.py status` and `log` show where things stand.
+  The runbook, including stuck locks and purging a secret, is in the memory skill's
+  [Durability and recovery](../skills/memory/SKILL.md#durability-and-recovery).
+- A bare `/bq:retro` triages lessons waiting on your yes (`Proposed`) and flags lessons that keep
+  getting `Missed`; `/bq:status` shows a one- or two-line Learning summary when anything is pending.
+- Lessons that generalize across projects can be **shared** (with your approval) to
+  `~/.ai/shared/lessons/`, so they apply everywhere — captured and shared via `/bq:retro`.
+- After a teammate merges changes, run `/bq:refresh` so the team's understanding of the project's
+  rules re-syncs with reality.
+
+## How the team extends itself
+
+The specialists share deep *method* through **skills** that load only when relevant (debugging,
+research-method, mr-review, critique, decision-and-spec, facilitation, feedback-loop,
+plugin-promotion, memory, codebase-onboarding, and the bq-team overview). You rarely invoke these directly — the commands and agents pull them in. When a
+lesson from `/bq:retro` proves out across projects, it can be **promoted** into the plugin itself
+(an agent/command/skill edit): `/bq:improve` drafts and validates the edit, and you approve it —
+never silently. `/bq:improve` also lists never-used skills as retire candidates, from the usage
+counts in `~/.claude.json` — a report only; it never drafts a deletion.
+
+## Gotchas
+
+- **Memory is per machine.** `~/.ai/<project>/` lives on *your* machine, keyed by the project folder
+  name (a git worktree counts as its main checkout). Two different projects with the same folder name
+  share a memory folder — rename one, or set `$AI_HOME` per project, if that ever collides. Stamping
+  the folder (`bq_memory.py stamp`, offered by init/onboard/refresh) stops a plugin session in the
+  *other* repo from loading its lessons; the folder itself is still shared.
+- **The history is a local safety net, not a backup.** It protects nothing before its first
+  checkpoint, writes during a session are committed at the next session start, empty folders aren't
+  restored, a renamed folder looks like a deletion, and it lives on the same disk. Keep Time Machine
+  (or another backup) too.
+- **The hooks need `python3`.** Without it on your PATH the SessionStart hooks fail open — the session
+  starts normally, just without the lessons index, memory notices, or background checkpoint.
+- **Guardrails are guidance, not a sandbox.** "Stay in your lane" and write-scoping are rules the
+  agents follow, not hard permissions. Keep your code under version control so any unintended change
+  shows up in the diff.
+- **A conclusion that isn't written down didn't happen.** If a useful decision only appeared in chat,
+  ask the team to record it — that's what makes the next session pick up cleanly.
