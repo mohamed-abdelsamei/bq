@@ -28,12 +28,46 @@ def field(data, *names):
     return ""
 
 
+def git_common_dir(root):
+    """The shared git dir for the checkout at `root`, or None if unreadable.
+
+    `.git` as a dir is itself. As a file it reads `gitdir: <path>` (relative to root, or
+    absolute); a linked worktree's gitdir holds `commondir` (relative to gitdir) naming the
+    shared dir, and a gitdir without one (a submodule) is its own common dir.
+    """
+    dotgit = root / ".git"
+    if dotgit.is_dir():
+        return dotgit
+    try:
+        head = dotgit.read_text(encoding="utf-8").strip()
+        target = head[len("gitdir:"):].strip() if head.startswith("gitdir:") else ""
+        if not target:
+            return None
+        gitdir = (root / target).resolve()
+        commondir = gitdir / "commondir"
+        common = (gitdir / commondir.read_text(encoding="utf-8").strip()).resolve() \
+            if commondir.is_file() else gitdir
+    except (OSError, ValueError):
+        return None
+    return common if common.is_dir() else None
+
+
+def main_root(root):
+    """The main checkout for a linked worktree (the common `.git`'s parent), else `root`
+    itself: a plain repo, a submodule, a bare main repo, or anything unreadable (fail open)."""
+    if not (root / ".git").is_file():
+        return root
+    common = git_common_dir(root)
+    return common.parent if common is not None and common.name == ".git" else root
+
+
 def project_dir(data):
-    """Git root of the input `cwd` (walking up for .git), else cwd itself."""
+    """Git root of the input `cwd` (walking up for .git; a linked worktree maps to its main
+    checkout), else cwd itself."""
     cwd = Path(field(data, "cwd") or os.getcwd()).expanduser()
     for p in (cwd, *cwd.parents):
         if (p / ".git").exists():
-            return p
+            return main_root(p)
     return cwd
 
 

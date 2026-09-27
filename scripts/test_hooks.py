@@ -1,7 +1,8 @@
 """Pipe sample hook input through hooks/session_start.py and check every C15 branch.
 
 Run: python3 -m unittest discover -s scripts -p 'test_*.py'
-All paths (AI_HOME, CLAUDE_PLUGIN_DATA, project cwd) are temp dirs; nothing touches ~/.ai.
+All paths (AI_HOME, CLAUDE_PLUGIN_DATA, BQ_MEMORY_GIT_DIR, project cwd) are temp dirs; the module
+guard (M7) asserts the real ~/.ai and default history dir are unchanged.
 """
 import json
 import os
@@ -14,6 +15,21 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 HOOKS = REPO / "hooks"
 sys.dont_write_bytecode = True  # keep hooks/ free of __pycache__
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_bq_memory import fingerprint, real_locations  # noqa: E402  (M7 guard, functions only)
+
+_BEFORE = {}
+
+
+def setUpModule():
+    for p in real_locations():
+        _BEFORE[p] = fingerprint(p)
+
+
+def tearDownModule():
+    for p, before in _BEFORE.items():
+        if fingerprint(p) != before:
+            raise AssertionError(f"M7: hook tests changed real {p}")
 STANDING = "When the user corrects the team, fix it;"
 STANDING_LINE = (
     "When the user corrects the team, fix it; if the correction would change behavior in other "
@@ -66,7 +82,8 @@ class HookBase(unittest.TestCase):
         self.lessons.mkdir(parents=True)
         self.shared.mkdir(parents=True)
         self.data.mkdir()
-        self.env = {**os.environ, "AI_HOME": str(self.ai), "CLAUDE_PLUGIN_DATA": str(self.data)}
+        self.env = {**os.environ, "AI_HOME": str(self.ai), "CLAUDE_PLUGIN_DATA": str(self.data),
+                    "BQ_MEMORY_GIT_DIR": str(t / "hist.git")}
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -341,6 +358,49 @@ class SessionStart(HookBase):
         self.assertIn(STANDING, r.stdout)
 
 
+GIT_ENV = {"GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1", "GIT_TERMINAL_PROMPT": "0"}
+
+
+def git(*args, cwd):
+    subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false",
+                    *args], cwd=cwd, check=True, capture_output=True, timeout=30,
+                   env={**os.environ, **GIT_ENV})
+
+
+class WorktreeIdentity(HookBase):
+    """I1: a linked worktree resolves to the main checkout's memory."""
+
+    def test_worktree_resolves_to_main_repo(self):
+        self.write(self.lessons, "2026-09-01-a.md", lesson("Main repo lesson"))
+        main = Path(self._tmp.name) / "repos" / "myproj"
+        main.mkdir(parents=True)
+        git("init", "-q", cwd=main)
+        git("commit", "-q", "--allow-empty", "-m", "init", cwd=main)
+        wt = Path(self._tmp.name) / "repos" / "myproj-feature"
+        git("worktree", "add", "-q", str(wt), cwd=main)
+        self.assertTrue((wt / ".git").is_file())
+        (wt / "sub").mkdir()
+        r = self.run_hook("session_start.py", {"cwd": str(wt / "sub")})
+        self.assertIn("Lessons in force (myproj)", r.stdout)
+        self.assertIn("Main repo lesson", r.stdout)
+
+    def test_garbage_git_file_fails_open(self):
+        (self.proj / ".git").rmdir()
+        for text in ("garbage", "gitdir: /nonexistent/path", "gitdir: ", "\xff"):
+            (self.proj / ".git").write_text(text, encoding="utf-8")
+            r = self.run_hook("session_start.py", self.payload())
+            self.assertIn("Lessons in force (myproj)", r.stdout, text)
+            self.assertEqual(r.stderr, "", text)
+
+    def test_submodule_style_git_file_keeps_own_root(self):
+        gitdir = Path(self._tmp.name) / "super" / ".git" / "modules" / "myproj"
+        gitdir.mkdir(parents=True)  # no commondir: a submodule is its own project
+        (self.proj / ".git").rmdir()
+        (self.proj / ".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
+        r = self.run_hook("session_start.py", self.payload())
+        self.assertIn("Lessons in force (myproj)", r.stdout)
+
+
 class Hygiene(HookBase):
     def test_no_pycache_after_runs(self):
         self.write(self.lessons, "2026-09-01-a.md", lesson("A"))
@@ -348,7 +408,7 @@ class Hygiene(HookBase):
         self.assertFalse((HOOKS / "__pycache__").exists())
 
     def test_only_session_start_ships(self):
-        self.assertEqual(sorted(p.name for p in HOOKS.glob("*.py")), ["_bqhook.py", "session_start.py"])
+        self.assertEqual(sorted(p.name for p in HOOKS.glob("*.py")), ["_bqhook.py", "_bqmem.py", "session_start.py"])
         events = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]
         self.assertEqual(list(events), ["SessionStart"])
 
