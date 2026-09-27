@@ -45,7 +45,7 @@ install.sh, install-copilot.sh  manual/plugin installer and the Copilot transfor
 Install the local checkout as a marketplace and enable the plugin:
 
 ```
-/plugin marketplace add /absolute/path/to/co-agents
+/plugin marketplace add /absolute/path/to/bq
 /plugin install bq@bq
 ```
 

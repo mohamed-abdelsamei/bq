@@ -30,11 +30,11 @@ You don't need to memorize which specialist does what — describe the work and 
 **Install the plugin:**
 
 ```
-/plugin marketplace add mohamed-abdelsamei/co-agents
+/plugin marketplace add mohamed-abdelsamei/bq
 /plugin install bq@bq
 ```
 
-(For a local checkout, `/plugin marketplace add /path/to/co-agents` instead. If the plugin flow is
+(For a local checkout, `/plugin marketplace add /path/to/bq` instead. If the plugin flow is
 blocked, `./install.sh install` from the repo falls back to a manual copy into `~/.claude/` — see the
 README's "Install script" section. To upgrade: `/plugin marketplace update bq`, then
 `/plugin update bq@bq`; coming from 0.2, also check the [CHANGELOG](../CHANGELOG.md).)

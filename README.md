@@ -38,17 +38,17 @@ question at a time with `/bq:grill`.
 ## Install
 
 bq installs as a Claude Code plugin from a marketplace — the repo is public on GitHub
-([mohamed-abdelsamei/co-agents](https://github.com/mohamed-abdelsamei/co-agents)), so add it directly:
+([mohamed-abdelsamei/bq](https://github.com/mohamed-abdelsamei/bq)), so add it directly:
 
 ```
-/plugin marketplace add mohamed-abdelsamei/co-agents
+/plugin marketplace add mohamed-abdelsamei/bq
 /plugin install bq@bq
 ```
 
 To install a local checkout, add its path as a marketplace first:
 
 ```
-/plugin marketplace add /absolute/path/to/co-agents
+/plugin marketplace add /absolute/path/to/bq
 /plugin install bq@bq
 ```
 
