@@ -24,7 +24,8 @@ Stop the loop, report where things stand, and ask the user **only** when one of 
 3. **Charter or decision violation** — shipping a task would contradict `charter.md` or an accepted
    `decisions/` entry. Halt and flag the conflict; don't quietly override a settled call.
 4. **Destructive or outward action** — anything hard to reverse (push, deploy, deleting files,
-   dropping/altering a schema, calling an external service). Per-task commits **on the branch** are
+   dropping/altering a schema, calling an external service, running `bq_memory.py` init, restore or
+   stamp on the real memory store). Per-task commits **on the branch** are
    fine and expected; everything beyond that waits for the user.
 
 Outside these, **keep going** — finish the task, commit it, start the next.

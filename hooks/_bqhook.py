@@ -14,7 +14,8 @@ from pathlib import Path
 REMOTE_SECTION = re.compile(r'^\s*\[\s*remote\s+"[^"]*"\s*\]', re.I)
 SECTION = re.compile(r"^\s*\[")
 URL_KEY = re.compile(r"^\s*url\s*=\s*(.*?)\s*$", re.I)
-USERINFO = re.compile(r"^([A-Za-z][\w+.-]*://)[^/@]*@")  # same as _bqmem.stamp: no credentials
+USERINFO = re.compile(r"^([A-Za-z][\w+.-]*://)[^/@]*@")
+QUERY = re.compile(r"[?#].*$", re.S)  # a query string or fragment can carry a token
 
 
 def read_input():
@@ -78,9 +79,14 @@ def project_dir(data):
     return cwd
 
 
+def clean_remote(url):
+    """A remote URL without userinfo credentials, query string or fragment (what stamp records)."""
+    return QUERY.sub("", USERINFO.sub(r"\1", url.strip().strip('"')))
+
+
 def normalize_remote(url):
-    """A remote URL without credentials, trailing slash or `.git`, for comparison only."""
-    url = USERINFO.sub(r"\1", url.strip().strip('"')).rstrip("/")
+    """clean_remote() without a trailing slash or `.git`, for comparison only."""
+    url = clean_remote(url).rstrip("/")
     return url[:-4] if url.endswith(".git") else url
 
 

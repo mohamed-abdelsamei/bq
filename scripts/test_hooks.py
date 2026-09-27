@@ -4,6 +4,7 @@ Run: python3 -m unittest discover -s scripts -p 'test_*.py'
 All paths (AI_HOME, CLAUDE_PLUGIN_DATA, BQ_MEMORY_GIT_DIR, project cwd) are temp dirs; the module
 guard (M7) asserts the real ~/.ai and default history dir are unchanged.
 """
+import fcntl
 import json
 import os
 import subprocess
@@ -442,7 +443,8 @@ class MemoryHooks(HookBase):
         t = Path(self._tmp.name)
         self.hist = t / "hist.git"
         (t / "home").mkdir()
-        self.env.update(HOME=str(t / "home"), XDG_DATA_HOME=str(t / "home" / "xdg"))
+        self.env.update(HOME=str(t / "home"), XDG_DATA_HOME=str(t / "home" / "xdg"),
+                        XDG_CONFIG_HOME=str(t / "home" / "cfg"))
         for k in ("AI_HOME", "BQ_MEMORY_GIT_DIR", "HOME", "XDG_DATA_HOME"):  # M7
             self.assertTrue(self.env[k].startswith(str(t)), k)
         self.write(self.lessons, "2026-09-01-a.md", lesson("Keep the loop", future="Close it."))
@@ -450,14 +452,50 @@ class MemoryHooks(HookBase):
         self.write(self.ai / "gone", "charter.md", "# gone\n")
 
     # fixtures
-    def init_history(self):
+    def init_history(self, first=True):
+        """A bare history; `first` also makes the first checkpoint through the CLI (the hook never
+        makes the first commit: that runs on the user's yes)."""
         subprocess.run(["git", "init", "-q", "--bare", "--initial-branch=main", str(self.hist)],
                        check=True, capture_output=True, env={**os.environ, **GIT_ENV}, timeout=30)
+        if first:
+            self.cli("checkpoint")
+
+    def cli(self, *args, env=None):
+        r = subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True,
+                           env=env or self.env, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r
+
+    def wait_checkpoint(self, timeout=20):
+        """Block until no checkpoint holds the flock (the hook's detached child has finished)."""
+        lock = self.hist / "bq-checkpoint.lock"
+        if not lock.exists():
+            return
+        fd = os.open(lock, os.O_RDWR)
+        try:
+            deadline = time.monotonic() + timeout
+            while True:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fcntl.flock(fd, fcntl.LOCK_UN)
+                    return
+                except OSError:
+                    if time.monotonic() > deadline:
+                        self.fail("detached checkpoint still running")
+                    time.sleep(0.02)
+        finally:
+            os.close(fd)
 
     def checkpoint(self, env=None):
+        """Run the checkpoint hook and wait for its detached child; it prints nothing."""
         r = self.run_hook("checkpoint.py", self.payload(source="startup"), env=env)
-        self.assertEqual(r.stdout, "")
+        self.wait_checkpoint()
+        self.assertEqual((r.stdout, r.stderr), ("", ""))
         return r
+
+    def last_error(self):
+        p = self.hist / "bq-last-error"
+        return p.read_text(encoding="utf-8") if p.exists() else None
 
     def commits(self):
         r = subprocess.run(["git", f"--git-dir={self.hist}", "rev-list", "--count", "HEAD"],
@@ -590,7 +628,9 @@ class MemoryHooks(HookBase):
                                   input=json.dumps(self.payload(source="startup")), env=self.env, timeout=10)
         self.assertTrue(json.loads(run("session_start.py").stdout)["hookSpecificOutput"]["additionalContext"]
                         .split("\n\n")[1].endswith(want))
-        self.assertIn(want + " (from ", run("checkpoint.py").stderr)
+        self.assertEqual(run("checkpoint.py").stderr, "")
+        self.wait_checkpoint()
+        self.assertEqual(self.commits(), 2)
         ctx = json.loads(run("session_start.py").stdout)["hookSpecificOutput"]["additionalContext"]
         self.assertTrue(ctx.split("\n\n")[1].endswith(want), ctx)
         r = subprocess.run(["/bin/sh", "-c", want.replace(" restore gone", " status")], capture_output=True,
@@ -657,6 +697,42 @@ class MemoryHooks(HookBase):
         self.stamp({"roots": ["/somewhere/else/myproj"], "remotes": ["https://github.com/acme/myproj"]})
         self.assertIn("Keep the loop", self.ctx())
 
+    def test_identity_remote_match_ignores_query_and_fragment(self):
+        (self.proj / ".git" / "config").write_text(
+            '[remote "origin"]\n\turl = https://gitlab.example/acme/myproj.git?private_token=abc#x\n',
+            encoding="utf-8")
+        self.stamp({"roots": ["/somewhere/else/myproj"], "remotes": ["https://gitlab.example/acme/myproj"]})
+        self.assertIn("Keep the loop", self.ctx())
+        sys.path.insert(0, str(HOOKS))
+        import _bqhook
+        self.assertEqual(_bqhook.normalize_remote("https://u:p@h.example/a/b.git/?t=1#f"), "https://h.example/a/b")
+        self.assertEqual(_bqhook.clean_remote("git@h.example:a/b.git#frag"), "git@h.example:a/b.git")
+
+    def test_stale_ref_lock_last_error_and_notice_lines(self):
+        self.init_history()
+        err = self.hist / "bq-last-error"
+        err.write_text("2026-09-26 10:00\tgit commit failed (1): disk full\n", encoding="utf-8")
+        failed = ("bq memory: last checkpoint failed 2026-09-26 10:00: git commit failed (1): disk full — "
+                  "see the memory skill's Durability and recovery section")
+        self.assertEqual(self.ctx().split("\n\n")[1], failed)
+        lock = self.hist / "refs" / "heads" / "main.lock"
+        lock.write_text("")
+        old = time.time() - 3 * 60
+        os.utime(lock, (old, old))
+        since = time.strftime("%Y-%m-%d %H:%M", time.localtime(old))
+        stuck = (f"bq memory: history lock stuck since {since} — checkpoints are paused; see the memory "
+                 "skill's Durability and recovery section")
+        self.assertEqual(self.ctx().split("\n\n")[1], stuck)  # one line for one cause
+        lock.unlink()
+        (self.hist / "bq-notice").write_text("2026-09-26 10:00\tnested git repo(s) p/x in the store: only "
+                                             "their commit pointer is kept, not their files\n", encoding="utf-8")
+        notice = ("bq memory: nested git repo(s) p/x in the store: only their commit pointer is kept, not their "
+                  "files (checkpoint 2026-09-26 10:00) — see the memory skill's Durability and recovery section")
+        self.assertEqual(self.ctx().split("\n\n")[1], failed + "\n" + notice)
+        self.checkpoint()
+        self.assertFalse(err.exists())  # a good checkpoint clears the failure, not the notice
+        self.assertEqual(self.ctx().split("\n\n")[1], notice)
+
     def test_identity_mismatch_one_line_no_lessons(self):
         self.write(self.lessons, "2026-09-02-p.md", lesson("Pending", status="- **Status:** Proposed\n"))
         self.stamp({"roots": ["/somewhere/else/myproj"], "remotes": ["https://github.com/acme/other"]})
@@ -694,22 +770,53 @@ class MemoryHooks(HookBase):
         self.assertEqual(r.stderr, "")
         self.assertFalse(self.hist.exists())
 
-    def test_checkpoint_commits_quietly_and_reports_deletion_on_stderr(self):
+    def test_checkpoint_commits_quietly_and_deletion_shows_at_session_start(self):
         self.init_history()
-        self.assertEqual(self.checkpoint().stderr, "")
         self.assertEqual(self.commits(), 1)
-        self.assertEqual(self.checkpoint().stderr, "")
+        self.checkpoint()
         self.assertEqual(self.commits(), 1)  # nothing changed, no commit
+        short = self.hgit("rev-parse", "--short", "HEAD")
         (self.ai / "gone" / "charter.md").unlink()
         (self.ai / "gone").rmdir()
-        r = self.checkpoint()
+        self.checkpoint()
         self.assertEqual(self.commits(), 2)
-        self.assertIn("bq memory: gone deleted — restore:", r.stderr)
+        self.assertEqual(self.ctx().split("\n\n")[1], self.deleted_line("gone", short))
 
-    def test_checkpoint_git_failure_exits_zero(self):
-        self.fake_history()
-        r = self.checkpoint(self.fake_git("echo boom >&2; exit 1"))
-        self.assertTrue(r.stderr.startswith("bq hook:"), r.stderr)
+    def test_checkpoint_skips_history_without_a_first_commit(self):
+        self.init_history(first=False)
+        self.checkpoint()
+        self.assertEqual(self.commits(), 0)  # N4: the first checkpoint needs the user's yes
+        self.cli("checkpoint")
+        self.assertEqual(self.commits(), 1)
+
+    def test_checkpoint_git_failure_exits_zero_and_is_recorded(self):
+        self.init_history()
+        self.write(self.ai / "gone", "new.md", "x")
+        self.checkpoint(self.fake_git("echo boom >&2; exit 1"))
+        err = self.last_error()
+        self.assertRegex(err, r"^\d{4}-\d\d-\d\d \d\d:\d\d\t.*boom\n$")
+        ctx = self.ctx()
+        when = err.split("\t")[0]
+        self.assertIn(f"bq memory: last checkpoint failed {when}: ", ctx)
+        self.assertIn("boom — see the memory skill's Durability and recovery section", ctx)
+        self.assertIn("Keep the loop", ctx)
+        self.checkpoint()  # the next good checkpoint clears it
+        self.assertIsNone(self.last_error())
+        self.assertNotIn("bq memory:", self.ctx())
+
+    def test_checkpoint_detaches_and_the_commit_still_lands(self):
+        self.init_history()
+        real = subprocess.run(["sh", "-c", "command -v git"], capture_output=True, text=True).stdout.strip()
+        env = self.fake_git(f'case "$*" in *" commit "*) sleep 6;; esac; exec "{real}" "$@"')
+        self.write(self.ai / "gone", "new.md", "x")
+        t0 = time.monotonic()
+        r = self.run_hook("checkpoint.py", self.payload(source="startup"), env=env)
+        self.assertLess(time.monotonic() - t0, 3, "hook waited for git")
+        self.assertEqual((r.stdout, r.stderr), ("", ""))
+        self.assertEqual(self.commits(), 1)  # still committing in the background
+        self.wait_checkpoint()
+        self.assertEqual(self.commits(), 2)
+        self.assertIsNone(self.last_error())
 
     # M6 latency
     def test_missing_folder_check_latency_p95(self):

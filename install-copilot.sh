@@ -132,12 +132,18 @@ map_tools() {
 # (bq:<role>, no leading slash) become bq-<role> before /bq:<command> -> /bq-<command>. The
 # Claude-only prose is wrapped in <!-- claude-only --> ... <!-- /claude-only --> markers (invisible
 # when rendered) and resolved first: a span carrying `<!-- copilot: B -->` before its closer becomes
-# B (empty B drops the span and its trailing blank line); a plain span is the "plugin vs manual"
+# B (empty B drops the span and its trailing blank line, keeping one paragraph break when the span
+# ended a paragraph); a plain span is the "plugin vs manual"
 # naming clause and becomes the single Copilot form. "the **bq-team** skill" -> instructions, since
 # bq-team ships here as the always-on bq-team.instructions.md, not a skill.
 rewrite_body() {
   perl -0777 -pe '
-    s{<!--\s*claude-only\s*-->\n?(?:(?!<!--\s*/?claude-only).)*?<!--\s*copilot:\s*((?:(?!-->).)*?)\s*-->\s*?<!--\s*/claude-only\s*-->(\n?\n?)}{length($1) ? "$1$2" : ""}gse;
+    # An empty-B span that ends a paragraph (its line follows a non-blank line, a blank line follows
+    # it) keeps one newline, so a heading after it stays a separate block; an inline span keeps its
+    # trailing newlines. $_ is still the unmodified input while s///g runs.
+    sub dropped { my ($at, $nl) = @_; my $before = $at >= 2 ? substr($_, $at - 2, 2) : "\n\n";
+      return $before =~ /\n$/ ? ($before eq "\n\n" || $nl ne "\n\n" ? "" : "\n") : $nl; }
+    s{<!--\s*claude-only\s*-->\n?(?:(?!<!--\s*/?claude-only).)*?<!--\s*copilot:\s*((?:(?!-->).)*?)\s*-->\s*?<!--\s*/claude-only\s*-->(\n?\n?)}{length($1) ? "$1$2" : dropped($-[0], $2)}gse;
     s{<!--\s*claude-only\s*-->(?:(?!<!--\s*/?claude-only|<!--\s*copilot:).)*?<!--\s*/claude-only\s*-->}{`bq-<role>` (e.g. `bq-engineer`)}gs;
     s/\*\*bq-team\*\*(\s+)skill\x27s\b/**bq-team**$1instructions\x27/g;
     s/\*\*bq-team\*\*(\s+)skill\b/**bq-team**$1instructions/g;

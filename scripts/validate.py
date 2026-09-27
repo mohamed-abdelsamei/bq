@@ -27,6 +27,7 @@ SKILL_WORDS_MAX = {"feedback-loop": 1900}
 SKILL_WORDS_DEFAULT = 2500
 # Description lint (warn only): a quoted trigger phrase, e.g. "who should handle this".
 TRIGGER_PHRASE = re.compile(r'"([^"\n]+)"')
+USE_CLAUSE = re.compile(r"\buse\s+(?:when|during|whenever)\b", re.I)  # the trigger clause
 REQUIRED_TEMPLATES = [
     "README.md",
     "charter.md",
@@ -313,7 +314,8 @@ def check_skills(rep, root):
 
 
 def check_skill_descriptions(rep, root):
-    """Warn-only lint of skill descriptions (they decide when a skill loads): a "Use when" clause,
+    """Warn-only lint of skill descriptions (they decide when a skill loads): a "Use when" clause
+    ("Use during" / "Use whenever" count too),
     no quoted trigger phrase shared by two skills, and every /bq:<name> names a real command."""
     commands = {p.stem for p in (root / "commands").glob("*.md")}
     phrases = {}  # normalized phrase -> first skill file that used it
@@ -323,7 +325,7 @@ def check_skill_descriptions(rep, root):
         desc = fm.get("description") if fm else None
         if not desc or isinstance(desc, Unsupported):
             continue  # missing/unparseable descriptions are reported by check_skills
-        if "use when" not in desc.lower():
+        if not USE_CLAUSE.search(desc):
             rep.warn(f, 'description has no "Use when" clause (it tells the model when to load the skill)')
         for m in TRIGGER_PHRASE.finditer(desc):
             key = " ".join(m.group(1).lower().split())

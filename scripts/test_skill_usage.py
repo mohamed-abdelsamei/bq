@@ -140,6 +140,27 @@ class SkillUsage(unittest.TestCase):
             self.write({"skillUsage": {"bq:plan": entry}})
             self.assertOneLine("unknown format")
 
+    def test_other_tools_entries_are_not_validated(self):
+        self.write({"skillUsage": {"other-plugin:x": {"count": "odd"}, "y": 5,
+                                   "bq:plan": {"usageCount": 2, "lastUsedAt": NOON_2026_09_01}}})
+        _, out = self.run_main()
+        self.assertRegex(out, r"/bq:plan\s+2\s+2026-09-01")
+
+    def test_bad_timestamps_print_unknown(self):
+        for ts in ("1e20", "1e15", "-5", "NaN", "Infinity", "0", "9" * 400):
+            self.write('{"skillUsage": {"bq:memory": {"usageCount": 2, "lastUsedAt": %s}}}' % ts)
+            code, out = self.run_main()
+            self.assertEqual(code, 0, ts)
+            self.assertRegex(out, r"\nmemory\s+2\s+unknown\n", ts)
+            _, js = self.run_main("--json")
+            memory = next(r for r in json.loads(js)["rows"] if r["name"] == "memory")
+            self.assertEqual(memory["last_used"], "unknown", ts)
+
+    def test_zero_uses_zero_timestamp_is_never(self):
+        self.write(self.usage(**{"bq:memory": (0, 0)}))
+        _, out = self.run_main()
+        self.assertRegex(out, r"\nmemory\s+0\s+never\n")
+
     def test_json_mode_failure_is_one_json_line(self):
         out = self.assertOneLine("not found", "--json")
         self.assertIn("error", json.loads(out))

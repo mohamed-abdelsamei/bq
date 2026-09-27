@@ -7,8 +7,10 @@ ${XDG_DATA_HOME:-~/.local/share}/bq/ai-history.git) with ${AI_HOME:-~/.ai} as th
 
   init                         opt in: create the history repo (refuses when unsafe)
   checkpoint                   commit every change; notices for deleted project folders
-  status                       history, lock state, last checkpoint, uncommitted count, missing
-                               folders, folders deleted in the last 7 days
+                               (skips quietly while another checkpoint runs)
+  status                       history, lock state (stuck *.lock paths), last checkpoint, last
+                               checkpoint error, notices, uncommitted count, missing folders,
+                               folders deleted in the last 7 days
   log [dir] [-n N]             short history, optionally for one folder
   restore <dir> [--rev R] [--force]
                                bring a folder back; never overwrites newer work without --force

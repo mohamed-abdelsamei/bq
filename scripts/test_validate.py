@@ -7,6 +7,7 @@ import io
 import json
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -480,6 +481,19 @@ class DescriptionLint(unittest.TestCase):
         self.edit(rel, "Use when fixing", "USE WHEN fixing")
         self.assertFalse([w for w in validate.run(self.root).warns if w.startswith(f"WARN: {rel}: ")])
 
+    def test_use_during_and_whenever_count_as_the_trigger_clause(self):
+        rel = "skills/debugging/SKILL.md"
+        for clause in ("Use during fixing", "use whenever fixing"):
+            self.edit(rel, "Use when fixing", clause)
+            self.assertFalse([w for w in validate.run(self.root).warns if w.startswith(f"WARN: {rel}: ")], clause)
+            self.edit(rel, clause, "Use when fixing")
+        self.edit(rel, "Use when fixing", "Useful when fixing")
+        self.assertWarns(rel, 'no "Use when" clause')
+
+    def test_shipped_skill_descriptions_lint_clean(self):
+        rep = validate.run(self.root)
+        self.assertFalse([w for w in rep.warns if "Use when" in w], rep.warns)
+
     def test_duplicate_trigger_phrase_warns(self):
         # memory sorts after bq-team, so the second occurrence is reported on memory.
         rel = "skills/memory/SKILL.md"
@@ -543,6 +557,41 @@ class Frontmatter(unittest.TestCase):
     def test_unterminated(self):
         fm, _ = validate.parse_frontmatter("---\nname: x\n")
         self.assertIsNone(fm)
+
+
+
+class CopilotRender(unittest.TestCase):
+    """install-copilot.sh's rewrite_body: resolving claude-only spans keeps paragraph breaks."""
+
+    def render(self, text):
+        src = (REPO / "install-copilot.sh").read_text(encoding="utf-8")
+        func = re.search(r"^rewrite_body\(\) \{\n.*?^\}\n", src, re.S | re.M).group(0)
+        r = subprocess.run(["bash", "-c", func + "rewrite_body"], input=text, capture_output=True,
+                           text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout
+
+    def test_empty_span_ending_a_section_keeps_the_blank_line_before_the_heading(self):
+        text = ("4. **Confirm.** Done.\n<!-- claude-only -->5. Offer.<!-- copilot: --><!-- /claude-only -->"
+                "\n\n## Notes\n")
+        self.assertEqual(self.render(text), "4. **Confirm.** Done.\n\n## Notes\n")
+
+    def test_empty_span_paragraph_and_inline_spans(self):
+        text = ("para1\n\n<!-- claude-only -->para2<!-- copilot: --><!-- /claude-only -->\n\npara3\n"
+                "a <!-- claude-only -->x<!-- copilot: --><!-- /claude-only -->\n\nNext\n"
+                "<!-- claude-only -->a<!-- copilot: B --><!-- /claude-only -->\n\n# h\n")
+        self.assertEqual(self.render(text), "para1\n\npara3\na \n\nNext\nB\n\n# h\n")
+
+    def test_shipped_commands_keep_blank_lines_before_headings(self):
+        for rel in ("commands/init.md", "commands/onboard.md", "commands/refresh.md", "skills/memory/SKILL.md"):
+            out = self.render((REPO / rel).read_text(encoding="utf-8"))
+            self.assertNotIn("claude-only", out, rel)
+            lines = out.splitlines()
+            fence = False
+            for i, ln in enumerate(lines):
+                fence ^= ln.startswith("```")
+                if not fence and ln.startswith("## ") and i:
+                    self.assertEqual(lines[i - 1], "", f"{rel}: no blank line before {ln!r}")
 
 
 if __name__ == "__main__":

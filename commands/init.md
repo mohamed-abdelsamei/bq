@@ -34,8 +34,8 @@ conventions; draw the charter's shape from **decision-and-spec** and **codebase-
    `context.md`, …) — they're authoritative.*
 4. **Confirm.** Show the user the filled-in `charter.md` and confirm the setup.
 <!-- claude-only -->5. **Offer protection once; run it only on the user's yes.** Per the **memory** skill's *Durability
-   and recovery*: if `bq_memory.py status` reports no history, offer `init` and a first `checkpoint`;
-   if this is a git repo, offer `stamp`.<!-- copilot: --><!-- /claude-only -->
+   and recovery*: if `bq_memory.py status` reports no history, offer to protect memory — on yes, run
+   `init` then `checkpoint` (the hook never makes the first commit); if this is a git repo, offer `stamp`.<!-- copilot: --><!-- /claude-only -->
 
 ## Notes
 

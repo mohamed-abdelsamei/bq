@@ -7,6 +7,8 @@ Reads `skillUsage` from Claude Code's `.claude.json` (in $CLAUDE_CONFIG_DIR if s
 $BQ_CLAUDE_JSON overrides the path, for tests). That key is undocumented: each entry is
 {usageCount (lifetime), lastUsedAt (epoch ms)}, counting model Skill calls and typed commands.
 A missing file or an unknown format prints one line and exits 0 — this is a report, never a gate.
+Only entries under bq's own keys are validated (other tools' entries are not ours to judge); a
+timestamp that is not a positive, representable epoch-ms prints as "unknown".
 
 Keys matched per bq name: `bq:<name>` (plugin install) and, for skills, `bq-<name>` (manual install),
 plus the same shapes under the plugin's former name `crew` (`crew:<name>`, `crew-<name>`; the bq-team
@@ -14,6 +16,7 @@ skill was `crew-team`), summed as aliases.
 Bare `<name>` keys are not counted: they collide with built-ins and other plugins (`init`, `review`).
 """
 import json
+import math
 import os
 import sys
 from datetime import datetime, timezone
@@ -41,11 +44,22 @@ def load_usage(path):
     usage = data.get("skillUsage") if isinstance(data, dict) else None
     if not isinstance(usage, dict):
         return None, f"no skill usage data: {path} has no skillUsage object (unknown format)"
-    for key, entry in usage.items():
-        if not (isinstance(entry, dict) and is_num(entry.get("usageCount"), int)
-                and is_num(entry.get("lastUsedAt"), (int, float))):
-            return None, f"no skill usage data: skillUsage entry {key!r} has an unknown format"
     return usage, None
+
+
+def valid_entry(entry):
+    return (isinstance(entry, dict) and is_num(entry.get("usageCount"), int)
+            and is_num(entry.get("lastUsedAt"), (int, float)))
+
+
+def day(ms):
+    """ISO date for an epoch-ms timestamp, or None if it isn't positive, finite and representable."""
+    try:
+        if not (math.isfinite(ms) and ms > 0):  # isfinite raises OverflowError on a huge int
+            return None
+        return datetime.fromtimestamp(ms / 1000, timezone.utc).date().isoformat()
+    except (OverflowError, OSError, ValueError):
+        return None
 
 
 def is_num(v, types):
@@ -66,24 +80,40 @@ def legacy_skill_key(name):
     return "crew-" + (name[3:] if name.startswith("bq-") else name)  # bq-team was crew-team
 
 
-def row(kind, name, usage):
+def keys_for(kind, name):
     keys = [f"bq:{name}", f"crew:{name}"]
     if kind == "skill":
         keys += [manual_skill_key(name), legacy_skill_key(name)]
-    hits = [usage[k] for k in keys if k in usage]
-    last = max((h["lastUsedAt"] for h in hits), default=None)
+    return keys
+
+
+def row(kind, name, usage):
+    keys = [k for k in keys_for(kind, name) if k in usage]
+    hits = [usage[k] for k in keys]
+    uses = sum(h["usageCount"] for h in hits)
+    days = [d for d in (day(h["lastUsedAt"]) for h in hits) if d]
     return {
         "kind": kind,
         "name": name,
-        "uses": sum(h["usageCount"] for h in hits),
-        "last_used": datetime.fromtimestamp(last / 1000, timezone.utc).date().isoformat() if last else None,
-        "keys": [k for k in keys if k in usage],
+        "uses": uses,
+        "last_used": max(days) if days else ("unknown" if uses > 0 else None),
+        "keys": keys,
     }
 
 
-def report(root, usage):
+def targets(root):
     skills, commands = bq_names(root)
-    rows = [row("skill", n, usage) for n in skills] + [row("command", n, usage) for n in commands]
+    return [("skill", n) for n in skills] + [("command", n) for n in commands]
+
+
+def bad_key(root, usage):
+    """The first bq key whose entry has an unknown shape, else None."""
+    return next((k for kind, n in targets(root) for k in keys_for(kind, n)
+                 if k in usage and not valid_entry(usage[k])), None)
+
+
+def report(root, usage):
+    rows = [row(kind, n, usage) for kind, n in targets(root)]
     retire = [r["name"] for r in rows if r["kind"] == "skill" and r["uses"] == 0]
     return rows, retire
 
@@ -106,6 +136,8 @@ def main(argv=None):
     as_json = "--json" in argv
     path = usage_path()
     usage, why = load_usage(path)
+    if usage is not None and bad_key(REPO, usage):
+        usage, why = None, f"no skill usage data: skillUsage entry {bad_key(REPO, usage)!r} has an unknown format"
     if usage is None:
         print(json.dumps({"error": why}) if as_json else why)
         return 0

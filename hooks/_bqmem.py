@@ -14,9 +14,16 @@ Every git call:
   budget on purpose: killing git mid-write strands index.lock, and a lock is never auto-deleted.
   On timeout git gets SIGTERM first (so it removes its own lock files), then SIGKILL.
 
+Checkpoints are serialized by a non-blocking flock on H/bq-checkpoint.lock (held -> quiet skip).
+Any git *.lock in H (top level and refs/) older than LOCK_STALE is reported as stuck, never removed.
+A failed checkpoint leaves one line in H/bq-last-error (time + reason, no file contents), cleared
+by the next successful one; a checkpoint that stages a nested git repo leaves H/bq-notice, shown
+for RECENT_DAYS. Both are plain files so the SessionStart hook reads them without git.
+
 Restore never destroys newer work: in place only when the folder is missing, otherwise to
 <dir>.restored-<rev>/, and --force first checkpoints the current state so overwritten bytes
-stay in history.
+stay in history. It refuses a target that is a symlink or not a real folder (history can't have
+saved what lies behind it).
 """
 import datetime
 import json
@@ -24,11 +31,18 @@ import os
 import re
 import shlex
 import shutil
+import stat as st
 import subprocess
 import sys
 import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:  # not POSIX: checkpoints are not serialized
+    fcntl = None
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -43,6 +57,11 @@ EXCLUDES = ["*.env", ".env", "*.pem", "*.key", "id_rsa*", "id_ed25519*", "id_ecd
 ATTRIBUTES = "* -text -filter -ident -working-tree-encoding -export-ignore -export-subst\n"
 EXCLUDE_HEADER = "# bq memory (ADR 0011): secrets, OS junk, restore extracts, symlinked entries\n"
 SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "bq_memory.py"
+CHECKPOINT_LOCK = "bq-checkpoint.lock"  # bq's own flock file: persistent, never a stuck git lock
+LAST_ERROR = "bq-last-error"
+NOTICE = "bq-notice"
+RECOVERY = "see the memory skill's Durability and recovery section"
+CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 
 def command(*args):
@@ -51,8 +70,17 @@ def command(*args):
     script = shlex.quote(script) if re.search(r'["$`\\]', script) else f'"{script}"'
     return f"python3 {script}" + "".join(" " + shlex.quote(str(a)) for a in args)
 
+
+def restore_command(name, rev=None, force=False):
+    """The restore command for a top-level folder; a name starting with `-` goes after `--`."""
+    opts = [*(["--rev", rev] if rev else []), *(["--force"] if force else [])]
+    return command("restore", *opts, "--", name) if name.startswith("-") else command("restore", name, *opts)
+
 GIT_CONFIG = ["-c", "user.name=bq", "-c", "user.email=bq@localhost", "-c", "commit.gpgsign=false",
-              "-c", "core.hooksPath=/dev/null", "-c", "core.quotepath=false"]
+              "-c", "core.hooksPath=/dev/null", "-c", "core.quotepath=false",
+              # git reads ~/.config/git/{ignore,attributes} even with GIT_CONFIG_GLOBAL=/dev/null
+              "-c", f"core.excludesFile={os.devnull}", "-c", f"core.attributesFile={os.devnull}",
+              "-c", "advice.addEmbeddedRepo=false"]
 
 
 class MemError(Exception):
@@ -81,6 +109,22 @@ def history_dir():
 def has_history(hist=None):
     hist = hist or history_dir()
     return (hist / "HEAD").is_file() and (hist / "objects").is_dir()
+
+
+def has_commits(hist=None):
+    """True when H's HEAD names a commit. Plain file reads, no git."""
+    hist = Path(hist or history_dir())
+    try:
+        head = (hist / "HEAD").read_text(encoding="utf-8").strip()
+        if not head.startswith("ref:"):
+            return bool(head)
+        ref = head[4:].strip()
+        if (hist / ref).is_file():
+            return True
+        with open(hist / "packed-refs", encoding="utf-8") as f:
+            return any(line.rstrip("\n").endswith(" " + ref) for line in f)
+    except (OSError, UnicodeDecodeError):
+        return False
 
 
 # ---------------------------------------------------------------- process plumbing
@@ -227,8 +271,136 @@ def init(out=print):
 # ---------------------------------------------------------------- checkpoint
 
 
-def checkpoint(out=print, warn=None):
-    """Commit every change in the store. Exit-0 no-ops: no history, fresh lock, nothing changed."""
+def git_locks(hist=None):
+    """[(path, mtime)] of git *.lock files in H (top level and refs/, never objects/), bq's own
+    flock file excluded. Stats only; a file vanishing mid-scan is skipped."""
+    hist = Path(hist or history_dir())
+    found = []
+
+    def scan(d, recurse):
+        try:
+            entries = os.scandir(d)
+        except OSError:
+            return
+        with entries:
+            for e in entries:
+                try:
+                    if e.name.endswith(".lock") and e.name != CHECKPOINT_LOCK and e.is_file(follow_symlinks=False):
+                        found.append((Path(e.path), e.stat(follow_symlinks=False).st_mtime))
+                    elif recurse and e.is_dir(follow_symlinks=False):
+                        scan(e.path, True)
+                except OSError:
+                    pass
+
+    scan(hist, False)
+    scan(hist / "refs", True)
+    return found
+
+
+def stale_locks(hist=None):
+    """git_locks() older than LOCK_STALE, oldest first."""
+    now = time.time()
+    return sorted((lk for lk in git_locks(hist) if now - lk[1] >= LOCK_STALE), key=lambda lk: lk[1])
+
+
+def _fresh_lock(hist):
+    now = time.time()
+    return any(now - mtime < LOCK_STALE for _, mtime in git_locks(hist))
+
+
+@contextmanager
+def checkpoint_lock(hist=None):
+    """Yield True while holding the non-blocking flock on H/bq-checkpoint.lock, False when another
+    checkpoint holds it. Exiting only closes the fd: a forked child that inherited it keeps the lock."""
+    if fcntl is None:
+        yield True
+        return
+    fd = os.open(Path(hist or history_dir()) / CHECKPOINT_LOCK, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            yield False
+            return
+        yield True
+    finally:
+        os.close(fd)
+
+
+def _write_record(hist, name, reason):
+    """One line `<YYYY-MM-DD HH:MM>\t<reason>` in H/<name>, atomically; never raises."""
+    try:
+        tmp = Path(hist) / f"{name}.tmp"
+        tmp.write_text(f"{when(time.time())}\t{CONTROL.sub(' ', reason)[:300]}\n", encoding="utf-8")
+        os.replace(tmp, Path(hist) / name)
+    except OSError:
+        pass
+
+
+def _clear_record(hist, name):
+    try:
+        (Path(hist) / name).unlink()
+    except OSError:
+        pass
+
+
+def read_record(hist=None, name=LAST_ERROR, max_age=None):
+    """(when, reason) from H/<name>, or None (absent, unreadable, older than max_age seconds).
+    A plain file read, no git."""
+    path = Path(hist or history_dir()) / name
+    try:
+        if max_age is not None and time.time() - path.stat().st_mtime > max_age:
+            return None
+        with open(path, "rb") as f:
+            line = f.read(1024).decode("utf-8", "replace").split("\n", 1)[0]
+    except OSError:
+        return None
+    stamp, sep, reason = line.partition("\t")
+    return (CONTROL.sub("", stamp), CONTROL.sub(" ", reason).strip()) if sep and reason.strip() else None
+
+
+def record_error(reason, hist=None):
+    _write_record(hist or history_dir(), LAST_ERROR, reason)
+
+
+def last_error_line(hist=None):
+    rec = read_record(hist, LAST_ERROR)
+    return f"bq memory: last checkpoint failed {rec[0]}: {rec[1]} — {RECOVERY}" if rec else None
+
+
+def notice_line(hist=None):
+    rec = read_record(hist, NOTICE, max_age=RECENT_DAYS * 86400)
+    return f"bq memory: {rec[1]} (checkpoint {rec[0]}) — {RECOVERY}" if rec else None
+
+
+_UNREADABLE = re.compile(r"""^(?:error: open\("(.+)"\):|error: unable to index file '(.+)'|"""
+                         r"""warning: could not open directory '(.+?)/?':)""", re.M)
+
+
+def _unreadable(err):
+    """Paths `git add --ignore-errors` could not read, from its stderr, sorted and deduped."""
+    text = err.decode("utf-8", "replace")
+    return sorted({next(g for g in m.groups() if g) for m in _UNREADABLE.finditer(text)})
+
+
+def _staged(repo):
+    """(changed paths, newly staged gitlinks) from one `diff --cached --raw -z`."""
+    toks = repo.run("diff", "--cached", "--raw", "-z", "--no-renames").split(b"\0")
+    changed, links = [], []
+    for meta, path in zip(toks[0::2], toks[1::2]):
+        if not meta.startswith(b":"):
+            break
+        old_mode, new_mode = meta[1:].split()[:2]
+        changed.append(os.fsdecode(path))
+        if new_mode == b"160000" and old_mode != b"160000":
+            links.append(os.fsdecode(path))
+    return changed, links
+
+
+def checkpoint(out=print, warn=None, locked=False):
+    """Commit every change in the store. Exit-0 no-ops: no history, another checkpoint running
+    (flock held; `locked` means the caller already holds it), a fresh git lock, nothing changed.
+    A failure raises MemError and is recorded in H/bq-last-error; success clears that record."""
     warn = warn or (lambda s: print(s, file=sys.stderr))
     repo = Repo()
     if not has_history(repo.hist):
@@ -237,34 +409,75 @@ def checkpoint(out=print, warn=None):
         warn(f"bq memory: {repo.home} is missing — nothing committed; restore folders with: "
              f"{command('restore')} <dir>")
         return 0
-    lock = repo.hist / "index.lock"
-    if lock.exists():
-        age = time.time() - lock.stat().st_mtime
-        if age >= LOCK_STALE:
-            warn(f"bq memory: stale lock {lock} ({int(age // 60)} min old); checkpoint skipped — "
-                 "see the memory skill's Durability and recovery section (never remove it while git runs)")
+    if locked:
+        return _checkpoint(repo, out, warn)
+    try:
+        with checkpoint_lock(repo.hist) as held:
+            return _checkpoint(repo, out, warn) if held else 0
+    except OSError as e:  # the flock file itself could not be opened
+        record_error(f"cannot open {CHECKPOINT_LOCK}: {e.strerror or e}", repo.hist)
+        raise MemError(f"cannot open {repo.hist / CHECKPOINT_LOCK}: {e.strerror or e}")
+
+
+def _checkpoint(repo, out, warn):
+    stale = stale_locks(repo.hist)
+    if stale:
+        path, mtime = stale[0]
+        warn(f"bq memory: stale lock {path} ({int((time.time() - mtime) // 60)} min old); checkpoint "
+             f"skipped — {RECOVERY} (never remove it while git runs)")
+        record_error(f"history lock {path.name} stuck since {when(mtime)}", repo.hist)
         return 0
+    if git_locks(repo.hist):
+        return 0  # a fresh git lock: some git is running in H; skip quietly
+    try:
+        return _commit(repo, out, warn)
+    except (MemError, OSError) as e:
+        reason = str(e) if isinstance(e, MemError) else f"{type(e).__name__}: {e.strerror or e}"
+        if isinstance(e, GitError) and ".lock" in e.stderr and _fresh_lock(repo.hist):
+            return 0  # lost a race with a git that is still running
+        record_error(reason, repo.hist)
+        if isinstance(e, MemError):
+            raise
+        raise MemError(reason) from e
+    except Exception as e:  # any other crash must still leave a trace, never a silent wedge
+        reason = f"{type(e).__name__}: {e}"
+        record_error(reason, repo.hist)
+        raise MemError(reason) from e
+
+
+def _commit(repo, out, warn):
     _sync_info(repo, warn)
     before = repo.head()
     old_dirs = repo.top_dirs(before) if before else set()
-    try:
-        repo.run("add", "-A", timeout=WRITE_TIMEOUT)
-        changed = [os.fsdecode(p) for p in
-                   repo.run("diff", "--cached", "--name-only", "--no-renames", "-z").split(b"\0") if p]
-        if not changed:
-            return 0
+    rc, _, err = repo.run("add", "-A", "--ignore-errors", timeout=WRITE_TIMEOUT, check=False)
+    failed = _unreadable(err) if rc in (0, 1) else []  # 1: --ignore-errors skipped some paths
+    if rc != 0 and not failed:
+        raise GitError(("add",), rc, err)
+    changed, links = _staged(repo)
+    if changed:
         tops = sorted({p.split("/", 1)[0] for p in changed})
         stamp = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
         msg = f"bq checkpoint {stamp}\n\nChanged: {', '.join(tops)}\n"
-        repo.run("commit", "-q", "--no-verify", "-F", "-", stdin=msg.encode(), timeout=WRITE_TIMEOUT)
-    except GitError as e:
-        if ".lock" in e.stderr:  # another checkpoint won the race: skip quietly
-            return 0
-        raise
-    if before:
+        rc, cout, err = repo.run("commit", "-q", "--no-verify", "-F", "-", stdin=msg.encode(),
+                                 timeout=WRITE_TIMEOUT, check=False)
+        if rc != 0 and b"nothing to commit" not in cout + err:
+            raise GitError(("commit",), rc, err or cout)
+    if links:
+        note = (f"nested git repo(s) {', '.join(links[:3])}{' …' if len(links) > 3 else ''} in the store: "
+                "only their commit pointer is kept, not their files")
+        _write_record(repo.hist, NOTICE, note)
+        warn(f"bq memory: {note} — {RECOVERY}")
+    if failed:
+        reason = (f"could not read {len(failed)} path(s): {', '.join(failed[:3])}"
+                  f"{' …' if len(failed) > 3 else ''} (the rest was committed)")
+        record_error(reason, repo.hist)
+        warn(f"bq memory: {reason} — {RECOVERY}")
+    else:
+        _clear_record(repo.hist, LAST_ERROR)
+    if before and changed:
         short = repo.short(before)
         for d in sorted(old_dirs - repo.top_dirs("HEAD")):
-            out(f"bq memory: {d} deleted — restore: {command('restore', d)} (from {short})")
+            out(f"bq memory: {d} deleted — restore: {restore_command(d)} (from {short})")
     return 0
 
 
@@ -331,12 +544,9 @@ def restore_notices(days=RECENT_DAYS):
 
 
 def lock_stuck(hist=None):
-    """The mtime of H/index.lock when it is older than LOCK_STALE, else None. A stat, no git."""
-    try:
-        mtime = (Path(hist or history_dir()) / "index.lock").stat().st_mtime
-    except OSError:
-        return None
-    return mtime if time.time() - mtime >= LOCK_STALE else None
+    """The mtime of the oldest git *.lock in H older than LOCK_STALE, else None. Stats, no git."""
+    stale = stale_locks(hist)
+    return stale[0][1] if stale else None
 
 
 def when(epoch, fmt="%Y-%m-%d %H:%M"):
@@ -344,8 +554,7 @@ def when(epoch, fmt="%Y-%m-%d %H:%M"):
 
 
 def lock_line(mtime):
-    return (f"bq memory: history lock stuck since {when(mtime)} — checkpoints are paused; "
-            "see the memory skill's Durability and recovery section")
+    return f"bq memory: history lock stuck since {when(mtime)} — checkpoints are paused; {RECOVERY}"
 
 
 def status(out=print):
@@ -354,13 +563,19 @@ def status(out=print):
         out(f"bq memory: no history at {repo.hist} (opt in with: {command('init')})")
         return 0
     out(f"history: {repo.hist}\nwork tree: {repo.home}")
-    lock = repo.hist / "index.lock"
-    stuck = lock_stuck(repo.hist)
-    if stuck:
-        out("history lock: stuck since " + when(stuck) + " — checkpoints are paused; "
-            "see the memory skill's Durability and recovery section")
+    stale = stale_locks(repo.hist)
+    if stale:
+        out(f"history lock: stuck since {when(stale[0][1])} — checkpoints are paused; {RECOVERY}")
+        for path, mtime in stale:
+            out(f"  {path} (since {when(mtime)})")
     else:
-        out("history lock: " + ("held (a checkpoint is running)" if lock.exists() else "none"))
+        out("history lock: " + ("held (a checkpoint is running)" if git_locks(repo.hist) else "none"))
+    err = last_error_line(repo.hist)
+    if err and not stale:
+        out(err)
+    notice = notice_line(repo.hist)
+    if notice:
+        out(notice)
     if not repo.head():
         out("last checkpoint: none yet")
         return 0
@@ -373,7 +588,7 @@ def status(out=print):
     out("missing folders: " + (", ".join(missing) if missing else "none"))
     out(f"deleted in the last {RECENT_DAYS} days: " + ("" if recent else "none"))
     for d, rev, ct in recent:
-        out(f"  {d} — deleted {when(ct, '%Y-%m-%d')}, last in {rev} — restore: {command('restore', d)}")
+        out(f"  {d} — deleted {when(ct, '%Y-%m-%d')}, last in {rev} — restore: {restore_command(d)}")
     return 0
 
 
@@ -442,6 +657,8 @@ def _blobs(repo, rev, name):
 
 def _write_tree(blobs, dest, overwrite=False):
     """Write blobs under dest; return the list of skipped relpaths. Verifies bytes after writing."""
+    if os.path.islink(dest):
+        raise MemError(f"{dest} is a symlink; refusing to write through it")
     skipped = []
     for mode, rel, content in blobs:
         p = dest / rel
@@ -481,6 +698,10 @@ def restore(name, rev=None, force=False, out=print):
     rev = _find_rev(repo, name, rev)
     short = repo.short(rev)
     target = repo.home / name
+    if os.path.lexists(target) and (os.path.islink(target) or not st.S_ISDIR(os.lstat(target).st_mode)):
+        # symlinked entries are excluded from history: whatever is behind this was never saved
+        raise MemError(f"{target} is a symlink or not a folder; refusing to restore onto it "
+                       "(move it aside, then run restore again)")
     if not os.path.lexists(target):
         repo.home.mkdir(parents=True, exist_ok=True)
         tmp = Path(tempfile.mkdtemp(prefix=f"{name}.restored-tmp-", dir=repo.home))  # excluded by pattern
@@ -498,7 +719,7 @@ def restore(name, rev=None, force=False, out=print):
         saved = repo.short("HEAD")
         diff = repo.text("diff", "--stat", rev, "HEAD", "--", name)
         out(f"bq memory: overwriting {name} with {short}; current state saved as {saved} "
-            f"(undo: restore {name} --rev {saved} --force)\n{diff or '(no differences)'}")
+            f"(undo: {restore_command(name, saved, force=True)})\n{diff or '(no differences)'}")
         skipped = _write_tree(_blobs(repo, rev, name), target, overwrite=True)
         out(f"bq memory: files present now but absent in {short} were kept")
     else:
@@ -507,17 +728,14 @@ def restore(name, rev=None, force=False, out=print):
             raise MemError(f"{dest} already exists; compare or remove it first")
         skipped = _write_tree(_blobs(repo, rev, name), dest)
         out(f"bq memory: {name} exists, so {short} was extracted to {dest} (nothing overwritten)\n"
-            f"compare: diff -ru {target} {dest}\n"
-            f"overwrite instead: {command('restore', name, '--rev', short, '--force')}")
+            f"compare: diff -ru {shlex.quote(str(target))} {shlex.quote(str(dest))}\n"
+            f"overwrite instead: {restore_command(name, short, force=True)}")
     for rel in skipped:
         out(f"bq memory: skipped {name}/{rel} (path conflict)")
     return 0
 
 
 # ---------------------------------------------------------------- stamp
-
-USERINFO = re.compile(r"^([A-Za-z][\w+.-]*://)[^/@]*@")
-
 
 def stamp(cwd=None, out=print):
     """Write <AI_HOME>/<project>/.identity: the main checkout root and its remotes (no credentials)."""
@@ -538,7 +756,7 @@ def stamp(cwd=None, out=print):
         rc, text, _ = _spawn(["git", "config", "--file", str(common / "config"), "--get-regexp",
                               r"^remote\..*\.url$"], READ_TIMEOUT)
         if rc == 0:
-            remotes = sorted({USERINFO.sub(r"\1", ln.split(None, 1)[1])
+            remotes = sorted({h.clean_remote(ln.split(None, 1)[1])
                               for ln in text.decode("utf-8", "replace").splitlines() if " " in ln})
     data = {"project": name, "roots": [str(root.resolve())], "remotes": remotes,
             "stamped": datetime.date.today().isoformat()}

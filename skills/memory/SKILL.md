@@ -136,46 +136,64 @@ needs a human call rather than guessing.
   *outside* it: `$BQ_MEMORY_GIT_DIR`, default `~/Library/Application Support/bq/ai-history.git` on
   macOS, `${XDG_DATA_HOME:-~/.local/share}/bq/ai-history.git` elsewhere. It has no remote, is never
   pushed, and survives `rm -rf ~/.ai`. <!-- claude-only -->Once the user opts in (`/bq:init`, `/bq:onboard`
-  and `/bq:refresh` offer it), the SessionStart hook checkpoints in the background at each session
-  start.<!-- copilot: Copilot has no hooks: after `init`, run `checkpoint` yourself. --><!-- /claude-only -->
+  and `/bq:refresh` offer it; on yes, run `init` then `checkpoint`), the SessionStart hook checkpoints
+  in the background at each session start, detached so closing the session can't cut a commit short.
+  It never makes the first commit.<!-- copilot: Copilot has no hooks: after `init`, run `checkpoint` yourself. --><!-- /claude-only -->
 - **Limits.** Protection starts at the first checkpoint — nothing older can be recovered, and a crash
-  loses writes since the last one. The history is one copy on the same disk, so recommend Time Machine
-  (or another backup) as well.
+  loses writes since the last one. Git doesn't track empty folders, so they aren't restored; a renamed
+  folder shows as a deletion of the old name. A nested git repo in the store (a folder with its own
+  `.git`) keeps only its commit pointer, not its files — back it up on its own. The history is one copy
+  on the same disk, so recommend Time Machine (or another backup) as well.
 - **Hard stops.** `init` and the first `checkpoint` on the real store, any `restore` on it, and
   `stamp` run only on the user's yes — never inside an autonomous `/bq:ship`.
 - **Commands** — <!-- claude-only -->`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/bq_memory.py" <command>`
   (unexpanded or a manual install: the newest `~/.claude/plugins/cache/bq/bq/*/scripts/`, or
   `scripts/` in a bq checkout; every `bq memory:` line prints the full path)<!-- copilot: `python3 <bq checkout>/scripts/bq_memory.py <command>` --><!-- /claude-only -->:
   - `init` — create the history; then `checkpoint` makes the first commit.
-  - `checkpoint` — commit every change; skips quietly while another checkpoint holds the lock.
-  - `status` — history path, last checkpoint, uncommitted changes, missing folders.
-  - `log [dir]` — recent checkpoints, optionally only those touching one top-level folder.
+  - `checkpoint` — commit every change; skips quietly while another checkpoint runs. Unreadable files
+    are skipped (the rest is committed) and recorded as the last error.
+  - `status` — history path (`<history>` below), lock state (stuck locks with their paths), last
+    checkpoint, last checkpoint error, uncommitted changes, missing folders, folders deleted in the
+    last 7 days.
+  - `log [dir] [-n N]` — the last N checkpoints (default 20), optionally only those touching one
+    top-level folder.
   - `restore <dir> [--rev R] [--force]` — bring back a top-level folder, by default from the last
     revision where it existed. It **never destroys newer work**: a missing folder is restored in place;
     a present one is extracted beside it to `<dir>.restored-<rev>/` to compare; `--force` overwrites
-    only after checkpointing the current state (the output names the revision to undo with).
+    only after checkpointing the current state (the output prints the undo command). It refuses a
+    target that is a symlink or not a real folder — move it aside first. A name starting with `-` goes
+    after `--` (printed commands already do this).
   - `stamp` — write `<mem>/.identity` for the git repo at the current directory.
   - `index [project]` — print the memory index, open loops first.
-- **`bq memory:` notices** (at session start, or from `checkpoint` and `status`).
+- **`bq memory:` notices** (<!-- claude-only -->at session start, or <!-- copilot: --><!-- /claude-only -->from `checkpoint` and `status`).
   - *Folder missing or recently deleted* — the line carries the exact restore command. Confirm with
     the user before running it.
-  - *Stuck lock* — checkpoints are paused. Confirm no git process is using it (`pgrep -fl ai-history`), then
-    delete `<history>/index.lock` by hand. bq never removes it.
-  - *Stamp mismatch* — see Identity.
+  - *Last checkpoint failed* — the time and reason (unreadable files, disk full, a git error). Fix the
+    cause; the next successful checkpoint clears it.
+  - *Stuck lock* — checkpoints are paused. `status` lists each git `*.lock` in `<history>` older than
+    two minutes (`index.lock`, `HEAD.lock`, `packed-refs.lock`, `refs/**/*.lock`). Confirm no git
+    process is using that history (`pgrep -fl -- "<history>"` — no output means nothing is running), then delete the listed lock files by
+    hand. bq never removes them.
+  - *Nested git repo* — shown for 7 days after a checkpoint first records one; see Limits.
+<!-- claude-only -->  - *Stamp mismatch* — see Identity.<!-- copilot: --><!-- /claude-only -->
 - **Identity.** `.identity` records the repo root and remotes a memory folder belongs to; it is
-  restored with its folder. When it names neither this repo's root nor any of its remotes, the hook
-  loads **no lessons**, so same-named repos can't read each other's. Only if it really is the same
-  project (moved or re-cloned) does `/bq:refresh` re-stamp; a stamp replaces the recorded root.
+  restored with its folder. <!-- claude-only -->When it names neither this repo's root nor any of its
+  remotes, the SessionStart hook loads **no lessons**, so same-named repos can't read each other's. Only
+  if it really is the same project (moved or re-cloned) does `/bq:refresh` re-stamp; a stamp replaces
+  the recorded root.<!-- copilot: Copilot has no hooks, so nothing checks it there; a `stamp` replaces the recorded root. --><!-- /claude-only -->
 - **Secrets.** The history ignores `*.env`, `.env`, `*.pem`, `*.key`, SSH key files (`id_rsa*`,
   `id_ed25519*`, …) and `.DS_Store`. Everything else is kept for good — never write secrets to memory.
-  To purge one already committed (`<history>` is the path `status` prints):
-  1. Remove it from the store, then `checkpoint`.
+  To purge one already committed:
+  1. Note its blob: `git --git-dir="<history>" rev-parse HEAD:<project>/<file>`. Remove it from the
+     store, then `checkpoint`.
   2. Either **rewrite**, if `git filter-repo` is installed:
      `cd "<history>" && git filter-repo --invert-paths --path <project>/<file> --force` —
      or **re-init**: move `<history>` aside, run `init` and `checkpoint`, and delete the old copy once
      sure (all earlier history goes with it).
-  3. Check: `git --git-dir="<history>" log --all --oneline -- <project>/<file>` prints nothing.
-  4. Backups (Time Machine) of `<history>` still hold the secret; purge those too.
+  3. Drop the unreferenced objects: `git --git-dir="<history>" gc --prune=now`.
+  4. Check: `git --git-dir="<history>" log --all --oneline -- <project>/<file>` prints nothing, and
+     `git --git-dir="<history>" cat-file -e <blob>` fails.
+  5. Backups (Time Machine) of `<history>` still hold the secret; purge those too.
 
 ## Templates
 

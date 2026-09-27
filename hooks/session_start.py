@@ -29,8 +29,11 @@ Memory layer (ADR 0011, I2 and M6):
   JSON object, so "lessons first" means built first and never dropped, not printed first.
   The check also runs when this project has no memory folder (it may be the deleted one); then
   only the memory lines are emitted, with no index and no reflection line.
-- Stuck lock: with history present, an index.lock older than _bqmem.LOCK_STALE adds one line
-  (a stat, outside the git deadline; the lock is never touched).
+- Stuck lock: with history present, any git *.lock in the history dir (top level and refs/)
+  older than _bqmem.LOCK_STALE adds one line (stats, outside the git deadline; never touched).
+- Last failure: <history>/bq-last-error adds one "last checkpoint failed" line (unless the stuck
+  lock line already explains it), and a <history>/bq-notice younger than RECENT_DAYS (a nested git
+  repo in the store) one more. Plain file reads, outside the git deadline.
 """
 import json
 import re
@@ -255,8 +258,11 @@ def memory_lines():
         import _bqmem  # lazy: a broken memory module must never cost the lessons
         if not _bqmem.has_history():
             return []
-        stuck = _bqmem.lock_stuck()  # a stat outside the deadline: a hung git can't hide it
-        lines = [quotable(_bqmem.lock_line(stuck))] if stuck else []
+        stuck = _bqmem.lock_stuck()  # stats outside the deadline: a hung git can't hide it
+        lines = [_bqmem.lock_line(stuck)] if stuck else []
+        if not stuck:
+            lines.append(_bqmem.last_error_line())
+        lines = [quotable(ln) for ln in [*lines, _bqmem.notice_line()] if ln]
         found = []
 
         def check():
@@ -273,7 +279,7 @@ def memory_lines():
         missing, recent = found[0]
 
         def restore(d):
-            return CONTROL.sub("", _bqmem.command("restore", d))
+            return CONTROL.sub("", _bqmem.restore_command(d))
 
         lines += [f"bq memory: {quotable(d)} is missing on disk but in history — restore: {restore(d)}"
                   for d in missing]

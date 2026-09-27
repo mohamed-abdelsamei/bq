@@ -4,9 +4,11 @@ Run: python3 -m unittest discover -s scripts -p 'test_*.py'
 Every run uses a temp AI_HOME, a temp BQ_MEMORY_GIT_DIR and a temp HOME. The module guard (M7)
 fingerprints the real ~/.ai tree and the default history dir before and after, read-only.
 """
+import fcntl
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -81,7 +83,8 @@ class MemBase(unittest.TestCase):
         self.ai.mkdir()
         self.home.mkdir()
         self.env = {**os.environ, "AI_HOME": str(self.ai), "BQ_MEMORY_GIT_DIR": str(self.hist),
-                    "HOME": str(self.home), "XDG_DATA_HOME": str(self.home / "xdg")}
+                    "HOME": str(self.home), "XDG_DATA_HOME": str(self.home / "xdg"),
+                    "XDG_CONFIG_HOME": str(self.home / "cfg")}
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -502,6 +505,261 @@ class Stamp(MemBase):
         other.mkdir(parents=True)
         git("init", "-q", cwd=other)
         self.assertIn("no memory folder", self.cli("stamp", cwd=other, ok=False).stderr)
+
+
+# ---------------------------------------------------------------- round-1 fixes
+
+class RestoreSafety(MemBase):
+    """B1: never restore onto (or write through) a symlinked or non-folder target."""
+
+    def symlinked_p1(self):
+        self.ready()
+        outside = self.t / "outside"
+        outside.mkdir()
+        (outside / "charter.md").write_bytes(b"UNSAVED NEWER BYTES\n")
+        shutil.rmtree(self.ai / "p1")
+        os.symlink(outside, self.ai / "p1")
+        return outside
+
+    def test_symlinked_folder_refused_with_and_without_force(self):
+        outside = self.symlinked_p1()
+        before = fingerprint(outside)
+        for args in (("restore", "p1"), ("restore", "p1", "--force")):
+            r = self.cli(*args, ok=False)
+            self.assertIn("is a symlink or not a folder; refusing", r.stderr)
+            self.assertEqual((outside / "charter.md").read_bytes(), b"UNSAVED NEWER BYTES\n")
+            self.assertEqual(fingerprint(outside), before, "wrote outside the store")
+        self.assertEqual([n for n in os.listdir(self.ai) if "restored" in n], [])
+        self.assertTrue((self.ai / "p1").is_symlink())
+
+    def test_regular_file_in_place_of_folder_refused(self):
+        self.ready()
+        shutil.rmtree(self.ai / "p1")
+        (self.ai / "p1").write_bytes(b"a file now\n")
+        for args in (("restore", "p1"), ("restore", "p1", "--force")):
+            self.assertIn("refusing", self.cli(*args, ok=False).stderr)
+        self.assertEqual((self.ai / "p1").read_bytes(), b"a file now\n")
+
+    def test_write_tree_refuses_symlinked_dest(self):
+        outside = self.t / "outside"
+        outside.mkdir()
+        os.symlink(outside, self.t / "dest")
+        with self.assertRaises(m.MemError):
+            m._write_tree([("100644", "a.md", b"x")], self.t / "dest")
+        self.assertEqual(os.listdir(outside), [])
+
+    def test_restore_hints_quote_paths_and_use_full_command(self):
+        ai = self.t / "my ai"
+        ai.mkdir()
+        self.env["AI_HOME"] = str(ai)
+        self.ai = ai
+        self.ready()
+        self.put("p1/charter.md", "newer\n")
+        short = self.hgit("rev-parse", "--short", "HEAD").strip()
+        r = self.cli("restore", "p1")
+        self.assertIn(f"compare: diff -ru '{ai / 'p1'}' '{ai / f'p1.restored-{short}'}'", r.stdout)
+        self.assertIn(f'overwrite instead: python3 "{CLI}" restore p1 --rev {short} --force', r.stdout)
+        r = self.cli("restore", "p1", "--rev", short, "--force")
+        saved = self.hgit("rev-parse", "--short", "HEAD").strip()
+        self.assertIn(f'(undo: python3 "{CLI}" restore p1 --rev {saved} --force)', r.stdout)
+
+    def test_dash_named_folder_restore_command_runs_as_printed(self):
+        self.ready()
+        self.put("-x/a.md", "dash\n")
+        self.cli("checkpoint")
+        shutil.rmtree(self.ai / "-x")
+        r = self.cli("checkpoint")
+        want = f'python3 "{CLI}" restore -- -x'
+        self.assertIn(f"-x deleted — restore: {want} (from ", r.stdout)
+        self.assertIn(want, self.cli("status").stdout)
+        pasted = subprocess.run(["/bin/sh", "-c", want], env=self.env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(pasted.returncode, 0, pasted.stderr)
+        self.assertEqual((self.ai / "-x" / "a.md").read_text(), "dash\n")
+        self.assertEqual(m.restore_command("-x", "abc", force=True),
+                         f'python3 "{CLI}" restore --rev abc --force -- -x')
+
+
+class CheckpointFailures(MemBase):
+    """B2: partial adds, any stuck *.lock, the last-error record; B3; N1; N3."""
+
+    def last_error(self):
+        p = self.hist / "bq-last-error"
+        return p.read_text() if p.exists() else None
+
+    def backdate(self, path, seconds=3 * 60):
+        old = time.time() - seconds
+        os.utime(path, (old, old))
+        return old
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root reads everything")
+    def test_unreadable_paths_commit_the_rest_and_are_recorded(self):
+        self.ready()
+        self.put("p1/ok.md", "fine\n")
+        self.put("p1/secret.md", "nope\n")
+        self.put("p2/locked/inner.md", "nope\n")
+        (self.ai / "p1" / "secret.md").chmod(0)
+        (self.ai / "p2" / "locked").chmod(0)
+        try:
+            r = self.cli("checkpoint")
+            self.assertEqual(self.commits(), 2)
+            self.assertEqual(self.hgit("show", "HEAD:p1/ok.md"), "fine\n")
+            err = self.last_error()
+            self.assertIn("could not read 2 path(s): p1/secret.md, p2/locked", err)
+            self.assertIn("could not read 2 path(s)", r.stderr)
+            self.assertIn("bq memory: last checkpoint failed ", self.cli("status").stdout)
+        finally:
+            (self.ai / "p1" / "secret.md").chmod(0o644)
+            (self.ai / "p2" / "locked").chmod(0o755)
+        self.cli("checkpoint")
+        self.assertIsNone(self.last_error())  # a clean checkpoint clears the record
+        self.assertNotIn("last checkpoint failed", self.cli("status").stdout)
+
+    def test_any_stale_git_lock_pauses_checkpoints_and_is_kept(self):
+        self.ready()
+        for rel in ("HEAD.lock", "packed-refs.lock", "refs/heads/main.lock", "config.lock"):
+            lock = self.hist / rel
+            lock.write_text("")
+            since = time.strftime("%Y-%m-%d %H:%M", time.localtime(self.backdate(lock)))
+            self.put("p1/b.md", rel)
+            r = self.cli("checkpoint")
+            self.assertIn(f"stale lock {lock}", r.stderr)
+            self.assertEqual(self.commits(), 1, rel)
+            out = self.cli("status").stdout
+            self.assertIn(f"history lock: stuck since {since}", out)
+            self.assertIn(f"  {lock} (since {since})", out)
+            self.assertNotIn("last checkpoint failed", out)  # the lock line already explains it
+            self.assertEqual(m.lock_stuck(self.hist), os.stat(lock).st_mtime)
+            self.assertTrue(lock.exists())
+            lock.unlink()
+        self.cli("checkpoint")
+        self.assertEqual(self.commits(), 2)
+        self.assertIsNone(self.last_error())
+
+    def test_fresh_git_lock_skips_quietly_and_old_flock_file_is_not_a_lock(self):
+        self.ready()
+        flock_file = self.hist / "bq-checkpoint.lock"
+        self.assertTrue(flock_file.exists())
+        self.backdate(flock_file, 3600)
+        (self.hist / "HEAD.lock").write_text("")
+        self.put("p1/b.md", "b")
+        self.assertEqual(self.cli("checkpoint").stderr, "")
+        self.assertEqual(self.commits(), 1)
+        self.assertIn("history lock: held", self.cli("status").stdout)
+        (self.hist / "HEAD.lock").unlink()
+        self.assertIsNone(m.lock_stuck(self.hist))
+        self.assertIn("history lock: none", self.cli("status").stdout)
+        self.cli("checkpoint")
+        self.assertEqual(self.commits(), 2)
+
+    def test_lock_error_without_a_live_lock_is_recorded_not_swallowed(self):
+        self.ready()
+        (self.hist / "index.lock").mkdir()  # git can't create its lock; no lock file is running
+        self.put("p1/b.md", "b")
+        r = self.cli("checkpoint", ok=False)
+        self.assertIn("bq memory: git add failed", r.stderr)
+        self.assertIn("git add failed (128): Another git process", self.last_error())
+        (self.hist / "index.lock").rmdir()
+
+    def test_last_error_record_shape(self):
+        self.ready()
+        with mock.patch.dict(os.environ, {k: self.env[k] for k in ("AI_HOME", "BQ_MEMORY_GIT_DIR", "HOME")}):
+            m.record_error("boom\nwith\x1b[31m control")
+            text = self.last_error()
+            self.assertRegex(text, r"^\d{4}-\d\d-\d\d \d\d:\d\d\tboom with \[31m control\n$")
+            self.assertTrue(m.last_error_line().endswith(
+                ": boom with [31m control — see the memory skill's Durability and recovery section"))
+            m.record_error("x" * 5000)
+            self.assertLess(len(self.last_error()), 400)
+
+    def test_user_git_ignore_files_do_not_apply(self):
+        for cfg in (self.home / ".config", self.home / "cfg"):  # ~/.config and $XDG_CONFIG_HOME
+            (cfg / "git").mkdir(parents=True)
+            (cfg / "git" / "ignore").write_text("*.md\n")
+            (cfg / "git" / "attributes").write_text("* text eol=crlf\n")
+        for env in (self.env, {k: v for k, v in self.env.items() if k != "XDG_CONFIG_HOME"}):
+            with self.subTest(xdg="XDG_CONFIG_HOME" in env):
+                shutil.rmtree(self.hist, ignore_errors=True)
+                self.cli("init", env=env)
+                self.put("p1/charter.md", "# p1\n")
+                self.cli("checkpoint", env=env)
+                self.assertIn("p1/charter.md", self.hgit("ls-files").split())
+                self.assertEqual(self.hgit("show", "HEAD:p1/charter.md"), "# p1\n")
+
+    def test_held_flock_skips_quietly(self):
+        self.ready()
+        fd = os.open(self.hist / "bq-checkpoint.lock", os.O_RDWR)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            self.put("p1/b.md", "b")
+            r = self.cli("checkpoint")
+            self.assertEqual((r.stdout, r.stderr), ("", ""))
+            self.assertEqual(self.commits(), 1)
+        finally:
+            os.close(fd)
+        self.cli("checkpoint")
+        self.assertEqual(self.commits(), 2)
+
+    def test_concurrent_checkpoints_all_exit_zero(self):
+        self.ready()
+        for i in range(20):
+            self.put(f"p1/f{i}.md", str(i))
+        procs = [subprocess.Popen([sys.executable, str(CLI), "checkpoint"], env=self.env,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE) for _ in range(6)]
+        for p in procs:
+            out, err = p.communicate(timeout=60)
+            self.assertEqual(p.returncode, 0, err)
+            self.assertNotIn(b"Traceback", err)
+        self.assertEqual(self.commits(), 2)
+        self.assertIsNone(self.last_error())
+
+    def test_nothing_to_commit_from_git_is_success(self):
+        self.ready()
+        with mock.patch.dict(os.environ, {k: self.env[k] for k in ("AI_HOME", "BQ_MEMORY_GIT_DIR", "HOME")}), \
+                mock.patch.object(m, "_staged", return_value=(["p1/charter.md"], [])):
+            self.assertEqual(m.checkpoint(out=lambda s: None, warn=lambda s: None), 0)
+        self.assertEqual(self.commits(), 1)
+        self.assertIsNone(self.last_error())
+
+    def test_nested_git_repo_notice_once(self):
+        self.ready()
+        nested = self.ai / "p1" / "vendored"
+        nested.mkdir()
+        git("init", "-q", cwd=nested)
+        (nested / "inner.md").write_text("not protected\n")
+        git("add", "-A", cwd=nested)
+        git("commit", "-q", "-m", "i", cwd=nested)
+        r = self.cli("checkpoint")
+        self.assertIn("nested git repo(s) p1/vendored in the store: only their commit pointer is kept", r.stderr)
+        self.assertIsNone(self.last_error())  # a notice, not a failure
+        self.assertIn("bq memory: nested git repo(s) p1/vendored", self.cli("status").stdout)
+        self.put("p2/more.md", "more")
+        self.assertEqual(self.cli("checkpoint").stderr, "")  # warned once
+        self.assertIn("nested git repo(s)", self.cli("status").stdout)  # shown for RECENT_DAYS
+        self.backdate(self.hist / "bq-notice", 8 * 86400)
+        self.assertNotIn("nested git repo(s)", self.cli("status").stdout)
+
+    def test_has_commits_reads_files_only(self):
+        self.cli("init")
+        self.assertFalse(m.has_commits(self.hist))
+        self.put("p1/a.md", "a")
+        self.cli("checkpoint")
+        self.assertTrue(m.has_commits(self.hist))
+        git(f"--git-dir={self.hist}", "pack-refs", "--all", cwd=self.t)
+        self.assertFalse((self.hist / "refs" / "heads" / "main").exists())
+        self.assertTrue(m.has_commits(self.hist))
+
+
+class StampQuery(MemBase):
+    def test_stamp_strips_query_and_fragment(self):
+        repo = self.t / "repos" / "myproj"
+        repo.mkdir(parents=True)
+        git("init", "-q", cwd=repo)
+        git("remote", "add", "origin", "https://u:p@example.com/o/myproj.git?private_token=abc#frag", cwd=repo)
+        (self.ai / "myproj").mkdir()
+        self.cli("stamp", cwd=repo)
+        text = (self.ai / "myproj" / ".identity").read_text()
+        self.assertEqual(json.loads(text)["remotes"], ["https://example.com/o/myproj.git"])
+        self.assertNotIn("abc", text)
 
 
 if __name__ == "__main__":
