@@ -26,8 +26,12 @@ All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.
 - `/bq:research` pointed at a report structure that didn't exist; it now uses
   `research/research-template.md` and has a trace-the-real-flow step.
 - The decision lifecycle lives only in the memory skill. decision-and-spec had dropped `Verified`.
-- Redirect blocks on debugging, research-method and critique allow trivial work inline and defer
-  to whichever command already cast the work.
+- Redirect blocks on debugging, research-method and critique defer to whichever command already
+  cast the work; research-method lets a one-fact lookup be answered directly, debugging never skips
+  the tester.
+- critique and mr-review: the Maestro records the review; read-only specialists return findings.
+- `Verified` is a real decision status with a setter; the research template gains Recommendation and
+  Open questions.
 - Duplicated rules removed across bq-team/maestro, brainstorm/facilitation, improve/plugin-promotion
   and feedback-loop.
 
