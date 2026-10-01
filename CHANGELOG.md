@@ -3,7 +3,7 @@
 All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.org/); while
 `0.x`, a minor bump may break.
 
-## [Unreleased]
+## [0.7.0] — 2026-10-01
 
 ### Fixed
 
