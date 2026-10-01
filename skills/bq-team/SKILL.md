@@ -75,6 +75,14 @@ description — you name it. To bring a specialist in:
 
 Throughout the commands, "**spawn the X subagent**" / "bring in X" means exactly this Agent tool call.
 
+**Agent priority — bq specialists first.** In a bq run, delegated work goes to the matching bq
+specialist: reviewer for review and critique passes, tester for verification, engineer for
+implementation, architect for design and intent, researcher for investigation, scribe for docs and
+memory. Don't substitute `general-purpose`, another plugin's agent, or a non-bq review skill for a
+specialist the run calls for. Reach for a non-bq agent only when no bq role fits the work, and say
+why in the report. A brief for a read-only pass says "read-only" outright — specialists hold
+Edit/Write.
+
 Orchestration runs from the **main session** — a `/bq:*` command, or you driving the conversation
 as the Maestro — because that's where the Agent tool lives. **Specialists don't spawn peers**
 (single-level orchestration): a specialist that hits work outside its lane names the right teammate

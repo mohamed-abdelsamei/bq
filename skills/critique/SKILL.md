@@ -1,8 +1,13 @@
 ---
 name: critique
 description: 'The red-team method for stress-testing a decision, plan, spec, or idea before committing — three lenses (challenge the decision, think like a bad actor, ask the missed question) and a clear verdict. Use when reviewing a plan/decision (/bq:review) or interrogating someone''s reasoning (/bq:grill), as distinct from reviewing code changes (see the mr-review skill).'
+user-invocable: false
 ---
 # Critique (red-team)
+
+> **Who runs this.** Specialists apply this method. If you're the main session and no `/bq:*`
+> command cast the work, run the `/bq:review` casting — spawn `bq:reviewer` in critique mode — not
+> inline or via `general-purpose`. (`/bq:grill` casts you as Cass: apply it yourself there.)
 
 Make an idea stronger by attacking it honestly. This is the method for stress-testing a **decision,
 plan, spec, or line of reasoning** — not a code diff (that's the **mr-review** skill). Cass, the

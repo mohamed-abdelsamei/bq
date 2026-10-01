@@ -30,11 +30,11 @@ You don't need to memorize which specialist does what — describe the work and 
 **Install the plugin:**
 
 ```
-/plugin marketplace add mohamed-abdelsamei/co-agents
+/plugin marketplace add mohamed-abdelsamei/bq
 /plugin install bq@bq
 ```
 
-(For a local checkout, `/plugin marketplace add /path/to/co-agents` instead. If the plugin flow is
+(For a local checkout, `/plugin marketplace add /path/to/bq` instead. If the plugin flow is
 blocked, `./install.sh install` from the repo falls back to a manual copy into `~/.claude/` — see the
 README's "Install script" section. To upgrade: `/plugin marketplace update bq`, then
 `/plugin update bq@bq`; coming from 0.2, also check the [CHANGELOG](../CHANGELOG.md).)
@@ -176,7 +176,9 @@ Everything the team decides lands in `~/.ai/<project>/`. You can open and read a
 
 The specialists share deep *method* through **skills** that load only when relevant (debugging,
 research-method, mr-review, critique, decision-and-spec, facilitation, feedback-loop,
-plugin-promotion, memory, codebase-onboarding, and the bq-team overview). You rarely invoke these directly — the commands and agents pull them in. When a
+plugin-promotion, memory, codebase-onboarding, and the bq-team overview). You rarely invoke these directly — the commands and agents pull them in. The method skills
+that mirror a command (debugging, research-method, mr-review, critique) are hidden from the `/` menu so they can't be
+mistaken for their commands: to review an MR, run `/bq:review-mr`, not the mr-review skill. When a
 lesson from `/bq:retro` proves out across projects, it can be **promoted** into the plugin itself
 (an agent/command/skill edit): `/bq:improve` drafts and validates the edit, and you approve it —
 never silently. `/bq:improve` also lists never-used skills as retire candidates, from the usage

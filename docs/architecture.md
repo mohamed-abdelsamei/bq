@@ -75,6 +75,11 @@ swaps for the Copilot alternative — the syntax is in the README's
   **explicit**: the `subagent_type` is the scoped agent name (`bq:architect`, `bq:engineer`, …
   under a plugin install; `bq-architect`, … under a manual install); bq never auto-picks a
   specialist from its description. The delegation protocol lives in the `bq-team` skill.
+- **bq specialists first.** Every command names its specialists' agents inline (`bq:reviewer`, …),
+  and `validate.py` fails a command that casts a role without naming its agent. A `general-purpose`
+  or other plugin's agent is used only when no bq role fits, and the report says why. The method
+  skills that mirror a command (debugging, research-method, critique, mr-review) are
+  `user-invocable: false` and open with a redirect to that command's casting.
 - **Single-level.** Specialists don't spawn peers; a specialist that hits work outside its lane names
   the right teammate and the main session re-routes (cap ~2 hops). Orchestration is command-driven by
   design, not forced by the platform (Claude Code lets subagents nest; plugin-shipped agents only lose

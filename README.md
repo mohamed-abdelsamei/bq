@@ -38,17 +38,17 @@ question at a time with `/bq:grill`.
 ## Install
 
 bq installs as a Claude Code plugin from a marketplace — the repo is public on GitHub
-([mohamed-abdelsamei/co-agents](https://github.com/mohamed-abdelsamei/co-agents)), so add it directly:
+([mohamed-abdelsamei/bq](https://github.com/mohamed-abdelsamei/bq)), so add it directly:
 
 ```
-/plugin marketplace add mohamed-abdelsamei/co-agents
+/plugin marketplace add mohamed-abdelsamei/bq
 /plugin install bq@bq
 ```
 
 To install a local checkout, add its path as a marketplace first:
 
 ```
-/plugin marketplace add /absolute/path/to/co-agents
+/plugin marketplace add /absolute/path/to/bq
 /plugin install bq@bq
 ```
 
@@ -325,6 +325,10 @@ duplicates. Conventions are documented in the bundled **memory** skill.
 
 The team carries shared *method* as skills, so the deep know-how lives in one place instead of being
 copy-pasted into every persona. Claude loads each on demand when the task matches its `description`.
+**debugging**, **research-method**, **critique**, and **mr-review** are hidden from the `/` menu
+(`user-invocable: false`), because they are the specialists' method, not an entry point. Run
+`/bq:debug`, `/bq:research`, `/bq:review`, or `/bq:review-mr` instead. If one of them loads in the main
+session anyway, it points back to that command's casting.
 
 | Skill | What it encodes |
 |-------|-----------------|

@@ -49,6 +49,9 @@ PLUGIN_AGENT_REF = re.compile(r"(?<![\w/=])bq:([a-z][a-z0-9-]*)")
 BARE_AGENT_REF = re.compile(r"(?<![\w/.:-])bq-([a-z][a-z0-9-]*)")
 # Lookbehind skips URLs/paths such as https://x.com/bq:foo.
 COMMAND_REF = re.compile(r"(?<![\w/.])/bq:([a-z][a-z0-9-]*)")
+# A command that casts a specialist (`**reviewer**` or `**reviewer (Cass)**`) must name its agent
+# (`bq:reviewer`) somewhere in the file, so the main session never falls back to general-purpose.
+CAST_ROLE = re.compile(r"\*\*(architect|engineer|tester|reviewer|researcher|scribe)(?:\*\*| \()")
 # Frontmatter keys the checks read; a value the mini-parser can't represent is a FAIL.
 CHECKED_KEYS = {"name", "description", "model", "tools", "argument-hint"}
 # The lesson format lives in both files: the skill's fenced block (first line `# {Lesson title}`)
@@ -291,6 +294,9 @@ def check_commands(rep, root):
             rep.fail(f, "contains Copilot syntax '${input' (use $ARGUMENTS)")
         if fm.get("argument-hint") and "$ARGUMENTS" not in body:
             rep.warn(f, "has argument-hint but body never references $ARGUMENTS")
+        for role in sorted(set(CAST_ROLE.findall(body))):
+            if f"bq:{role}" not in body:
+                rep.fail(f, f"casts **{role}** but never names its agent `bq:{role}`")
 
 
 def check_skills(rep, root):

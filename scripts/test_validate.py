@@ -109,6 +109,10 @@ class SeededDefects(unittest.TestCase):
         self.edit("commands/plan.md", "$ARGUMENTS", "${input:args}")
         self.assertCaught("FAIL: commands/plan.md: contains Copilot syntax '${input'")
 
+    def test_cast_role_without_agent_name(self):
+        self.edit("commands/debug.md", "(`bq:tester`)", "subagent", count=-1)
+        self.assertCaught("FAIL: commands/debug.md: casts **tester** but never names its agent `bq:tester`")
+
     def test_unbalanced_marker(self):
         self.edit("agents/maestro.md", "<!-- /claude-only -->", "")
         self.assertCaught("FAIL: agents/maestro.md: unclosed <!-- claude-only -->")
@@ -581,6 +585,23 @@ class CopilotRender(unittest.TestCase):
                 "a <!-- claude-only -->x<!-- copilot: --><!-- /claude-only -->\n\nNext\n"
                 "<!-- claude-only -->a<!-- copilot: B --><!-- /claude-only -->\n\n# h\n")
         self.assertEqual(self.render(text), "para1\n\npara3\na \n\nNext\nB\n\n# h\n")
+
+    def test_named_cast_collapses_to_the_bold_copilot_name(self):
+        text = "Spawn the **reviewer** (`bq:reviewer`, Cass) and the **tester** (`bq:tester`).\n"
+        self.assertEqual(self.render(text), "Spawn the **bq-reviewer** (Cass) and the **bq-tester**.\n")
+
+    def test_skill_frontmatter_drops_user_invocable(self):
+        src = (REPO / "install-copilot.sh").read_text(encoding="utf-8")
+        func = re.search(r"^set_skill_name\(\) \{\n.*?^\}\n", src, re.S | re.M).group(0)
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "SKILL.md"
+            f.write_text("---\nname: x\ndescription: 'd'\nuser-invocable: false\n---\nuser-invocable: body\n",
+                         encoding="utf-8")
+            r = subprocess.run(["bash", "-c", func + 'set_skill_name "$1" bq-x', "_", str(f)],
+                               capture_output=True, text=True, timeout=30)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(f.read_text(encoding="utf-8"),
+                             "---\nname: bq-x\ndescription: 'd'\n---\nuser-invocable: body\n")
 
     def test_shipped_commands_keep_blank_lines_before_headings(self):
         for rel in ("commands/init.md", "commands/onboard.md", "commands/refresh.md", "skills/memory/SKILL.md"):

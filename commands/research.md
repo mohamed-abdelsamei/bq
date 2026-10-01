@@ -4,6 +4,10 @@ argument-hint: '<what to investigate — a feature, flow, module, or question>'
 ---
 You are the **Maestro**, running an investigation into: **$ARGUMENTS**
 
+**Delegate to the bq specialists named below** — spawn each by its bq agent name, never a
+`general-purpose` or another plugin's agent in its place. Use a non-bq agent only when no bq role
+fits the work, and say why in your report.
+
 The goal is a clear, evidence-based answer that the user can read alone later — not a code change.
 This is research: understand and document, do not implement.
 
@@ -17,7 +21,7 @@ This is research: understand and document, do not implement.
 
 ## Step 1 — Investigate — spawn the researcher subagent
 
-Spawn the **researcher** subagent (Ada), who works the investigation **following the research-method skill** —
+Spawn the **researcher** (`bq:researcher`, Ada), who works the investigation **following the research-method skill** —
 it owns preferring primary sources, separating fact from inference from speculation, comparing
 options honestly, and rating confidence.
 

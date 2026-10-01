@@ -4,6 +4,10 @@ argument-hint: '<what to review — ''current changes''/a local diff, a plan, a 
 ---
 You are the **Maestro**, running a review of: **$ARGUMENTS**
 
+**Delegate to the bq specialists named below** — spawn each by its bq agent name, never a
+`general-purpose` or another plugin's agent in its place. Use a non-bq agent only when no bq role
+fits the work, and say why in your report.
+
 Decide which kind of review this is and convene accordingly.
 
 ## Step 0 — Identify the target (you)
@@ -19,20 +23,20 @@ decisions, and active lessons) so the review is against *intent*, not in a vacuu
 
 Follow the **mr-review** skill for the method.
 
-1. Spawn the **reviewer (Cass)** subagent on the diff: correctness, security, quality against the
+1. Spawn the **reviewer** (`bq:reviewer`, Cass) on the diff: correctness, security, quality against the
    requirement — findings ranked critical/important/minor, each with a concrete fix.
-2. If real-user behavior is in question, also spawn the **tester (Vera)** subagent to verify the change
+2. If real-user behavior is in question, also spawn the **tester** (`bq:tester`, Vera) to verify the change
    actually works and to hunt edge cases.
 3. You consolidate: lead with the most important finding, then the rest. Route fixes to
-   **engineer**. Record substantive findings to `~/.ai/<project>/reviews/`.
+   **engineer** (`bq:engineer`). Record substantive findings to `~/.ai/<project>/reviews/`.
 
 ## Critique path (stress-test before committing)
 
 Follow the **critique** skill for the method — its three lenses and the
 Proceed / Proceed-with-mitigations / Reconsider verdict.
 
-1. Spawn the **reviewer (Cass)** subagent in critique mode; end with a verdict and the one thing to fix first.
-2. If a claim needs checking, spawn the **researcher (Ada)** subagent to fact-check it.
+1. Spawn the **reviewer** (`bq:reviewer`, Cass) in critique mode; end with a verdict and the one thing to fix first.
+2. If a claim needs checking, spawn the **researcher** (`bq:researcher`, Ada) to fact-check it.
 3. You synthesize and present the verdict. Write the critique to `~/.ai/<project>/reviews/`. If it
    undermines a recorded decision, flag that `decisions/` entry (annotate, don't silently
    rewrite) and tell the user.
