@@ -11,6 +11,7 @@ Edit them directly; what you see is what installs.
 agents/<name>.md                the Maestro + six specialists (subagents)
 commands/<name>.md              the /bq:<name> slash commands
 skills/<name>/SKILL.md          method skills (loaded on demand by description)
+skills/<name>/references/*.md   detail a SKILL.md points to and reads only when needed
 hooks/                          SessionStart hooks (plugin installs only): session_start.py (lessons
                                 index + memory notices, read-only), checkpoint.py (background memory
                                 checkpoint), shared helpers _bqhook.py / _bqmem.py; wired in hooks.json
@@ -30,7 +31,9 @@ install.sh, install-copilot.sh  manual/plugin installer and the Copilot transfor
 - **A command** → edit `commands/<name>.md`. Invoked as `/bq:<name>`. Use `$ARGUMENTS` for input.
   The body opens with "You are the Maestro" so it runs in-character in the main session.
 - **A method skill** → edit `skills/<name>/SKILL.md`. Keep `name` equal to the folder and the
-  `description` keyword-rich ("Use when…") so Claude loads it on demand.
+  `description` keyword-rich ("Use when…") so Claude loads it on demand. Move rarely needed detail
+  to `references/` with a one-line pointer in SKILL.md saying *when* to read it; don't keep a copy
+  in both.
 - **The team identity/roster/routing** → `skills/bq-team/SKILL.md`, mirrored in `agents/maestro.md`.
   It ships as an on-demand skill by choice; the SessionStart hook injects only the lessons index and
   memory notices, not the identity.
