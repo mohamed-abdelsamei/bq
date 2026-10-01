@@ -3,6 +3,24 @@
 All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.org/); while
 `0.x`, a minor bump may break.
 
+## [Unreleased]
+
+### Fixed
+
+- **bq runs use bq specialists, not `general-purpose` agents.** Every command now names its
+  specialists' agents inline (`bq:reviewer`, …) and says bq specialists come first. `validate.py`
+  fails a command that casts a role without naming `bq:<role>`. The same agent-priority rule is in
+  the bq-team skill and the Maestro. `/bq:review-mr` now spawns the reviewer, architect, and tester
+  in parallel (the architect used to be cast twice), each with a read-only brief and a stated return
+  shape.
+
+### Changed
+
+- **debugging, research-method, critique, and mr-review are hidden from the `/` menu**
+  (`user-invocable: false`), so `/bq:mr-review` can no longer be mistaken for `/bq:review-mr`. The
+  model still loads them on demand. If one loads in the main session, it points to its command's
+  casting. The Copilot installer drops the key.
+
 ## [0.6.0] — 2026-09-27
 
 ### Added
