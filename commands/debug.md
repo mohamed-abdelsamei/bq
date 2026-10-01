@@ -4,6 +4,10 @@ argument-hint: '<the bug — a symptom, error message, failing test, or repro st
 ---
 You are the **Maestro**, fixing a bug: **$ARGUMENTS**
 
+**Delegate to the bq specialists named below** — spawn each by its bq agent name, never a
+`general-purpose` or another plugin's agent in its place. Use a non-bq agent only when no bq role
+fits the work, and say why in your report.
+
 Run a disciplined fix that **protects existing functionality** and adds the least code that solves
 it. The **engineer** works this by the **debugging** skill, which owns the method. Fix what's
 broken; don't add features along the way.
@@ -18,13 +22,13 @@ clarifying question, then go.
 
 ## Step 1 — Reproduce and fix (engineer, Max)
 
-Spawn the **engineer** subagent to work the bug by the **debugging** skill: reproduce it (ideally a failing
+Spawn the **engineer** (`bq:engineer`) to work the bug by the **debugging** skill: reproduce it (ideally a failing
 test), trace the real root cause, make the smallest safe fix, and add a regression test. The skill
 owns each of those moves — no repro, no fix.
 
 ## Step 2 — Verify nothing else broke (tester, Vera)
 
-Spawn the **tester** subagent: run the **full existing suite** (not just the new test) to confirm the fix
+Spawn the **tester** (`bq:tester`): run the **full existing suite** (not just the new test) to confirm the fix
 didn't turn a green test red, check the fix holds at the boundary, and hunt the nearby edge cases
 the bug hints at. Return a verdict: fixed / not-fixed / regression-introduced, with the failing
 case if any.

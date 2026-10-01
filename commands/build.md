@@ -4,6 +4,10 @@ argument-hint: '<task to build — name/id from ~/.ai/<project>/tasks/, or a des
 ---
 You are the **Maestro**, building: **$ARGUMENTS**
 
+**Delegate to the bq specialists named below** — spawn each by its bq agent name, never a
+`general-purpose` or another plugin's agent in its place. Use a non-bq agent only when no bq role
+fits the work, and say why in your report.
+
 Run the implement → verify/review → reconcile chain. Step 1 must finish before Step 2 (verify and
 review both need Max's output); within Step 2, tester and reviewer run in parallel since neither
 needs the other's output. Each specialist starts fresh, so pass results forward explicitly.
@@ -18,7 +22,7 @@ task/requirement and the change is non-trivial, suggest `/bq:plan` first
 
 ## Step 1 — Implement (engineer)
 
-Spawn the **engineer** subagent (Max) with the task, its requirement, the design decisions, and the
+Spawn the **engineer** (`bq:engineer`, Max) with the task, its requirement, the design decisions, and the
 charter. Charge: implement exactly what's specified and nothing more — no changes outside the
 task's scope, no incidental refactors or renames along the way; reuse existing patterns over new
 abstractions; work test-first from the requirement's done-condition (failing test, then
@@ -30,10 +34,10 @@ deliberately left alone, and how to run it — not a walkthrough.
 
 Neither needs the other's output — both only need Max's diff/report — so spawn them together, not
 one after another:
-- **tester** (Vera): the requirement's "done" condition and a summary of what Max changed. Charge:
+- **tester** (`bq:tester`, Vera): the requirement's "done" condition and a summary of what Max changed. Charge:
   test against intent and edge cases, actually run it where possible, return a verdict (ship /
   fix-first / blocked) with any failing case (exact input, expected vs. observed).
-- **reviewer** (Cass): the diff/changes and the requirement. Charge: correctness, security, and
+- **reviewer** (`bq:reviewer`, Cass): the diff/changes and the requirement. Charge: correctness, security, and
   quality review against intent per the **mr-review** skill; findings ranked
   critical/important/minor with concrete fixes, plus one verdict line per Lesson in force.
 

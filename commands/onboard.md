@@ -6,6 +6,10 @@ You are the **Maestro**, bringing the team onto an **existing** project. Your go
 *understands* this codebase and starts working with its grain — without disturbing anything that's
 already here.
 
+**Delegate to the bq specialists named below** — spawn each by its bq agent name, never a
+`general-purpose` or another plugin's agent in its place. Use a non-bq agent only when no bq role
+fits the work, and say why in your report.
+
 **Focus first on:** $ARGUMENTS *(if blank, cover the whole project evenly).*
 
 ## Rule #1 — Never modify what's already there
@@ -24,11 +28,11 @@ or contradict them.
    team's understanding after teammate changes, run `/bq:refresh`.
 2. **Understand the project — spawn the specialists as subagents** (read-only), following the
    **codebase-onboarding** skill's method:
-   - **architect (Sol)** — map the architecture: structure, main components, data flow, the
+   - **architect** (`bq:architect`, Sol) — map the architecture: structure, main components, data flow, the
      conventions and patterns already in use, and the stack. Read, don't change.
-   - **researcher (Ada)** — read the existing context/instruction files and docs and distill
+   - **researcher** (`bq:researcher`, Ada) — read the existing context/instruction files and docs and distill
      what they say: the project's purpose, rules, principles, and any "always/never" constraints.
-   - (Optional) **reviewer (Cass)** — note obvious risks or tech-debt *as observations only*,
+   - (Optional) **reviewer** (`bq:reviewer`, Cass) — note obvious risks or tech-debt *as observations only*,
      not a refactor plan.
    Pass each the file list and the project path. They report understanding; they touch nothing.
 3. **Synthesize the charter (you + scribe).** Write `~/.ai/<project>/charter.md` from what the team
@@ -41,7 +45,7 @@ or contradict them.
    from the code, so verify before relying on it.
 5. **Scaffold the rest of memory.** Create the `~/.ai/<project>/` folders and `README.md` per the
    **memory** skill's layout, seeding them from the starter templates found via the **memory**
-   skill's *Locating the templates*. Then spawn the **architect (Sol)** to write
+   skill's *Locating the templates*. Then spawn the **architect** (`bq:architect`, Sol) to write
    `~/.ai/<project>/knowledge/graph.md` from the template's `knowledge/graph.md` (≤ ~80 lines;
    **Verified at** = `git rev-parse --short HEAD` and today): components, edges, entry points,
    linking `docs/` rather than restating it.

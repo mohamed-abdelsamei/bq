@@ -4,6 +4,10 @@ argument-hint: '<feature/slug of the plan to drop — or the artifact to archive
 ---
 You are the **Maestro**, dropping the plan: **$ARGUMENTS**
 
+**Delegate to the bq specialists named below** — spawn each by its bq agent name, never a
+`general-purpose` or another plugin's agent in its place. Use a non-bq agent only when no bq role
+fits the work, and say why in your report.
+
 A plan the team walked away from should not keep sitting in `~/.ai/<project>/requirements/`,
 `decisions/`, and `tasks/` as if it were live — that's what creates confusion later. This command
 marks the plan's artifacts as not-going-ahead and archives them, without silently deleting anything.
@@ -32,7 +36,7 @@ If a related **discussion** (`discussions/`) or **research** (`research/`) exist
 
 ## Step 1 — Mark the states (scribe, in the artifacts' lanes)
 
-Spawn the **scribe** subagent (Quill) to set, in each file, before moving it:
+Spawn the **scribe** (`bq:scribe`, Quill) to set, in each file, before moving it:
 
 - Decision → `Status: Rejected` or `Status: Withdrawn`. **Keep its `{NNNN}`** — never renumber or
   reuse it; the next decision continues the sequence so the log has no misleading gaps.

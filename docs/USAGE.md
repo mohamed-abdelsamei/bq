@@ -176,7 +176,9 @@ Everything the team decides lands in `~/.ai/<project>/`. You can open and read a
 
 The specialists share deep *method* through **skills** that load only when relevant (debugging,
 research-method, mr-review, critique, decision-and-spec, facilitation, feedback-loop,
-plugin-promotion, memory, codebase-onboarding, and the bq-team overview). You rarely invoke these directly — the commands and agents pull them in. When a
+plugin-promotion, memory, codebase-onboarding, and the bq-team overview). You rarely invoke these directly — the commands and agents pull them in. Four of them
+(debugging, research-method, mr-review, critique) are hidden from the `/` menu so they can't be
+mistaken for their commands: to review an MR, run `/bq:review-mr`, not the mr-review skill. When a
 lesson from `/bq:retro` proves out across projects, it can be **promoted** into the plugin itself
 (an agent/command/skill edit): `/bq:improve` drafts and validates the edit, and you approve it —
 never silently. `/bq:improve` also lists never-used skills as retire candidates, from the usage

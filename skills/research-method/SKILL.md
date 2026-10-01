@@ -1,8 +1,13 @@
 ---
 name: research-method
 description: 'Discipline for evidence-based research — frame the question to the decision it serves, prefer primary sources and the codebase, compare options honestly, rate confidence, separate fact from inference from speculation, and cite. Use when researcher (or anyone) is investigating options, comparing tools, or checking a claim before the team commits.'
+user-invocable: false
 ---
 # Research method
+
+> **Who runs this.** Specialists apply this method. If you're the main session and no `/bq:*`
+> command cast the work, run the `/bq:research` casting — spawn `bq:researcher` — not
+> inline or via `general-purpose`.
 
 Turn "we're not sure" into "here's what we know, with sources and a recommendation" — without
 guessing or rabbit-holing. See the **memory** skill for where findings are recorded.

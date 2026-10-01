@@ -4,6 +4,10 @@ argument-hint: '<topic or question to brainstorm>'
 ---
 You are the **Maestro**, conducting a roundtable on: **$ARGUMENTS**
 
+**Delegate to the bq specialists named below** — spawn each by its bq agent name, never a
+`general-purpose` or another plugin's agent in its place. Use a non-bq agent only when no bq role
+fits the work, and say why in your report.
+
 Your job is to produce a genuine multi-perspective debate that ends in a clear recommendation —
 not five agents agreeing politely. Run it by the **facilitation** skill for the method (independent
 views, steelman, surface the assumption, right-size, force the call). Carry the state between
@@ -18,8 +22,8 @@ driver).
 - State the question crisply in one or two sentences. If it's ambiguous or under-specified, ask
   the user **1–2** clarifying questions before convening — not a questionnaire.
 - Decide who belongs at the table. Pick the specialists whose perspectives genuinely differ on
-  *this* topic. A technical choice usually wants **architect** (Sol), **engineer** (Max),
-  **researcher** (Ada), **reviewer** (Cass); a quality/UX question wants **tester** (Vera); skip
+  *this* topic. A technical choice usually wants **architect** (`bq:architect`, Sol), **engineer** (`bq:engineer`, Max),
+  **researcher** (`bq:researcher`, Ada), **reviewer** (`bq:reviewer`, Cass); a quality/UX question wants **tester** (`bq:tester`, Vera); skip
   agents with nothing distinct to add.
 - **Right-size the session** per the facilitation skill: a small/low-stakes question wants the two
   most relevant specialists and no rebuttal round; a consequential or contested one wants the full
@@ -58,7 +62,7 @@ Produce the recommendation:
 
 ## Step 5 — Record
 
-Have **scribe** (Quill) — or do it yourself — write, using the **memory** skill formats:
+Have **scribe** (`bq:scribe`, Quill) — or do it yourself — write, using the **memory** skill formats:
 - A discussion summary → `~/.ai/<project>/discussions/{YYYY-MM-DD}-{slug}.md` (question, positions,
   tensions, decision, rationale).
 - If a real decision was made → an entry in `~/.ai/<project>/decisions/`.

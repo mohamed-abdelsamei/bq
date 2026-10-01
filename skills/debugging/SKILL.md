@@ -1,8 +1,13 @@
 ---
 name: debugging
 description: 'Discipline for fixing a bug without breaking what already works — reproduce first, find the root cause (not the symptom), make the smallest change that fixes it, add a regression test, and protect existing behavior. Use when fixing a bug, chasing a regression or failing test, or debugging unexpected behavior — before writing any new code.'
+user-invocable: false
 ---
 # Debugging
+
+> **Who runs this.** Specialists apply this method. If you're the main session and no `/bq:*`
+> command cast the work, run the `/bq:debug` casting — spawn `bq:engineer`, then `bq:tester` — not
+> inline or via `general-purpose`.
 
 A bug fix is not a feature. The job is to make the broken thing correct **without disturbing the
 things that already work** — and with the least new code that does it. Fix what's there before you

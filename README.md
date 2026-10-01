@@ -325,6 +325,10 @@ duplicates. Conventions are documented in the bundled **memory** skill.
 
 The team carries shared *method* as skills, so the deep know-how lives in one place instead of being
 copy-pasted into every persona. Claude loads each on demand when the task matches its `description`.
+**debugging**, **research-method**, **critique**, and **mr-review** are hidden from the `/` menu
+(`user-invocable: false`), because they are the specialists' method, not an entry point. Run
+`/bq:debug`, `/bq:research`, `/bq:review`, or `/bq:review-mr` instead. If one of them loads in the main
+session anyway, it points back to that command's casting.
 
 | Skill | What it encodes |
 |-------|-----------------|

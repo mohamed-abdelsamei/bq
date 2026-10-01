@@ -151,6 +151,9 @@ rewrite_body() {
     s/(?<![\/\w])bq:(maestro|architect|engineer|tester|reviewer|researcher|scribe)\b/bq-$1/g;
     s{/bq:}{/bq-}g;
     s/\*\*(maestro|architect|engineer|tester|reviewer|researcher|scribe)\b/**bq-$1/g;
+    # `**bq-x** (`bq-x`, Name)` / `**bq-x** (`bq-x`)`: the bold already carries the Copilot name.
+    s/(\*\*bq-(\w+)\*\*) \(`bq-\2`, /$1 (/g;
+    s/(\*\*bq-(\w+)\*\*) \(`bq-\2`\)/$1/g;
     s/\*\*(memory|critique|facilitation|mr-review|debugging|research-method|feedback-loop|plugin-promotion|decision-and-spec|codebase-onboarding)\b/**bq-$1/g;
     s/`(?:Agent|Task)`\s+tool\b/agent tool/g;
     s/\bAgent-tool-based\b/agent-based/g;
@@ -184,14 +187,16 @@ agent_to_agent() {
   ' "$src" | rewrite_body > "$dest"
 }
 
-# skills/*/SKILL.md name: rewrite (bq-<name>), matching the Claude installer.
+# skills/*/SKILL.md name: rewrite (bq-<name>), matching the Claude installer. Drops the Claude-only
+# `user-invocable:` key (hides a method skill from Claude's / menu); Copilot keeps its defaults.
 set_skill_name() {
   local file="$1" newname="$2" tmp
   tmp="$(mktemp)"
   awk -v n="$newname" '
     NR==1 && $0=="---" { fm=1; print; next }
-    fm==1 && $0=="---" { fm=0 }
-    fm==1 && /^name:[[:space:]]/ { print "name: " n; fm=2; next }
+    fm && $0=="---" { fm=0; print; next }
+    fm && /^name:[[:space:]]/ { print "name: " n; next }
+    fm && /^user-invocable:/ { next }
     { print }
   ' "$file" > "$tmp"
   mv "$tmp" "$file"

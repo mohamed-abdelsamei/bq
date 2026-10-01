@@ -4,6 +4,10 @@ argument-hint: '[optional: a behavior, agent, or lesson slug to focus on]'
 ---
 You are the **Maestro**, running plugin improvement for: **$ARGUMENTS** (empty = the whole corpus)
 
+**Delegate to the bq specialists named below** — spawn each by its bq agent name, never a
+`general-purpose` or another plugin's agent in its place. Use a non-bq agent only when no bq role
+fits the work, and say why in your report.
+
 Turn proven lessons into checked, human-approved edits to the bq plugin (`agents/`, `commands/`,
 `skills/`). This command owns the **procedure**; the **plugin-promotion** skill owns the **rules** —
 classes, evidence gate, rejected slugs, growth cap, diff rules, sanitization, self-edit ban,
@@ -47,7 +51,7 @@ Specialists can't spawn each other and start fresh, so you chain them and pass r
 
 ## Step 2 — Gate (reviewer)
 
-Spawn the **reviewer** subagent (Cass): "Load the **plugin-promotion** skill. Read-only — write
+Spawn the **reviewer** (`bq:reviewer`, Cass): "Load the **plugin-promotion** skill. Read-only — write
 nothing (no `reviews/` files)." Pass the groups, the lesson bodies, the ledger (Rejected slugs,
 Accepted and Drafted sources), the current text of each likely target file, and bq's own memory for
 gate (d): `${AI_HOME:-~/.ai}/<checkout basename>/charter.md` and its Accepted `decisions/`. Read-only
@@ -67,7 +71,7 @@ Number each candidate `{NNNN}` (highest in the ledger + 1). The checkout's `git 
 change; all editing happens in `{wt}` = `<scratch>/improve-{NNNN}`, a scratch dir outside the repo.
 Every command below targets `{wt}` explicitly — a bare command would run in the checkout.
 
-**(a) Draft — engineer.** Spawn the **engineer** subagent (Max): "Load the **plugin-promotion**
+**(a) Draft — engineer.** Spawn the **engineer** (`bq:engineer`, Max): "Load the **plugin-promotion**
 skill. Never commit in {wt}; an empty staged diff is a failure (drop)." Pass the resolved absolute
 checkout path, the absolute `{wt}`, `{NNNN}`, the candidate, and the quoted target text; the skill's
 Self-edit ban, Growth cap, Diff rules, and Sanitization apply. Max:
@@ -90,7 +94,7 @@ Self-edit ban, Growth cap, Diff rules, and Sanitization apply. Max:
 8. Returns the base sha, `git -C {wt} diff --cached`, the numstat, both validation outputs, the
    commit message, and the worktree path — and leaves the worktree in place.
 
-**(b) Check — reviewer.** Spawn the **reviewer** (Cass): "Load the **plugin-promotion** skill.
+**(b) Check — reviewer.** Spawn the **reviewer** (`bq:reviewer`, Cass): "Load the **plugin-promotion** skill.
 Read-only — write nothing (no `reviews/` files)." Pass `git -C {wt} diff --cached -U10`, the commit
 message, the candidate, the quoted target text, the source lesson bodies (at minimum their
 project names and identifiers to scrub), and the **identifier-intersection** hits. Get those first:
@@ -113,7 +117,7 @@ Charge: Sanitization on diff and message, justify or require removal of every in
 Self-edit ban (gatekeeper wording, by effect, and every unaccounted deletion) on every hunk, and a
 verdict.
 
-**(c) One fix.** On a finding, spawn a fresh **engineer** with the same brief as (a) plus the
+**(c) One fix.** On a finding, spawn a fresh **engineer** (`bq:engineer`) with the same brief as (a) plus the
 findings, the base output, and the base sha — skip worktree creation and base validation; reuse the
 passed base output and `{wt}` — to fix, re-validate (4), re-check the diff (5), and redo the message
 (6); then a fresh **reviewer**, briefed as in (b), rechecks diff and message. One fix attempt; if

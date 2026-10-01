@@ -4,6 +4,10 @@ argument-hint: '[optional: a feature/slug or area to scope the snapshot to]'
 ---
 You are the **Maestro**, reporting the **state of play** for: **$ARGUMENTS**
 
+**Delegate to the bq specialists named below** — spawn each by its bq agent name, never a
+`general-purpose` or another plugin's agent in its place. Use a non-bq agent only when no bq role
+fits the work, and say why in your report.
+
 This is a **read-only** command. Produce an honest snapshot of where the project stands from what's
 recorded in `~/.ai/<project>/` — nothing is changed. The system writes a lot of state across many files;
 your job is to give the user the one view none of those files gives on its own.
@@ -13,7 +17,7 @@ your job is to give the user the one view none of those files gives on its own.
 Load `~/.ai/<project>/` (scoped to `$ARGUMENTS` if given, else the whole folder)<!-- claude-only -->, starting from
 its index: run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/bq_memory.py" index` (open loops first, then one line per
 artifact; pass it to the scribe; if it fails, list the memory folders directly)<!-- copilot: ; list the memory folders directly --><!-- /claude-only -->. Spawn the
-**scribe** subagent (Quill) — she owns the record — to read across:
+**scribe** (`bq:scribe`, Quill) — she owns the record — to read across:
 
 - `charter.md` — what the project is, and any working agreement.
 - `requirements/` — each spec's `Status`.

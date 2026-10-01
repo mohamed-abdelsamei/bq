@@ -1,9 +1,14 @@
 ---
 name: mr-review
 description: 'Review a merge request, pull request, branch, or diff on two axes — code (correctness, security, quality, tests) and business (does it deliver the requirement and real user value) — by fetching the real changes, anchoring to intent, and ending in an Approve / Approve with changes / Request changes verdict. Use when: MR review, PR review, code review before merge, current-branch review, diff review.'
+user-invocable: false
 ---
 
 # MR review
+
+> **Who runs this.** Specialists apply this method. If you're the main session and no `/bq:*`
+> command cast the work, run the `/bq:review-mr` casting — spawn `bq:reviewer`, `bq:architect`,
+> `bq:tester` in parallel — not inline or via `general-purpose`.
 
 Review a merge request, pull request, branch, or diff on **two axes at once**:
 

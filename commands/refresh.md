@@ -32,7 +32,7 @@ Never modify them. Only refresh `~/.ai/<project>/` memory artifacts.
    - Add a dated decision note under `~/.ai/<project>/decisions/` only when a meaningful behavioral
      change is required (for example: tooling policy changed, testing policy changed).
    - If `~/.ai/<project>/knowledge/graph.md` is missing, offer (on the user's yes) to have the
-     **architect (Sol)** write it from the template's `knowledge/graph.md`, as `/bq:onboard` does.
+     **architect** (`bq:architect`, Sol) write it from the template's `knowledge/graph.md`, as `/bq:onboard` does.
 4. **Check memory integrity** — run the **memory** skill's integrity checks across `~/.ai/<project>/`.
    Fix the unambiguous ones; **report, don't auto-fix, the ambiguous ones** — surface them for the
    user to resolve rather than guessing intent.

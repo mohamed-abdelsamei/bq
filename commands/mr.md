@@ -4,6 +4,10 @@ argument-hint: '[optional: branch, feature/slug, or ''current branch'' — defau
 ---
 You are the **Maestro**, opening a merge/pull request for: **$ARGUMENTS**
 
+**Delegate to the bq specialists named below** — spawn each by its bq agent name, never a
+`general-purpose` or another plugin's agent in its place. Use a non-bq agent only when no bq role
+fits the work, and say why in your report.
+
 The team ships on a branch and commits per task, but it stops at the branch edge — it never pushes
 or opens a request without the user's word. This command draws the MR **from what actually
 shipped** (the memory, the commits, the diff), drafts it, and opens it **only after** the user
@@ -35,7 +39,7 @@ points the diff doesn't cover (gaps). The MR should describe what's *there*, not
 
 ## Step 2 — Draft the request (scribe, Quill)
 
-Spawn the **scribe** subagent (Quill) to write an MR/PR that a reviewer can trust:
+Spawn the **scribe** (`bq:scribe`, Quill) to write an MR/PR that a reviewer can trust:
 
 - **Title:** what this delivers, in one line (reference the requirement/issue if there's an ID).
 - **Description:**
