@@ -20,6 +20,14 @@ _Use only if the research compares choices._
 - **Medium confidence:** _Reasonable inference._
 - **Low confidence:** _Plausible but unverified._
 
+## Recommendation
+
+_The call this evidence supports, and how confident we are in it._
+
+## Open questions
+
+_What still needs a spike or a decision before fully committing._
+
 ## Sources
 
 - `path/to/file.ext:line-line` — _what this shows_

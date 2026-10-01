@@ -111,7 +111,8 @@ folders). Use the first of these that exists:
   `Withdrawn` / `Superseded by {NNNN}`. **Rejected** = considered and decided against, never
   adopted (keep it — *why it lost* is what a future reader needs). **Withdrawn** = was
   `Proposed`/`Accepted`, then abandoned before implementation. **Superseded** = replaced by a later
-  decision, which the entry points to.
+  decision, which the entry points to. **Verified** = set by the Maestro once a review or test proves
+  the implemented decision works, with *Verified by* filled in; it ends the lifecycle.
 - **Requirements:** `Active` → `Delivered`, or `Dropped`
 
 ## Integrity checks

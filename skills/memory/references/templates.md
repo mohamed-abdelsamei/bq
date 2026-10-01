@@ -2,9 +2,8 @@
 
 The canonical templates are the starter files under the plugin's `templates/bq/` (see the memory
 skill's *Locating the templates*). Use this copy only when none of those locations exists; it
-mirrors them, so if the two ever differ, `templates/bq/` wins. Requirements, research, and reviews
-have starter files there too — without them, follow the owning skill (**decision-and-spec**,
-**research-method**).
+mirrors them, so if the two ever differ, `templates/bq/` wins. Requirements and reviews have starter
+files there too — without them, follow the owning skill (**decision-and-spec**, **mr-review**).
 
 ## Decision (ADR) — `decisions/{NNNN}-{slug}.md`
 
@@ -12,7 +11,7 @@ have starter files there too — without them, follow the owning skill (**decisi
 # {NNNN}. {Short title of the decision}
 
 - **Date:** {YYYY-MM-DD}
-- **Status:** Proposed | Accepted | Implemented | Rejected | Withdrawn | Superseded by {NNNN}
+- **Status:** Proposed | Accepted | Implemented | Verified | Rejected | Withdrawn | Superseded by {NNNN}
 - **Deciders:** {who / which agents}
 - **Implemented by:** {task / commit / `path/to/file.ext` — fill in when Status becomes Implemented; blank until then}
 - **Verified by:** {review / test / `~/.ai/<project>/reviews/{slug}.md` — the evidence it works; blank until verified}
@@ -97,3 +96,42 @@ Status markers: `[ ]` todo, `[x]` done, `[~]` in progress, `[!]` needs re-verifi
 
 Lessons (`lessons/`) have their own format — see the **feedback-loop** skill. Capture them with
 `/bq:retro`.
+
+## Research — `research/{slug}.md`
+
+```markdown
+# {Research title}
+
+## Question & why
+
+_What are we investigating, and what decision does it serve?_
+
+## Findings
+
+- **Observed:** _Facts verified in code or primary sources._
+- **Inferred:** _Reasonable conclusions from evidence._
+- **Unknown:** _What could not be verified._
+
+## Options & trade-offs
+
+_Use only if the research compares choices._
+
+## Confidence & gaps
+
+- **High confidence:** _Established by primary source or direct code evidence._
+- **Medium confidence:** _Reasonable inference._
+- **Low confidence:** _Plausible but unverified._
+
+## Recommendation
+
+_The call this evidence supports, and how confident we are in it._
+
+## Open questions
+
+_What still needs a spike or a decision before fully committing._
+
+## Sources
+
+- `path/to/file.ext:line-line` — _what this shows_
+- _External source, accessed {YYYY-MM-DD}_
+```

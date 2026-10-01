@@ -7,7 +7,8 @@ user-invocable: false
 
 > **Who runs this.** Specialists apply this method. Under another `/bq:*` command, follow that
 > command's casting. With none, run the `/bq:research` casting — spawn `bq:researcher`, not
-> `general-purpose`. A quick one-fact lookup you can do inline, still citing the source.
+> `general-purpose`. A one-fact lookup is a tiny request, which bq-team lets you answer directly —
+> still cite the source.
 
 Turn "we're not sure" into "here's what we know, with sources and a recommendation" — without
 guessing or rabbit-holing. See the **memory** skill for where findings are recorded.

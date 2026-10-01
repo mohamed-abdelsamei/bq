@@ -10,7 +10,8 @@ manifest in [.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json
 - `agents/*.md` — subagents (the Maestro conductor + six specialists)
 - `commands/*.md` — the `/bq:*` slash commands
 - `skills/*/SKILL.md` — method skills loaded on demand by their `description`, including the
-  `bq-team` overview skill
+  `bq-team` overview skill; `skills/*/references/*.md` hold detail a SKILL.md points to and reads
+  only when needed
 - `hooks/` — `hooks.json` and two stdlib SessionStart hooks: `session_start.py` (lessons index and
   memory notices, see [Learning loop](#learning-loop)) and `checkpoint.py` (background memory
   checkpoint, see [Memory history](#memory-history)), with shared helpers `_bqhook.py` and
@@ -126,7 +127,8 @@ Lessons are applied, checked, and reviewed (the full rules live in the `feedback
 
 An opt-in local git history of the whole `~/.ai` store (ADR 0011). The operator runbook — commands,
 notices, recovery, purging a secret — lives in the memory skill's
-[Durability and recovery](../skills/memory/SKILL.md#durability-and-recovery); this is the shape.
+[`references/durability.md`](../skills/memory/references/durability.md), summarized in its
+[Durability and recovery](../skills/memory/SKILL.md#durability-and-recovery) section; this is the shape.
 
 - **Repo.** A bare repo at `$BQ_MEMORY_GIT_DIR` (default
   `~/Library/Application Support/bq/ai-history.git` on macOS,

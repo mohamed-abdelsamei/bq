@@ -164,7 +164,8 @@ Everything the team decides lands in `~/.ai/<project>/`. You can open and read a
   overwrites newer work: a missing folder comes back in place, a present one is extracted beside it
   as `<dir>.restored-<rev>/` to compare. `bq_memory.py status` and `log` show where things stand.
   The runbook, including stuck locks and purging a secret, is in the memory skill's
-  [Durability and recovery](../skills/memory/SKILL.md#durability-and-recovery).
+  [`references/durability.md`](../skills/memory/references/durability.md) (summary in its
+  [Durability and recovery](../skills/memory/SKILL.md#durability-and-recovery) section).
 - A bare `/bq:retro` triages lessons waiting on your yes (`Proposed`) and flags lessons that keep
   getting `Missed`; `/bq:status` shows a one- or two-line Learning summary when anything is pending.
 - Lessons that generalize across projects can be **shared** (with your approval) to

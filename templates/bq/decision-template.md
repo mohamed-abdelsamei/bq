@@ -1,7 +1,7 @@
 # {NNNN}. {Short title of the decision}
 
 - **Date:** {YYYY-MM-DD}
-- **Status:** Proposed | Accepted | Implemented | Rejected | Withdrawn | Superseded by {NNNN}
+- **Status:** Proposed | Accepted | Implemented | Verified | Rejected | Withdrawn | Superseded by {NNNN}
 - **Deciders:** {who / which agents}
 - **Implemented by:** {task / commit / `path/to/file.ext` — fill in when Status becomes Implemented; blank until then}
 - **Verified by:** {review / test / `~/.ai/<project>/reviews/{slug}.md` — the evidence it works; blank until verified}

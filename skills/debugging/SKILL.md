@@ -7,8 +7,8 @@ user-invocable: false
 
 > **Who runs this.** Specialists apply this method. Under another `/bq:*` command, follow that
 > command's casting. With none, run the `/bq:debug` casting — spawn `bq:engineer`, then `bq:tester`,
-> not `general-purpose`. A trivial, already-diagnosed fix you can do inline — still reproduce first
-> and add the regression test.
+> not `general-purpose`. A fix is never too small for this: the tester's check is what catches the
+> green test that turned red.
 
 A bug fix is not a feature. The job is to make the broken thing correct **without disturbing the
 things that already work** — and with the least new code that does it. Fix what's there before you

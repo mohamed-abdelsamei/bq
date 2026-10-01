@@ -52,4 +52,5 @@ Verdict   — Proceed / Proceed with mitigations / Reconsider
 Fix first — the single most important thing to address
 ```
 
-Record substantive critiques to `reviews/` in project memory (see the **memory** skill).
+A specialist briefed read-only returns the critique; the orchestrator (Maestro) records substantive
+ones to `reviews/` in project memory (see the **memory** skill).

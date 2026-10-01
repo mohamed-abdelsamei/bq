@@ -306,7 +306,8 @@ git history of the whole store, **outside** it, so it survives the folder being 
 `init`, the first checkpoint, `restore` and `stamp` on your real store are hard stops: `/bq:ship`
 never runs them on its own. The full runbook — each command, each notice and what to do about it,
 and how to purge a secret from history — is the memory skill's
-[Durability and recovery](skills/memory/SKILL.md#durability-and-recovery) section.
+[Durability and recovery](skills/memory/SKILL.md#durability-and-recovery) section, with the
+full runbook in [`references/durability.md`](skills/memory/references/durability.md).
 
 **Identity.** Memory is keyed by the project folder's name. Git worktrees now resolve to the main
 checkout's name (in 0.5 a worktree got no lessons). `stamp` writes `<mem>/.identity` — the repo root
