@@ -5,9 +5,9 @@ user-invocable: false
 ---
 # Critique (red-team)
 
-> **Who runs this.** Specialists apply this method. If you're the main session and no `/bq:*`
-> command cast the work, run the `/bq:review` casting — spawn `bq:reviewer` in critique mode — not
-> inline or via `general-purpose`. (`/bq:grill` casts you as Cass: apply it yourself there.)
+> **Who runs this.** Specialists apply this method. Under another `/bq:*` command, follow that
+> command's casting (`/bq:grill` casts you as Cass: apply it yourself). With none, run the
+> `/bq:review` casting — spawn `bq:reviewer` in critique mode — not inline or `general-purpose`.
 
 Make an idea stronger by attacking it honestly. This is the method for stress-testing a **decision,
 plan, spec, or line of reasoning** — not a code diff (that's the **mr-review** skill). Cass, the
@@ -39,5 +39,17 @@ End with a clear call and the single most important thing to address first:
 - **Proceed with mitigations** — sound, but do X first / watch Y.
 - **Reconsider** — a real flaw in the premise, safety, or value that must be resolved before committing.
 
-Rank findings **critical / important / minor**, each with the concrete risk and a practical fix.
+Rank findings by **severity × likelihood** into **critical / important / minor**, each with the
+concrete risk and a practical mitigation.
+
+## Output
+
+```
+Steelman  — the target's best version, in two or three lines
+Findings  — ranked by severity × likelihood (critical / important / minor):
+            the finding, the concrete risk, the mitigation
+Verdict   — Proceed / Proceed with mitigations / Reconsider
+Fix first — the single most important thing to address
+```
+
 Record substantive critiques to `reviews/` in project memory (see the **memory** skill).

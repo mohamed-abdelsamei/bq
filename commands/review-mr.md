@@ -18,7 +18,7 @@ memory or the description alone. If you can't fetch the diff, stop and say so.
 
 **You** resolve `$ARGUMENTS` to a concrete diff and capture the three things the skill needs: the
 diff, the stated intent (MR title + description, linked requirement/issue), and the target branch.
-Select up to 3 **Lessons in force** per the **feedback-loop** skill.
+Load the **feedback-loop** skill and select up to 3 **Lessons in force** per it.
 
 Then spawn the three specialists **together, in parallel** (none needs another's output). Give each
 a compact brief: where the diff is (ref, or a saved patch path), the intent, the target branch, the

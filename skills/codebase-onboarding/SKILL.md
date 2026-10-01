@@ -1,6 +1,6 @@
 ---
 name: codebase-onboarding
-description: 'A systematic method to understand an unfamiliar codebase before working in it — locate entry points, build/run, dependencies, data flow, and conventions, and read existing context files without modifying them. Use during /bq:onboard or whenever you (or architect/researcher) are dropped into a repo you don''t know yet.'
+description: 'A systematic method to understand an unfamiliar codebase before working in it — locate entry points, build/run, dependencies, data flow, and conventions, and read existing context files without modifying them. Use during /bq:onboard or whenever you (or architect/researcher) are dropped into a repo you don''t know yet — "explain this repo", "how is this codebase structured", "where do I start", "what does this project do". Whole-repo orientation only; for one feature or flow, use research-method.'
 ---
 # Codebase onboarding
 
@@ -39,3 +39,6 @@ A short, plain-language **understanding summary**: what this project is, the sta
 run/test, the architecture in a few lines, the conventions to follow, where authoritative rules
 live, and the open questions. Confirm it with the user — you inferred it, so verify before relying
 on it. Feed it into `charter.md` in the project memory folder.
+
+Under `/bq:onboard`, also write `knowledge/graph.md` from its template (components, edges, entry
+points, linking `docs/` rather than restating it) — see that command's step 5.

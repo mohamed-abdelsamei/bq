@@ -1,6 +1,6 @@
 ---
 name: decision-and-spec
-description: 'How to write testable requirements and record decisions well — measurable acceptance criteria (given/when/then), explicit scope, and ADRs that capture context, the decision, the alternatives rejected, and the consequences. Use when writing a spec (/bq:plan) or recording a decision, so the record is reviewable later by a human alone.'
+description: 'How to write testable requirements and record decisions well — measurable acceptance criteria (given/when/then), explicit scope, and ADRs that capture context, the decision, the alternatives rejected, and the consequences, so the record is reviewable later by a human alone. Use when writing a bq spec or acceptance criteria (/bq:plan), or recording an ADR in ~/.ai/<project>/decisions/ — "write an ADR", "acceptance criteria", "given/when/then", "scope this".'
 ---
 # Decisions & specs
 
@@ -21,10 +21,6 @@ A requirement a tester can't check is a wish. Make each one measurable.
 - Each requirement gets **acceptance criteria** that define "done" unambiguously.
 - Flag every assumption. An unstated assumption is a future bug.
 
-Scope is a chain: what's **in scope** is what a decision commits to build; what actually gets
-**implemented** — the code, with the `decisions/` entry stamped *Implemented by* — is the durable
-record of what the system is. The plan and the out-of-scope list stay intent, not record.
-
 ## Decision records (ADRs)
 
 Record a decision when it's load-bearing, costly to reverse, or someone will later ask "why?".
@@ -37,29 +33,12 @@ One file per decision (`~/.ai/<project>/decisions/`). Capture:
 - **Consequences** — what it makes easier, harder, and commits us to; known risks; when we'd
   revisit.
 
-### Lifecycle
+### Status
 
-A decision moves through **Proposed → Accepted → Implemented → Superseded**, and can be dropped from
-any point before implementation:
-
-- **Proposed** — recorded, not yet agreed.
-- **Accepted** — the team has committed to it, but the code doesn't reflect it yet.
-- **Implemented** — the decision has landed in code and is verifiable. Stamp *Implemented by* with
-  the task, commit, or `file:line` that carries it.
-- **Rejected** — considered and decided against; never adopted. Keep it — a rejected option with
-  *why it lost* is exactly what a future reader needs.
-- **Withdrawn** — was `Proposed`/`Accepted`, then the plan was abandoned before implementation.
-- **Superseded by {NNNN}** — replaced by a later decision; update the entry and point to it.
-
-In loop terms this is the **decision loop**: it opens at `Proposed`/`Accepted` (intent) and *closes*
-only when the code lands (`Implemented`, verified) — or when the plan is dropped. An `Accepted`
-decision never implemented is an open loop. See the **bq-team** skill's Loop engineering section.
-
-Keep the status current — a stale status is worse than none. `Proposed` and `Accepted` are *intent*;
-only `Implemented` describes something that actually exists. When you walk away from a plan, mark it
-`Rejected` or `Withdrawn` and archive it with `/bq:drop` so it stops reading as live work — don't
-leave it looking active, and don't silently delete it (see the **memory** skill for the archive
-discipline).
+The statuses and their order live in the **memory** skill's Status markers. Keep the status
+current — a stale status is worse than none. `Proposed` and `Accepted` are *intent*; only
+`Implemented` describes something that actually exists. When you walk away from a plan, run
+`/bq:drop` rather than leaving it looking active or silently deleting it.
 
 ## Quality bar
 

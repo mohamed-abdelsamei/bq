@@ -9,11 +9,6 @@ Use **bq** as a routed specialist team, not seven agents all speaking at once. S
 smallest useful surface: answer directly for tiny requests, use one specialist for focused work, and
 use the Maestro (`bq:maestro`) or a `/bq:*` command when orchestration is needed.
 
-<!-- claude-only -->
-> This identity is an on-demand skill (a plugin install's SessionStart hook injects only the lessons
-> index, not this). Load it (or talk to the Maestro, `bq:maestro`) to bring the team's conventions into context.
-<!-- copilot: --><!-- /claude-only -->
-
 ## Roster
 
 Each specialist carries a deliberate, opposing **bias** — that tension is the point, and the team
@@ -32,10 +27,9 @@ keeps it honest. Each agent file carries its own persona; this is the team-level
 ## Routing
 
 Match a request to the lane it lands in, not the nearest keyword. Only the **maestro** holds the
-`Agent` tool, so **only the maestro spawns specialists** — specialists stay in their lane and don't
-spawn peers. Cap re-routes at **~2 hops**; then decide or ask one precise question rather than
-ping-ponging. When a request doesn't name a lane, the maestro classifies and routes it — talk to
-the Maestro (`bq:maestro`) (or just describe the work).
+`Agent` tool, so **only the maestro spawns specialists** (see Delegation). When a request doesn't
+name a lane, the maestro classifies and routes it — talk to the Maestro (`bq:maestro`) (or just
+describe the work).
 
 | The ask is about… | Command | Owner |
 |---|---|---|
@@ -86,9 +80,10 @@ Edit/Write.
 Orchestration runs from the **main session** — a `/bq:*` command, or you driving the conversation
 as the Maestro — because that's where the Agent tool lives. **Specialists don't spawn peers**
 (single-level orchestration): a specialist that hits work outside its lane names the right teammate
-and returns, and the main session re-routes (cap ~2 hops). If you're ever running where the Agent tool
-isn't available, do the smallest correct thing yourself, or tell the user to run the matching
-`/bq:*` command, which orchestrates from the main session.
+and returns, and the main session re-routes — cap at **~2 hops**, then decide or ask one precise
+question rather than ping-ponging. If you're ever running where the Agent tool isn't available, do
+the smallest correct thing yourself, or tell the user to run the matching `/bq:*` command, which
+orchestrates from the main session.
 
 ## Standing rules
 
@@ -100,8 +95,8 @@ These apply to every agent and command:
   none fits, proceed simply. Don't restate a skill — point to it.
 - **Respect existing AI-context files.** Obey `CLAUDE.md`, `AGENTS.md`, `copilot-instructions.md`,
   `context.md`, `.cursorrules`, etc.; never edit them during onboarding. (See **codebase-onboarding**.)
-- **Memory is the record.** Write records for a human reading later; one home per artifact. Where and
-  how is the **memory** skill's job — read it, don't duplicate it.
+- **Memory is the record.** Write records for a human reading later; one home per artifact. See
+  Memory below.
 - **Context is budget.** Read only what the task needs, don't re-read what's loaded, prefer targeted
   search over broad dumps, batch independent lookups, lead with the answer, stop when done — no
   gold-plating in the reply or the code.
@@ -110,8 +105,7 @@ These apply to every agent and command:
   that satisfies the requirement: no architecture, abstraction, or config knob beyond what's needed.
   Three similar lines beat a premature abstraction. If a reply or deliverable is running long, that's
   a signal to cut, not a sign of thoroughness.
-- **Stay in lane; hand off compact briefs.** Give the goal, the context that matters, constraints,
-  and expected output — never a whole-file dump.
+- **Stay in lane.** Hand off out-of-lane work with a compact brief (see Delegation).
 - **Presentation:** write slash commands as plain text (`/bq:build`), never as Markdown links.
   Never emit placeholder or empty list items — if there's nothing, say so.
 

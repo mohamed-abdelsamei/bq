@@ -30,10 +30,9 @@ quickly, then have Ada distill the findings.
 
 ## Step 2 — Record the findings (you + scribe)
 
-Write the report to `~/.ai/<project>/research/{slug}.md`, using the report structure from the
-**research-method** skill and written for the user to read alone later — the question and the
-decision it serves, the sourced findings, options and trade-offs if it's a choice, and what's
-solid versus unverified.
+Write the report to `~/.ai/<project>/research/{slug}.md` from `research/research-template.md`
+(located per the **memory** skill's *Locating the templates*), following the **research-method**
+skill's reporting rules and written for the user to read alone later.
 
 If the finding should live with the codebase (e.g. an architecture note others need), tell the
 user and offer to move a polished version into `docs/` instead.

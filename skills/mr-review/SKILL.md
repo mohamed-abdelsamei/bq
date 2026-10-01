@@ -1,6 +1,6 @@
 ---
 name: mr-review
-description: 'Review a merge request, pull request, branch, or diff on two axes — code (correctness, security, quality, tests) and business (does it deliver the requirement and real user value) — by fetching the real changes, anchoring to intent, and ending in an Approve / Approve with changes / Request changes verdict. Use when: MR review, PR review, code review before merge, current-branch review, diff review.'
+description: 'The bq method for reviewing a merge/pull request, branch, or diff on two axes — code (correctness, security, tests, necessity) and business (does it deliver the requirement) — ending in Approve / Approve with changes / Request changes. Use when a bq reviewer, architect, or tester is briefed to review changes (under /bq:review-mr, /bq:review, /bq:build, or /bq:ship), or for any MR/PR/branch review in a bq project. Plans and decisions go to the critique skill instead.'
 user-invocable: false
 ---
 
@@ -50,43 +50,31 @@ A review is only useful if its findings are trusted — protect that trust.
 **Code**
 - **Correctness** against the stated intent — edge cases, boundaries, failure modes, off-by-ones.
 - **Security** — injection, auth/authz, secrets, unsafe deserialization, trust boundaries,
-  sensitive-data exposure, dependency risk, unsafe defaults.
-- **Failure scope & blast radius** — when this fails, *what else* fails with it? A feature that
-  fails closed must fail closed **narrowly**: a broken dependency (upstream down, one corrupt file,
-  a transient disk error) for feature X must not take down unrelated plane Y. Watch for an error
-  path that is `?`-propagated where only the *success* value was meant to gate — the guard is
-  discarded but the error still escapes, so an outage in an optional check becomes a hard failure
-  for every request. Trace each new error return to the widest caller it can reach.
+  sensitive-data exposure, dependency risk, unsafe defaults. Where a boundary is touched, know the
+  load-bearing invariant by name and object when a convenience change relaxes it.
+- **Failure scope & blast radius** — when this fails, *what else* fails with it? A broken dependency
+  for feature X must not take down unrelated plane Y; watch for an error from an optional check that
+  escapes where only its result should gate.
 - **Enablement & rollout transitions** — what happens the day a new flag flips on, or the migration
-  runs, against **existing** data and identities? Existing sessions, tokens (PATs/API keys/service
-  creds), cached state, and records predating the change. A gate that is correct for new users can
-  lock out or silently break every existing automation the moment it activates.
+  runs, against **existing** data and identities? Existing sessions, credentials, cached state, and
+  records predating the change. A gate that is correct for new users can lock out or silently break
+  every existing automation the moment it activates.
 - **Errors & observability** — failures surfaced not swallowed, errors actionable, no secrets in
   logs, enough logging/metrics to debug this in production.
 - **Performance & concurrency** — hot-path cost, N+1 queries, unbounded growth, blocking calls on
-  async paths, data races, lock/transaction scope. For any check-then-act sequence (validate a
-  condition, then perform the effect that depends on it), name the exact shared state, which writers
-  can change it unsynchronized, and the window between check and act: a guard is real only if the
-  mutation side takes the *same* lock — moving the check next to the act shrinks a TOCTOU window but
-  does not close it on a concurrent runtime, and a comment claiming an atomicity the code doesn't
-  hold is itself a finding.
+  async paths, data races, lock/transaction scope. For any check-then-act, name the shared state and
+  the window — a guard is real only if the mutation side takes the *same* lock.
 - **Compatibility & migrations** — API/schema/config/contract changes, data migrations and their
   rollback, impact on existing callers and persisted data.
 - **Necessity & fit** — does this code need to exist, can it be smaller, does it follow local patterns?
-- **Removal completeness** — when the change *deletes, renames, or refactors out* an asset (a file, a
-  symbol, a config knob, a capability), everything that existed only to serve it is now stale or dead.
-  Enumerate what was removed, then hunt each dependent: dangling doc/instruction pointers, comments and
-  defaults that still describe the gone behavior, and now-caller-less exports or trait hooks. Verify
-  dead-ness by **usage search** before asserting it — if only definitions and internal self-use remain,
-  it is orphaned; name the exact symbols. Distrust *relabel-and-retain*: repurposing a helper that lost
-  its last caller as a “generic” one is usually dead code with a new name.
+- **Removal completeness** — a delete, rename, or refactor-out leaves orphans: stale pointers,
+  comments, defaults, and caller-less exports, often in parallel copies. Verify dead-ness by usage
+  search before asserting it.
 - **Tests** — meaningful coverage for the *changed* behavior, failure paths included, not just the
   happy path.
 - **Honesty & drift** — the diff does what the title and description claim; flag undisclosed changes
-  riding along. Treat the description, any "acceptance criteria met" claim, spec/contract docs,
-  in-code doc comments, and changelog entries as assertions to diff against the code, and when one is
-  wrong fix **every parallel copy** — the same statement is often repeated across a doc file, an
-  architecture note, and an inline comment. (See "Drift and the re-review loop".)
+  riding along, and diff every written claim (spec, contract, doc comment, changelog) against the
+  code.
 
 **Business**
 - Walk the user-facing flow against the acceptance criteria.
@@ -96,50 +84,18 @@ A review is only useful if its findings are trusted — protect that trust.
 
 **Process & convention** (repo rules are often the real blockers)
 - Honor the repo's own contract — read `AGENTS.md` / `CONTRIBUTING` / `CLAUDE.md` and any skill they
-  reference. Many repos make changelog fragments, doc/instruction sync ("instruction drift is a
-  blocker"), and commit-message format **mandatory**; a diff can be flawless code and still be
-  un-mergeable because it skipped one. These are as blocking as the repo declares them — surface
-  them explicitly, don't bury them under code nits.
+  reference. Many repos make changelog fragments, doc/instruction sync, and commit-message format
+  **mandatory**; flawless code can still be un-mergeable for skipping one. They block as hard as the
+  repo declares — surface them explicitly, not buried under code nits.
 - Check that user-visible / config / permission / UI changes carry their required paperwork
   (changelog entry in the *right* place, updated docs, new feature flags documented).
 - A changelog / release note must describe the behavior that will **ship**, not the branch's history
-  of reversed decisions: flag entries that still describe a superseded state (a default later
-  flipped, an approach later abandoned) and ask to collapse them into the final behavior.
+  of reversed decisions — ask to collapse superseded entries into the final behavior.
 
-## Drift and the re-review loop — two high-yield passes
+## Deep checks
 
-On mature code the sharpest findings are rarely bugs the author never saw. They are **drift between
-what the code promises and what it does**, and the **residual gap a first fix leaves behind**. Work
-both deliberately:
-
-- **Diff every written claim against the code.** A spec value, a versioned contract, a description
-  line, an acceptance-criteria "all met" claim, an in-code doc comment, and a changelog entry are all
-  assertions — read each, then find the line that must honor it. A value the spec pins exactly but
-  the code accepts loosely, a doc comment describing behavior the code no longer has, a description
-  that overstates what shipped — each is a real finding even when the code in isolation looks fine.
-  Flag the mismatch in **either** direction: code moved and the doc didn't, or the claim overstates
-  what the code actually does.
-- **Guard the load-bearing invariant by name.** Where the change touches a correctness or security
-  boundary (identity, authorization, ordering, uniqueness, an equality/versioning check), know which
-  fields and conditions the invariant depends on, and object the moment a convenience change relaxes
-  one — a generalization that is harmless on an incidental field can be a correctness breach on a
-  load-bearing one. Don't accept a broadened rule without confirming the boundary still holds.
-- **Offer a fork, not an order.** For a mismatch either side can be the source of truth: ask to *fix
-  the code to match the spec* **or** *update and version the spec to match intended behavior* —
-  phrased as a question. It unblocks faster and respects that you may not know which was intended.
-- **Re-review as a loop: credit the fix, then name the residual.** When a prior finding was
-  addressed, state what the fix achieved, then pinpoint the exact gap it leaves rather than
-  re-raising the whole issue. Narrow the severity to the residual instead of re-blocking at full
-  weight, and verify the fix's own **new** comment, doc, or changelog line is itself accurate —
-  fixes introduce fresh drift.
-- **Sweep the orphans of a removal, across every parallel copy.** A stale pointer or dead knob left by
-  a deletion almost never appears once — the same “see the old file” reference lives in a README *and*
-  an app-local instruction file; the same removed-capability default sits in a build file *and* its CI
-  mirror. Find one, then search for its siblings and fix them together; a half-swept removal is a real
-  finding. Anchor it in the change's **own stated goal** to make it land: “this now makes the README the
-  source of truth, yet line 214 still points at the deleted file,” “the suite no longer asserts Trust
-  Check, yet this default still enables its debug filter.” The contradiction with the change's own
-  intent is the argument.
+Read `references/deep-checks.md` when the diff removes or renames something, touches a
+spec/contract/doc claim, adds a check-then-act or a new fallible dependency, or is a re-review.
 
 ## Procedure
 
@@ -164,6 +120,8 @@ both deliberately:
    - **Don't re-report** a finding an existing thread already covers unless you're adding evidence,
      confirming, or disputing it. Your job is the delta, not an echo.
    - Note which prior findings are already **fixed** in the current diff so stale threads don't block.
+   - On a re-review, credit what the fix achieved and narrow to the residual gap rather than
+     re-blocking at full weight.
 4. **Review both axes.** Read the whole diff first, then **size effort to risk** — a security
    boundary or a migration earns deeper scrutiny than a rename. For a large or cross-cutting diff,
    summarize the changed areas first and review by risk area, not file order.
@@ -180,15 +138,8 @@ both deliberately:
   usually means Request changes.
 - **Tests absent for changed behavior** → Important when behavior, data, security, or a user-facing
   flow changed.
-- **Removal / rename / refactor-out diff** → run the orphan sweep: list what's gone, then grep the tree
-  for surviving references, stale config/comments, and now-dead exports/hooks — including their parallel
-  copies in sibling docs and the CI mirror of a build file. Verify “no callers remain” by usage search
-  before calling anything dead.
 - **Generated or vendored code** → skip deep style review; check provenance, necessity, security, and
   integration points.
-- **Already reviewed (human or bot threads present)** → don't restate the thread. Verify its open
-  findings against the code, refute the false positives with evidence, note what's since fixed, and
-  spend your effort on what it missed.
 - **Only nits found** → don't inflate them; Approve and list them as optional.
 
 ## Verdict
@@ -202,8 +153,9 @@ Reconsider; the two aren't meant to converge). Lead with the call:
 - **Request changes** — any critical or important issue: correctness, security, acceptance criteria,
   data integrity, or user value.
 
-End with the single most important thing to fix first. Record a substantive review to `reviews/` in
-project memory (see the **memory** skill).
+End with the single most important thing to fix first. A specialist briefed read-only returns
+findings only; the orchestrator (Maestro) records the consolidated review to `reviews/` in project
+memory (see the **memory** skill).
 
 ## Output format
 

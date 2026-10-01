@@ -32,6 +32,7 @@ of the same take.
 
 Name the agreements and the real tensions, then **make the call** (or present the live options with
 a recommended default for the user). State which arguments won, which lost, the tradeoffs accepted,
-and what's still open. **Right-size** the session to the stakes: a small question gets a quick
-two-voice take, not a full roundtable; cap re-routes so it doesn't ping-pong. Record the outcome —
+and what's still open. **Right-size** the session to the stakes: a small, low-stakes question gets
+the two most relevant voices and no rebuttal round; a consequential or contested one gets the full
+roundtable with one rebuttal round. Cap re-routes so it doesn't ping-pong. Record the outcome —
 a conclusion that isn't written down didn't happen. See the **memory** skill.

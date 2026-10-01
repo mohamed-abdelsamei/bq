@@ -3,6 +3,34 @@
 All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.org/); while
 `0.x`, a minor bump may break.
 
+## [Unreleased]
+
+### Changed
+
+- **Skills reviewed against skill-creator guidance and trimmed.** Rules now have one owner, and
+  rarely needed detail moved to `references/` files read on demand:
+  - mr-review 2497 → 1758 words (`references/deep-checks.md`: drift and re-review loop, orphan
+    sweep, check-then-act, failure scope).
+  - memory 2379 → 1384 (`references/durability.md`, `references/templates.md`, synced with
+    `templates/bq/`, which restores the ADR *Deciders* field).
+  - plugin-promotion 1744 → 1550 (`references/diff-checks.md`, `references/proposal-template.md`);
+    now `user-invocable: false`.
+- **Narrower, trigger-rich descriptions** for mr-review, memory, decision-and-spec, feedback-loop,
+  research-method, codebase-onboarding and plugin-promotion.
+- Commands say "Load the **feedback-loop** skill" at lesson selection and close-out, instead of
+  only citing it.
+
+### Fixed
+
+- mr-review told a read-only specialist to write to `reviews/`; the Maestro records it now.
+- `/bq:research` pointed at a report structure that didn't exist; it now uses
+  `research/research-template.md` and has a trace-the-real-flow step.
+- The decision lifecycle lives only in the memory skill. decision-and-spec had dropped `Verified`.
+- Redirect blocks on debugging, research-method and critique allow trivial work inline and defer
+  to whichever command already cast the work.
+- Duplicated rules removed across bq-team/maestro, brainstorm/facilitation, improve/plugin-promotion
+  and feedback-loop.
+
 ## [0.7.0] — 2026-10-01
 
 ### Fixed

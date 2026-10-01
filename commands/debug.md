@@ -16,8 +16,8 @@ broken; don't add features along the way.
 
 Capture the **symptom**, the **expected vs. actual** behavior, and **where** it shows (command,
 endpoint, screen, test). If it ties to a requirement or a recent change, pull that context from
-`~/.ai/<project>/`. Select up to 3 **Lessons in force** per the **feedback-loop** skill and put the
-block in the engineer and tester briefs. If the report is too vague to act on, ask one sharp
+`~/.ai/<project>/`. Load the **feedback-loop** skill and select up to 3 **Lessons in force** per it;
+put the block in the engineer and tester briefs. If the report is too vague to act on, ask one sharp
 clarifying question, then go.
 
 ## Step 1 — Reproduce and fix (engineer, Max)
@@ -41,6 +41,6 @@ case if any.
 Report the **root cause**, the **fix** (and why it's minimal), the **regression test** that now
 guards it, and confirmation the suite is green. Record substantive findings to `~/.ai/<project>/`. If
 the root cause hints at a larger problem, note it as a follow-up — don't expand the fix to chase
-it. No reviewer runs here, so only a user-graded miss (per the feedback-loop skill) writes a `## Log` line. Offer the next
-step — `/bq:review` the change, or `/bq:build` if it grew into real work. Reflect per the
-feedback-loop skill's End-of-run reflection; end with its `Learning:` line.
+it. Offer the next step — `/bq:review` the change, or `/bq:build` if it grew into real work. Load
+the **feedback-loop** skill and reflect per its End-of-run reflection (no reviewer runs here, so
+only a user-graded miss writes a `## Log` line); end with its `Learning:` line.

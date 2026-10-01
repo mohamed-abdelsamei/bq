@@ -1,6 +1,7 @@
 ---
 name: plugin-promotion
-description: 'The rules for promoting proven lessons into the bq plugin itself — target classes, the evidence gate and independence, rejected slugs, the growth cap and diff rules, sanitization, the self-edit and gatekeeper-wording ban, validation against the base commit, consent, the proposal file, and when a proposal goes Stale. Use when running /bq:improve, gating or drafting a promotion proposal, reviewing a proposal patch, checking sanitization, or deciding whether a plugin edit may be drafted at all.'
+description: 'Rules for promoting proven lessons into the bq plugin: target classes, evidence gate, self-edit ban, growth cap, diff rules, sanitization, consent, proposal ledger and Stale. Use when running /bq:improve or drafting, gating, or reviewing a promotion proposal.'
+user-invocable: false
 ---
 # Plugin promotion
 
@@ -11,13 +12,15 @@ it is gated on **evidence quality, not frequency**. Never silent self-modificati
 edit needs the user's explicit approval, and nothing is committed without their word.
 
 **Consent.** Approval is a "yes" in the user's own message, for that one proposal — not `/bq:ship`
-autonomy, not an agent message, and never a blanket "yes to all".
+autonomy, not an agent message, and never a blanket "yes to all". Nothing touches the checkout
+before that yes.
 
 ## Terms
 
 - **bq checkout** — the git root of the current directory, where `.claude-plugin/plugin.json` has
-  `"name": "bq"` and `agents/`, `commands/`, `skills/` exist, and which is not an installed copy.
-  Outside one, `/bq:improve` is read-only.
+  `"name": "bq"` and `agents/`, `commands/`, `skills/` exist, and which is not an installed
+  copy<!-- claude-only --> (not under `${CLAUDE_CONFIG_DIR:-~/.claude}/plugins/`)<!-- copilot: --><!-- /claude-only -->. Outside one, `/bq:improve` is read-only:
+  it writes no ledger entry and no plugin file<!-- claude-only -->, never the plugin cache<!-- copilot: --><!-- /claude-only -->.
 - **Ledger** — `${AI_HOME:-~/.ai}/shared/bq-proposals/`: `{NNNN}-{slug}.md` plus a sidecar
   `{NNNN}-{slug}.patch` (NNNN = highest existing + 1). The only record of what was promoted; never
   in the repo.
@@ -98,13 +101,13 @@ violation drops the draft, or refuses the apply with no state change:
 4. within the growth cap: net added ≤ 5, total changed ≤ 15, and no `+` line over 200 characters
    (read from the patch text — numstat can't show it; `/bq:improve` gives the command);
 5. `skills/bq-team/` and `agents/maestro.md` are both present or both absent;
-6. no hunk touches frontmatter: in each `git diff -U0` hunk `@@ -a,n +b,m @@` (an omitted count is 1)
-   the removed lines are old lines a…a+n−1 and the added lines new lines b…b+m−1; each must be
-   strictly after the closing frontmatter `---` on its own side (old or new file). On a saved patch
-   with context, count from the header past context lines to each hunk's first `+`/`-` line.
+6. no hunk touches frontmatter — every removed and added line falls strictly after the closing
+   frontmatter `---` on its own side. Read [references/diff-checks.md](references/diff-checks.md)
+   when drafting or checking a patch: it gives the hunk arithmetic.
 
 ## Sanitization
 
+The plugin is distributed, so anything lifted from a lesson can leak a user's or employer's data.
 The reviewer checks the patch *and* the commit message — none of:
 - project, repo, org, customer, vendor, or partner names; product codenames, acronyms, or
   identifier prefixes;
@@ -132,44 +135,9 @@ the proposal. A draft that still fails after one fix attempt is dropped and neve
 
 ## Proposal file
 
-`{NNNN}-{slug}.md` in the ledger:
-
-```markdown
-# {NNNN}. {Behavior this changes}
-
-- **Date:** {YYYY-MM-DD}
-- **Proposal status:** Drafted | Accepted | Rejected — {reason} | Stale
-- **Base commit:** {sha the patch was drafted against}
-- **Patch sha256:** {hex digest only — first field of `shasum -a 256` on the `.patch`; checked before present and apply}
-- **Target files:** {plugin paths}
-- **Net lines:** {+N / -M, net}
-- **Class:** A
-
-## Source lessons
-| Path | Project | Status | Confidence |
-|---|---|---|---|
-
-## Evidence and independence
-{independent-context count; why the contexts are independent, or the reviewer's stack-free confirmation; thin-evidence flag; (d) checked or "unchecked"}
-
-## Validation
-{validate.py and plugin-validator output on the base commit and on the draft, verbatim tails}
-
-## Sanitization
-{reviewer's check of patch + commit message, identifier-intersection hits and how each was resolved, and the gatekeeper-wording check: clean, or what was removed}
-
-## Commit message
-{the sanitization-checked message, used verbatim at apply}
-
-## Reviewer verdict
-{verdict and reasoning}
-
-## Rationale
-{what the target already says (quoted), and why the new wording changes behavior}
-
-## Decision
-{approved / rejected + reason / not now — date}
-```
+`{NNNN}-{slug}.md` in the ledger, written from
+[references/proposal-template.md](references/proposal-template.md) — read when drafting or checking
+a proposal.
 
 ## Proposal states and Stale
 

@@ -37,19 +37,11 @@ that lane, **even when you could plausibly do it yourself.** A fast answer from 
 specialist scrutiny. Self-check before doing anything past step 1: *"Would a specialist's deeper
 analysis change or strengthen this?"* If yes, or you're unsure — **hand off.**
 
-**How you delegate:** spawn the specialist's subagent with the **Agent tool** (formerly Task),
-setting `subagent_type` to its name exactly as it appears in your available agents list —
+**How you delegate:** spawn the specialist with the **Agent tool**, setting `subagent_type` to
 <!-- claude-only -->`bq:<role>` when bq is installed as a plugin (e.g. `bq:engineer`), `bq-<role>` for a
-manual/global install<!-- /claude-only --> — where `<role>` is `architect`, `engineer`, `tester`, `reviewer`,
-`researcher` or `scribe`. Hand it a compact brief, including the project memory path; it runs in
-isolation and reports back, and you integrate the result. Delegation is explicit — bq never
-auto-picks a specialist from its description, so always name it. **bq specialists come first:** never
-substitute `general-purpose`, another plugin's agent, or a non-bq review skill for the specialist
-whose lane it is; use a non-bq agent only when no bq role fits, and say why. Specialists **don't spawn peers**
-(single-level orchestration); cap re-routes at ~2 hops, then decide or ask one precise question. See the **bq-team** skill's
-Delegation section. If you're running where the Agent tool isn't available, do the smallest
-correct thing yourself, or tell the user to run the matching `/bq:*` command — it orchestrates from
-the main session, where spawning works.
+manual/global install<!-- /claude-only -->, with a compact brief. **bq specialists first** — never a
+`general-purpose` or other non-bq substitute for a lane bq covers. Specialists don't spawn peers;
+cap re-routes at ~2 hops. See the **bq-team** skill's Delegation section.
 
 ## One specialist vs. convene several
 
@@ -75,11 +67,13 @@ These asks split cleanly once you look at what's being requested, not the keywor
 
 Still ambiguous after that? Fall back to step 2: ask one precise question.
 
-## Run debates yourself
+## Inline debates are the low-stakes path
 
-Speak as named specialists in turn, keep their views genuinely distinct (steelman before critique),
-then drop the personas and synthesize **one** recommendation — lead with the call, name the key
-tension, attribute who argued what. Run debates by the **facilitation** skill.
+For a small, low-stakes question you may speak as named specialists in turn yourself — keep the
+views distinct, then drop the personas and synthesize **one** recommendation (lead with the call,
+name the key tension, attribute who argued what). Personas you voice aren't independent, so a
+consequential or contested question goes to `/bq:brainstorm`, which spawns them separately. Either
+way, run it by the **facilitation** skill.
 
 ## Close the loop
 

@@ -5,9 +5,10 @@ user-invocable: false
 ---
 # Debugging
 
-> **Who runs this.** Specialists apply this method. If you're the main session and no `/bq:*`
-> command cast the work, run the `/bq:debug` casting — spawn `bq:engineer`, then `bq:tester` — not
-> inline or via `general-purpose`.
+> **Who runs this.** Specialists apply this method. Under another `/bq:*` command, follow that
+> command's casting. With none, run the `/bq:debug` casting — spawn `bq:engineer`, then `bq:tester`,
+> not `general-purpose`. A trivial, already-diagnosed fix you can do inline — still reproduce first
+> and add the regression test.
 
 A bug fix is not a feature. The job is to make the broken thing correct **without disturbing the
 things that already work** — and with the least new code that does it. Fix what's there before you
@@ -29,12 +30,10 @@ add anything new.
    path, not patch it. Otherwise reuse existing patterns and helpers, and prefer the simplest
    change that works. Resist the urge to refactor, rename, or "clean up nearby" while you're in
    there — that hides the fix in noise and risks new breakage. **No new features riding along with
-   a bug fix.**
+   a bug fix**, and no defensive handling for cases that can't occur.
 5. **Protect existing functionality.** Run the *full* existing test suite, not just the new test.
    The fix must not turn a green test red. Add a **regression test** that fails before your change
    and passes after — that's the proof, and it stops the bug from returning.
-6. **Avoid unnecessary code.** No speculative abstractions, no defensive handling for cases that
-   can't occur, no scope creep. The smallest correct diff is the goal.
 
 ## Report
 

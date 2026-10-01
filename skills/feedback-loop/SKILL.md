@@ -1,6 +1,6 @@
 ---
 name: feedback-loop
-description: 'How the team learns from experience: capture user corrections, repeated failures, surprising successes, and retrospectives as reusable lessons, and share proven ones across projects via ~/.ai/shared/lessons/. Use during /bq:retro and whenever a build, debug, review, ship run, or user correction should change future behavior.'
+description: 'How bq learns from experience: picking up to 3 Lessons in force at the start of a run, grading them and appending Log lines at close-out, the End-of-run reflection and its Learning: line, writing lesson files, and sharing proven lessons to ~/.ai/shared/lessons/. Use when starting or closing out every /bq:build, /bq:debug, /bq:ship and /bq:review-mr run, during /bq:retro, and whenever the user corrects the team ("that''s wrong", "don''t do that again", "remember this", "next time…").'
 ---
 # Feedback loop
 
@@ -67,9 +67,7 @@ When should this lesson be rechecked or pruned?
 - {YYYY-MM-DD} · {command} · Applied | Missed | Contradicted — {clause}
 ```
 
-`## Log` lines are appended only by the Maestro, from reviewer verdicts (see "Applying lessons") or
-a user-graded miss (see "End-of-run reflection"). The clause names the behavior only: no ticket
-IDs, paths, or repo names.
+`## Log` lines are appended only by the Maestro (see **Log** under "Applying lessons").
 
 `Last reviewed` is optional, set by `/bq:retro` on any decision about the lesson (keep included);
 Log lines after it are the ones still to act on. `## Review date` stays the future recheck.
@@ -83,12 +81,12 @@ A lesson with no Status (legacy) is treated as **Active**.
 
 | State | Set by | Leads to |
 |---|---|---|
-| Proposed | `/bq:ship` Step 4 reflection (and legacy files) — `/bq:retro` Step 1 candidates are not saved as files | Active, Dropped |
-| Active | `/bq:retro` Step 0 triage or Step 3, when the user accepts a lesson; build/debug close-out reflection, or the reflection after a user correction (written by the main session), on the user's yes | Shared, Promoted, Superseded, Dropped |
-| Shared → {file} | `/bq:retro` Step 4, on approval | Promoted, Superseded, Dropped |
-| Promoted → {file} | `/bq:retro` Step 3, on the user's word, after reading an `Accepted` proposal citing the lesson in the ledger (`/bq:improve` Step 5 records it there and never writes into projects' lessons); the source lesson and its Shared copy, if any, are both stamped — the ledger keeps the source↔shared link | terminal |
-| Superseded by {slug} | `/bq:retro` Step 3, on the user's word, when a newer lesson replaces it | terminal |
-| Dropped — {reason} | `/bq:retro` Step 0 triage or Step 3, when the user declines a pre-existing Proposed lesson or prunes an Active or Shared one | terminal |
+| Proposed | the `/bq:ship` run reflection (and legacy files) — `/bq:retro` candidates are not saved as files | Active, Dropped |
+| Active | `/bq:retro`, when the user accepts a lesson; build/debug close-out reflection, or the reflection after a user correction (written by the main session), on the user's yes | Shared, Promoted, Superseded, Dropped |
+| Shared → {file} | `/bq:retro`, on approval | Promoted, Superseded, Dropped |
+| Promoted → {file} | `/bq:retro`, on the user's word, after reading an `Accepted` proposal citing the lesson in the ledger (`/bq:improve` records it there and never writes into projects' lessons); the source lesson and its Shared copy, if any, are both stamped — the ledger keeps the source↔shared link | terminal |
+| Superseded by {slug} | `/bq:retro`, on the user's word, when a newer lesson replaces it | terminal |
+| Dropped — {reason} | `/bq:retro`, when the user declines a pre-existing Proposed lesson or prunes an Active or Shared one | terminal |
 
 ## Applying lessons
 
@@ -121,7 +119,8 @@ choices.
   closes log only Missed and Contradicted); when more compete, Missed and Contradicted go first. It
   replaces the template's `{placeholder}` Log line if one is still there. The Maestro rewrites the
   reviewer's evidence into behavior-only form (command and behavior; no paths, ticket IDs, or repo
-  names), keeping the verdict word unchanged. After a fix round, log the first-pass verdict if it
+  names — Log lines may later be promoted into the distributed plugin, so they carry no project
+  data), keeping the verdict word unchanged. After a fix round, log the first-pass verdict if it
   was Missed or Contradicted (that is the signal), else the re-check's. Only reviewer verdicts, or a
   user-graded miss, produce Log lines; the agent that did the work never grades itself, so with no
   reviewer and no user grade nothing is logged. Shared lessons get no Log lines: mention their
@@ -135,7 +134,7 @@ correction would change behavior in other tasks; otherwise just fix it (outside 
 
 1. **Trigger.** Form a candidate only if one fired: (a) the user corrected the team; (b) a blocking
    finding forced a fix round and its cause would recur in a different task; (c) a hard stop fired;
-   (e) a verification result turned out untrustworthy (a proxy signal misled). The candidate must
+   (d) a verification result turned out untrustworthy (a proxy signal misled). The candidate must
    also change behavior in a different task. None → `nothing — no trigger fired`.
 2. **Dedup.** Would applying an existing lesson's Future behavior have prevented this? Yes → no new
    lesson: if the reviewer graded it Missed it is already logged (`logged on`). If a user correction
@@ -151,8 +150,7 @@ correction would change behavior in other tasks; otherwise just fix it (outside 
 5. **Verdict.** The last line is exactly one of `Learning: wrote {lesson}`,
    `Learning: logged on {lesson}`, `Learning: pending — {candidate}`, or `Learning: nothing — {reason}`.
 
-A `Learning:` line never becomes a `## Log` line; Log lines come only from reviewer verdicts or a
-user-graded miss.
+A `Learning:` line never becomes a `## Log` line.
 
 ## Sharing across projects
 

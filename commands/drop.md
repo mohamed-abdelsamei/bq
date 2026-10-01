@@ -12,8 +12,8 @@ A plan the team walked away from should not keep sitting in `~/.ai/<project>/req
 `decisions/`, and `tasks/` as if it were live — that's what creates confusion later. This command
 marks the plan's artifacts as not-going-ahead and archives them, without silently deleting anything.
 
-Follow the **memory** skill (archive layout + header, "drop abandoned plans" rule) and the
-**decision-and-spec** skill (which state applies: `Rejected` vs `Withdrawn`).
+Follow the **memory** skill: its archive layout, the archive header in its `references/templates.md`,
+and its Status markers (which state applies: `Rejected` vs `Withdrawn`).
 
 ## Step 0 — Identify the plan (you)
 
@@ -47,7 +47,7 @@ Spawn the **scribe** (`bq:scribe`, Quill) to set, in each file, before moving it
 ## Step 2 — Archive with a header (scribe)
 
 Move each marked file to `~/.ai/<project>/archive/{YYYY-MM-DD}/{requirements|decisions|tasks}/{file}` and
-prepend the archive header defined by the **memory** skill (date, state + one-line reason,
+prepend the archive header from the **memory** skill's `references/templates.md` (date, state + one-line reason,
 superseded-by-or-not-replaced, original home).
 
 Then fix the breadcrumbs: in any **active** file that linked an archived one (a task list's

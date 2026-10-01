@@ -233,7 +233,7 @@ localize_memory_paths() {
   [[ -f "$file" ]] || return 0
   tmp="$(mktemp)"
   TD="$TEMPLATE_DIR" perl -0777 -pe '
-    s{(^\#\#\ Locating\ the\ templates\n).*?(?=^\#\#\ )}{$1\n`/bq-init` and `/bq-onboard` seed `<mem>/` from starter files (`README.md`, `charter.md`, the\nfolders). Use the first of these that exists:\n\n1. `$ENV{TD}/bq/` — installed by `install-copilot.sh`.\n2. Not found → generate the files directly from the **Layout** above and the **Templates** below.\n\n}ms;
+    s{(^\#\#\ Locating\ the\ templates\n).*?(?=^\#\#\ )}{$1\n`/bq-init` and `/bq-onboard` seed `<mem>/` from starter files (`README.md`, `charter.md`, the\nfolders). Use the first of these that exists:\n\n1. `$ENV{TD}/bq/` — installed by `install-copilot.sh`.\n2. Not found → generate the files directly from the **Layout** above and the fallback copies in\n   `references/templates.md`.\n\n}ms;
   ' "$file" > "$tmp"
   mv "$tmp" "$file"
 }

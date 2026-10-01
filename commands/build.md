@@ -15,8 +15,8 @@ needs the other's output. Each specialist starts fresh, so pass results forward 
 ## Step 0 — Locate the task (you)
 
 Find the task in `~/.ai/<project>/tasks/`. Load its requirement (`requirements/`) and any relevant
-`decisions/`, `lessons/`, and `charter.md`. Select up to 3 **Lessons in force** per the
-**feedback-loop** skill; every specialist brief below carries that block. If there's no
+`decisions/`, `lessons/`, and `charter.md`. Load the **feedback-loop** skill and select up to 3
+**Lessons in force** per it; every specialist brief below carries that block. If there's no
 task/requirement and the change is non-trivial, suggest `/bq:plan` first
 — or, for a genuinely small change, proceed and note that.
 
@@ -59,6 +59,6 @@ Update the task status in `~/.ai/<project>/tasks/`. Write the verification/revie
 `~/.ai/<project>/decisions/` to `Status: Implemented` and stamp *Implemented by* with the task/commit.
 If this task was the **last open one** for its requirement (all tasks now `[x]`), mark that
 requirement `Status: Delivered` and stamp *Delivered by* — don't leave a shipped spec reading as
-`Active`. Append Cass's non-n/a lesson verdicts to each lesson's `## Log` per the **feedback-loop**
-skill. Report to the user: what was built, test result, review verdict, and anything still open.
-Reflect per the feedback-loop skill's End-of-run reflection; end with its `Learning:` line.
+`Active`. Load the **feedback-loop** skill and append Cass's non-n/a lesson verdicts to each
+lesson's `## Log` per it. Report to the user: what was built, test result, review verdict, and
+anything still open. Reflect per its End-of-run reflection; end with its `Learning:` line.

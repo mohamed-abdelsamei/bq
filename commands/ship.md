@@ -36,9 +36,9 @@ Outside these, **keep going** — finish the task, commit it, start the next.
 
 ## Step 0 — Orient and detect mode (you)
 
-Load `~/.ai/<project>/charter.md`, recent `decisions/`, and `lessons/`. Select each task's
-**Lessons in force** as `/bq:build` does (see the **feedback-loop** skill). Then figure out what
-you're shipping:
+Load `~/.ai/<project>/charter.md`, recent `decisions/`, and `lessons/`. Load the
+**feedback-loop** skill and select each task's **Lessons in force** as `/bq:build` does. Then
+figure out what you're shipping:
 
 - **Tasks already exist** (a list in `~/.ai/<project>/tasks/` matching `$ARGUMENTS`, or — if blank — any
   list with pending `[ ]`/`[~]`/`[!]` items) → load it, with its `requirements/` and related
@@ -74,9 +74,9 @@ Pick the next pending task in **dependency order** (a task whose deps are all `[
    review notes to `~/.ai/<project>/reviews/`, and **commit just this task's changes** on the branch with
    a clear message (what shipped + the task reference). If this task cleared the **last open item**
    for its requirement, mark that requirement `Status: Delivered` (stamp *Delivered by*) so the shipped spec stops
-   reading as `Active`. Log the reviewer's lesson verdicts per the **feedback-loop** skill (its
-   ship rule and run-wide cap); skip reflection here. One task per commit, so the history reads
-   as a clean trail the user can review.
+   reading as `Active`. Load the **feedback-loop** skill and log the reviewer's lesson verdicts per
+   it (its ship rule and run-wide cap); skip reflection here. One task per commit, so the history
+   reads as a clean trail the user can review.
 
 Before each task and during it, watch for the four hard stops. If none fire, move straight to the
 next task — no check-in with the user.
@@ -93,6 +93,7 @@ When the backlog is clear **or** a hard stop fired, stop and report to the user:
 
 Have **scribe** (`bq:scribe`) (or do it yourself) record the run — what shipped and any decisions made along the
 way — to `~/.ai/<project>/`. Then offer the next move: resume the loop (`/bq:ship`), open a PR with
-`/bq:mr`, or `/bq:review` the branch. Last, do one run-level reflection per the feedback-loop skill's
-End-of-run reflection, listing any Proposed lesson written; end with its `Learning:` line. **You
-commit on the branch; you do not push, open PRs, or deploy without the user's word** (hard stop #4).
+`/bq:mr`, or `/bq:review` the branch. Last, load the **feedback-loop** skill and do one run-level
+reflection per its End-of-run reflection, listing any Proposed lesson written; end with its
+`Learning:` line. **You commit on the branch; you do not push, open PRs, or deploy without the
+user's word** (hard stop #4).

@@ -11,25 +11,21 @@ fits the work, and say why in your report.
 Turn proven lessons into checked, human-approved edits to the bq plugin (`agents/`, `commands/`,
 `skills/`). This command owns the **procedure**; the **plugin-promotion** skill owns the **rules** —
 classes, evidence gate, rejected slugs, growth cap, diff rules, sanitization, self-edit ban,
-validation, consent, proposal format, Stale. Load it first and apply it at every step. Nothing
-touches the checkout before the user's own "yes", and nothing is committed without their word.
+validation, consent, proposal format, Stale. Load it first and apply it at every step; its
+**Consent** rule governs every write to the checkout and every commit.
 Specialists can't spawn each other and start fresh, so you chain them and pass results forward.
 
 ## Step 0 — Frame and locus (you)
 
-- **Locus.** Find the git root of the current directory. It is a **bq checkout** only if
-  `.claude-plugin/plugin.json` there has `"name": "bq"` and `agents/`, `commands/`, `skills/`
-  exist<!-- claude-only -->, and the root is not under `${CLAUDE_CONFIG_DIR:-~/.claude}/plugins/` (an installed copy)<!-- copilot: --><!-- /claude-only -->. Outside one, run **read-only**: do Steps 1–2 and list the candidates, write
-  nothing (no ledger entry, no plugin file<!-- claude-only -->, never the plugin cache<!-- copilot: --><!-- /claude-only -->), and tell the
-  user to rerun inside the bq checkout to draft.
+- **Locus.** Decide whether the current directory is in a **bq checkout** (the skill's Terms).
+  Outside one, run **read-only** per that definition: do Steps 1–2, list the candidates, and tell
+  the user to rerun inside the bq checkout to draft.
 - **Ledger.** Read `${AI_HOME:-~/.ai}/shared/bq-proposals/` (create it only when writing, and only
   inside a checkout). Outside a checkout, just list any `Drafted` proposals read-only alongside the
   candidates — no Stale check, no approval prompt.
 - **Inside a checkout only:** check each `Drafted` proposal against the skill's **Stale triggers**
-  1–2 (`git diff --quiet {base} HEAD -- {targets}`, `git apply --check {patch}`) and mark `Stale` on
-  a hit — but if `git status --porcelain -- {targets}` is non-empty, skip both and note "deferred:
-  target files have uncommitted edits". Then present the surviving `Drafted` proposals (earlier
-  "not now") via Step 4 before mining anything new.
+  1–2, with its uncommitted-edits deferral, and mark `Stale` on a hit. Then present the surviving
+  `Drafted` proposals (earlier "not now") via Step 4 before mining anything new.
 
 ## Step 1 — Mine (you)
 
@@ -125,7 +121,7 @@ anything still fails, drop the candidate.
 
 **(d) Save — you.** For a candidate that passed, re-run the (a)5 diff check yourself, then save
 `git -C {wt} diff --cached` to the ledger as `{NNNN}-{slug}.patch`, record `shasum -a 256 {patch} | cut -d' ' -f1`,
-and write `{NNNN}-{slug}.md` per the skill's format with `Proposal status: Drafted`, that
+and write `{NNNN}-{slug}.md` from the skill's proposal template with `Proposal status: Drafted`, that
 `Patch sha256`, both validation outputs, and the checked commit message. A dropped candidate writes nothing to the ledger and is reported
 with its failure. Always — pass or drop —
 `git worktree remove --force {wt} && git worktree prune`.
@@ -139,8 +135,7 @@ For each proposal show: target files, net line change, source lessons (project, 
 independent-context count with the reviewer's reason, validation results (base and draft),
 sanitization result, reviewer verdict, the commit message, and the rationale (what the target says
 now, why the new wording changes behavior), plus the patch. Ask: **yes**, **no + reason**, or
-**not now** — one proposal at a time; only the user's own message counts, per the skill's consent
-rule.
+**not now** — one proposal at a time, per the skill's **Consent** rule.
 
 - A thin-evidence proposal needs the user's explicit acknowledgment of the thin evidence first.
 - **No** → `Proposal status: Rejected — {reason}`; a reason is required, ask for one if missing.
