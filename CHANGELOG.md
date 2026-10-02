@@ -3,6 +3,13 @@
 All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.org/); while
 `0.x`, a minor bump may break.
 
+## [Unreleased]
+
+### Added
+
+- **The bq logo**, in `assets/logo/`: a red b and a teal q arguing nose to nose (SVG mark, light
+  and dark icons, banner). The README opens with it, switching icons by color scheme.
+
 ## [0.8.0] — 2026-10-01
 
 ### Changed
