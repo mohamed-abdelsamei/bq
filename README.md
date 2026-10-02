@@ -1,3 +1,9 @@
+<p align="center"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo/icon-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/logo/icon.svg">
+  <img src="assets/logo/icon-dark.svg" alt="bq logo: a red b and a teal q arguing nose to nose" width="128">
+</picture></p>
+
 # bq
 
 A reusable **team of AI agents** for your work and pet projects, packaged as a native **Claude Code
