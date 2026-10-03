@@ -29,8 +29,10 @@ local-folder marketplace copies even gitignored files). The plugin loader regist
 registered: `templates/bq/`, read by `/bq:init` and `/bq:onboard`, and `scripts/bq_memory.py` and
 `scripts/skill_usage.py`, which commands and the memory skill run via
 `${CLAUDE_PLUGIN_ROOT}/scripts/`. The rest — `install.sh` and `install-copilot.sh`,
-`scripts/validate.py` and the tests, `docs/`, `CHANGELOG.md`, the root `CLAUDE.md` — ships but is
-inert (`claude plugin validate` warns that a root `CLAUDE.md` is not loaded as context).
+`scripts/validate.py` and the tests, `docs/`, `CHANGELOG.md`, the root `CLAUDE.md`, and
+`assets/logo/` (the logo: `mark.svg`, the banner `lockup.svg`, and the README's `icon.svg` /
+`icon-dark.svg` for light / dark) —
+ships but is inert (`claude plugin validate` warns that a root `CLAUDE.md` is not loaded as context).
 
 ## Naming and namespacing
 
