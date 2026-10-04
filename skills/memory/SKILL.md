@@ -55,7 +55,8 @@ session-start context.
   requirements/     specs:                  {slug}.md
   tasks/            task breakdowns:        {slug}.md  (checklist with owners + status)
   research/         sourced findings:       {slug}.md  (with sources, dates, confidence)
-  reviews/          review & critique reports: {slug}.md
+  reviews/          review & critique reports: {slug}.md (an MR review may have a sibling derived
+                      {slug}.html: regenerable from the md, local only)
   lessons/          feedback loop:          {YYYY-MM-DD}-{slug}.md
   knowledge/        codebase map:           graph.md (architect, at /bq:onboard; links docs/)
   archive/          dropped plans moved aside by /bq:drop:

@@ -20,6 +20,8 @@ scripts/                        validate.py (CI validator), bq_memory.py (memory
 templates/bq/                   starter content for a project's ~/.ai/<project>/ memory (init/onboard),
                                 incl. knowledge/graph.md (written by /bq:onboard)
 docs/architecture.md, USAGE.md  architecture overview and day-to-day usage
+assets/logo/                    the bq logo (inert): mark.svg, lockup.svg banner, and the README's
+                                icon.svg / icon-dark.svg for light / dark themes
 install.sh, install-copilot.sh  manual/plugin installer and the Copilot transform
 ```
 

@@ -378,7 +378,7 @@ docs/                   architecture overview + usage guide
 install.sh              Claude Code installer (plugin CLI or manual copy)
 install-copilot.sh      GitHub Copilot installer (transforms the canonical files)
 scripts/                bq_memory.py — memory history CLI; skill_usage.py — skill usage report;
-                        validate.py; tests
+                        render_review.py — HTML view of a review report; validate.py; tests
 .github/workflows/      CI: validator, validator tests, shellcheck + bash -n of the installers
 CLAUDE.md               contributor notes for editing the plugin
 CHANGELOG.md, LICENSE   release notes; MIT license

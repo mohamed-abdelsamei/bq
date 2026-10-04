@@ -17,7 +17,8 @@ manifest in [.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json
   checkpoint, see [Memory history](#memory-history)), with shared helpers `_bqhook.py` and
   `_bqmem.py`
 - `scripts/bq_memory.py` — the memory history CLI; `scripts/skill_usage.py` — the read-only skill
-  usage report
+  usage report; `scripts/render_review.py` — derives the HTML report from a review's markdown (see
+  [Review reports](#review-reports))
 - `templates/bq/` — starter content for a project's `~/.ai/<project>/` memory, used by `/bq:init` and
   `/bq:onboard` (`knowledge/graph.md` is written only by `/bq:onboard`)
 - `.claude-plugin/plugin.json` — the plugin manifest
@@ -26,8 +27,8 @@ manifest in [.claude-plugin/marketplace.json](../.claude-plugin/marketplace.json
 The marketplace entry's `source` is `"./"`, so the whole repo is copied into the plugin cache (a
 local-folder marketplace copies even gitignored files). The plugin loader registers `agents/`,
 `commands/`, `skills/`, `hooks/` and the manifests. Two other parts are used at runtime without being
-registered: `templates/bq/`, read by `/bq:init` and `/bq:onboard`, and `scripts/bq_memory.py` and
-`scripts/skill_usage.py`, which commands and the memory skill run via
+registered: `templates/bq/`, read by `/bq:init` and `/bq:onboard`, and `scripts/bq_memory.py`,
+`scripts/skill_usage.py` and `scripts/render_review.py`, which commands and skills run via
 `${CLAUDE_PLUGIN_ROOT}/scripts/`. The rest — `install.sh` and `install-copilot.sh`,
 `scripts/validate.py` and the tests, `docs/`, `CHANGELOG.md`, the root `CLAUDE.md`, and
 `assets/logo/` (the logo: `mark.svg`, the banner `lockup.svg`, and the README's `icon.svg` /
@@ -64,7 +65,8 @@ Neither installer copies `hooks/` or `scripts/`: the SessionStart hooks exist on
 install, and the manual and Copilot installs run the memory CLI from a bq checkout. The manual install
 keeps the `/bq:init`, `/bq:onboard` and `/bq:refresh` offer to turn on the history; the Copilot
 install drops it (claude-only span with an empty alternative), and its `/bq-status` and
-`/bq-improve` skip the index and the usage report.
+`/bq-improve` skip the index and the usage report. Likewise `/bq:review-mr` writes only the markdown
+report there, with no HTML.
 
 Wording that only fits Claude Code is wrapped in claude-only markers, which `install-copilot.sh`
 swaps for the Copilot alternative — the syntax is in the README's
@@ -172,8 +174,23 @@ notices, recovery, purging a secret — lives in the memory skill's
 - **Limits.** Protection starts at the first checkpoint; empty folders aren't restored; a rename
   looks like a deletion; the history is one copy on the same disk (use Time Machine as well).
 
+## Review reports
+
+`/bq:review-mr` records its review as `~/.ai/<project>/reviews/{slug}.md`, in the card format defined
+by the mr-review skill's `references/report-format.md` (tone rules in `references/comment-style.md`).
+Each finding carries a severity (critical, important, minor, nit; "blocking" is derived from it), a
+confidence, and an anchor. A finding may include a "Proposed patch (not posted)"; it becomes
+GitLab/GitHub suggestion syntax only if the user explicitly asks to post those named findings.
+
+On plugin installs only, the Maestro then runs `scripts/render_review.py` to derive a self-contained
+`{slug}.html` beside the markdown, best effort. The markdown is the record; the HTML is a view of it.
+The page has no JavaScript, escapes all review text, sets a CSP, and uses a built-in
+stylesheet (light, dark and print). Content the parser can't read shows as a visible banner rather than being dropped. The
+manual and Copilot installs don't copy `scripts/`, so they keep the markdown only.
+
 ## Skill fitness (report only)
 
+- `validate.py` fails when a skill reference or command script path it mentions doesn't exist.
 - `validate.py` warns, never fails, on skill descriptions without a "Use when" clause, a quoted
   trigger phrase shared by two skills, a `/bq:<name>` that doesn't exist, and a skill over its word
   ceiling.

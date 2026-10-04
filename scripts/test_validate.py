@@ -73,6 +73,21 @@ class SeededDefects(unittest.TestCase):
         p.write_text(re.sub(r"(?m)^tools:.*\n", "", p.read_text(encoding="utf-8"), count=1), encoding="utf-8")
         self.assertCaught("FAIL: agents/researcher.md: missing 'tools:' line")
 
+    def test_broken_skill_reference(self):
+        self.edit("skills/mr-review/SKILL.md", "references/comment-style.md", "references/no-such-file.md")
+        self.assertCaught("references 'references/no-such-file.md'")
+
+    def test_fenced_bare_reference_not_flagged(self):
+        p = self.root / "skills/mr-review/SKILL.md"
+        p.write_text(p.read_text(encoding="utf-8") + "\n```\nsee references/in-a-fence.md\n```\n", encoding="utf-8")
+        self.assertFalse(any("in-a-fence" in f for f in validate.run(self.root).fails))
+        p.write_text(p.read_text(encoding="utf-8") + "\nsee references/outside-fence.md\n", encoding="utf-8")
+        self.assertTrue(any("outside-fence" in f for f in validate.run(self.root).fails))
+
+    def test_broken_command_script_reference(self):
+        self.edit("commands/review-mr.md", "scripts/render_review.py", "scripts/no_such_script.py")
+        self.assertCaught("scripts/no_such_script.py does not exist")
+
     def test_todowrite_and_unknown_tool(self):
         self.edit("agents/architect.md", "tools: Read,", "tools: TodoWrite, Frobnicate, Read,")
         self.assertCaught("FAIL: agents/architect.md: TodoWrite is not allowed")

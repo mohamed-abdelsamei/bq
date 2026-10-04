@@ -1,5 +1,7 @@
 # Review: {Target}
 
+_MR/PR reviews follow the mr-review skill's `references/report-format.md` instead of this layout._
+
 - **Date:** {YYYY-MM-DD}
 - **Reviewer:** reviewer | tester | Maestro
 - **Verdict:** Ship | Fix first | Reconsider | Blocked
