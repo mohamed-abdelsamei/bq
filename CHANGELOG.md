@@ -9,6 +9,22 @@ All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.
 
 - **The bq logo**, in `assets/logo/`: a red b and a teal q arguing nose to nose (SVG mark, light
   and dark icons, banner). The README opens with it, switching icons by color scheme.
+- **Structured `/bq:review-mr` reports.** The review is written to `reviews/{slug}.md` as cards
+  (`skills/mr-review/references/report-format.md`, `comment-style.md`). Findings carry a severity
+  (critical, important, minor, nit; blocking is derived), a confidence and an anchor, and may include
+  a "Proposed patch (not posted)", converted to GitLab/GitHub suggestion syntax only when you ask to
+  post named findings. Briefs carry the head SHA.
+- **HTML report.** On plugin installs, `scripts/render_review.py` derives a self-contained
+  `reviews/{slug}.html` from the markdown (built-in stylesheet, no JavaScript, escaped, CSP, visible
+  parse banners). Manual and Copilot installs don't copy `scripts/`, so they get markdown only.
+- **`validate.py` checks** that skill references and command scripts it mentions exist.
+- **Isolated, background `/bq:review-mr`.** A hosted MR or remote branch is fetched into private
+  `refs/bq-review/` refs and reviewed in its own locked worktree under
+  `<repo-parent>/.bq-review/<project>/`, diffed against the fetched target. Your branch, working
+  tree, stash, local branches and `origin/*` refs are never touched, and a stale local `main` no
+  longer skews the diff. On Claude Code the specialists run in the background, so you keep working
+  while the review runs. The worktree is reused on a re-review; `/bq:review-mr cleanup` removes it
+  (`skills/mr-review/references/isolated-checkout.md`).
 
 ## [0.8.0] — 2026-10-01
 

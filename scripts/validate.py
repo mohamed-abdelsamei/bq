@@ -629,6 +629,32 @@ def check_hook_entry(rep, root, path, where, hook):
                 rep.fail(path, f"{where} references missing file '{rel}'")
 
 
+SKILL_REF = re.compile(r"references/([\w.-]+\.md)")
+PLUGIN_SCRIPT_REF = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/scripts/([\w.-]+)")
+
+
+def check_file_refs(rep, root):
+    """CI-only (checks the checkout, not an install): every `references/<x>.md` a SKILL.md mentions
+    exists in that skill (or, as `skills/<s>/references/<x>.md`, in the named skill), and every
+    `${CLAUDE_PLUGIN_ROOT}/scripts/<x>` a command mentions exists under scripts/."""
+    for f in sorted((root / "skills").glob("*/SKILL.md")):
+        text = read_text(rep, f)
+        if text is None:
+            continue
+        text = re.sub(r"(?ms)^(```|~~~).*?(^\1|\Z)", lambda m: " " * len(m.group(0)), text)  # skip fenced blocks
+        for m in SKILL_REF.finditer(text):
+            before = text[max(0, m.start() - 40):m.start()]
+            named = re.search(r"skills/([\w-]+)/$", before)
+            base = root / "skills" / named.group(1) if named else f.parent
+            if not (base / "references" / m.group(1)).is_file():
+                rep.fail(f, f"references 'references/{m.group(1)}' but {rep._rel(base / 'references' / m.group(1))} does not exist")
+    for f in sorted((root / "commands").glob("*.md")):
+        text = read_text(rep, f)
+        for name in sorted(set(PLUGIN_SCRIPT_REF.findall(text or ""))):
+            if not (root / "scripts" / name).is_file():
+                rep.fail(f, f"references ${{CLAUDE_PLUGIN_ROOT}}/scripts/{name} but scripts/{name} does not exist")
+
+
 CHECKS = [
     check_manifests,
     check_agents,
@@ -640,6 +666,7 @@ CHECKS = [
     check_cross_refs,
     check_lesson_format,
     check_hooks,
+    check_file_refs,
 ]
 
 

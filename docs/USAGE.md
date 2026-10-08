@@ -82,7 +82,7 @@ Match the command to what you're actually trying to do:
 | Fix a bug | `/bq:debug <bug>` | reproduce → root cause → smallest fix → regression test |
 | Understand how something works | `/bq:research <question>` | A sourced, confidence-rated findings doc |
 | Review code or a decision | `/bq:review <target>` | Findings + a clear verdict |
-| Open / review an MR | `/bq:mr` / `/bq:review-mr <ref>` | A drafted request / a two-axis review |
+| Open / review an MR | `/bq:mr` / `/bq:review-mr <ref>` | A drafted request / a two-axis review, saved to `reviews/` |
 | Understand a past decision | `/bq:ask <question>` | A plain-language answer from the record |
 | Pressure-test your own thinking | `/bq:grill <idea>` | Cass interrogates you, one sharp question at a time |
 | Capture a lesson | `/bq:retro <what happened>` | A reusable lesson that changes future behavior |
@@ -140,7 +140,8 @@ Everything the team decides lands in `~/.ai/<project>/`. You can open and read a
   requirements/   specs
   tasks/          task lists + status
   research/       sourced findings
-  reviews/        code reviews + critiques
+  reviews/        code reviews + critiques (/bq:review-mr also writes a .html copy of each
+                  report on plugin installs)
   knowledge/      graph.md — a map of the codebase, from /bq:onboard
   lessons/        what to do differently next time
   archive/        dropped plans, moved aside by /bq:drop

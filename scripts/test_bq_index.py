@@ -116,6 +116,13 @@ class Index(unittest.TestCase):
         self.assertNotIn("old-secret-name", out)
         self.assertNotIn("old-tasks", out)
 
+    def test_sibling_html_is_a_blank_row_not_an_error(self):
+        p = self.ai / "proj" / "reviews" / "mr-1-x.html"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("<!doctype html><title>x</title>\n", encoding="utf-8")
+        _, _, arts = self.sections(self.cli().stdout)
+        self.assertIn("reviews/mr-1-x.html —  —  — ", arts)
+
     def test_fields_and_free_form(self):
         _, _, arts = self.sections(self.cli().stdout)
         by = {ln.split(" — ", 1)[0]: ln for ln in arts}
