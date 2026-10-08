@@ -176,6 +176,13 @@ notices, recovery, purging a secret — lives in the memory skill's
 
 ## Review reports
 
+`/bq:review-mr` never touches the user's checkout. It fetches the MR head and the target into
+private `refs/bq-review/<key>/` refs, reviews in a locked worktree at
+`<repo-parent>/.bq-review/<project>/<key>` (kept and moved on a re-review; `/bq:review-mr cleanup`
+removes it), and diffs against the fetched target rather than the local, possibly stale one
+(`skills/mr-review/references/isolated-checkout.md`). On Claude Code the specialists run in the
+background, so the session stays free while the review runs.
+
 `/bq:review-mr` records its review as `~/.ai/<project>/reviews/{slug}.md`, in the card format defined
 by the mr-review skill's `references/report-format.md` (tone rules in `references/comment-style.md`).
 Each finding carries a severity (critical, important, minor, nit; "blocking" is derived from it), a

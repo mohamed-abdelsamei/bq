@@ -109,9 +109,10 @@ spec/contract/doc claim, adds a check-then-act or a new fallible dependency, or 
 1. **Resolve the real diff — never review from the description alone.** Accept any target: an MR/PR
    number or URL (`!123`, `#456`), a branch, `current branch`, `current changes`, or a pasted
    diff/patch.
-   - **Hosted MR/PR** — use the platform tool/CLI to fetch both metadata *and* the diff.
-   - **Branch** — fetch the remote if needed, find the merge base against the target branch, review
-     `git diff <base>...<head>`.
+   - **Hosted MR/PR** — use the platform tool/CLI for the metadata; take the diff from an isolated
+     worktree at the head SHA (`references/isolated-checkout.md`).
+   - **Branch** — the same isolated fetch and worktree; review `git diff <base>...HEAD` against the
+     **fetched** target, never the user's possibly stale local copy, and never touch their checkout.
    - **Local** — review `git diff` (include staged changes if relevant).
    - Capture the target branch, changed files, commits, title/description, and the linked issue or
      requirement. If the target can't be resolved to concrete changes, **stop and say exactly what's missing.**
