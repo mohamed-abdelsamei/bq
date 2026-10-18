@@ -150,7 +150,7 @@ Code generated .* DO NOT EDIT|@generated|[Tt]his file (is|was) (auto-?|automatic
 
 It is a skip reason only when **both** the target-side file (`git -C "<dir>" show "<rref>:<path>"`)
 and the head-side file carry a matching header. Head-side lines are read with `git -C "<dir>" show
-"<sha>:<path>"`, with the path refusals in `/bq:review-mr` Close; for `current changes` or a pasted
+"<sha>:<path>"`, with the path refusals in `report-format.md`; for `current changes` or a pasted
 patch, take them from the saved patch's new side where it covers the first 5 lines; other first
 lines are unchanged: read them at `<sha>`. A header that an existing file
 gains in this MR is not a skip reason: the file gets full line review and the process note
@@ -198,7 +198,7 @@ Changed lines = the sum of added + deleted over the paths not skip-listed; files
 ## Nit cap
 
 Show at most the cap's nits (threshold table). Apply it when consolidating, after dedupe and
-before ID assignment and Verify:
+matching, before new IDs and Verify (`/bq:review-mr` **Close** order):
 
 - Show first the nits that match a prior open ID, then confirmed before suspected. A nit carrying a
   prior ID, Marker or Posted value is always shown, even past the cap, so the rewrite guard holds.

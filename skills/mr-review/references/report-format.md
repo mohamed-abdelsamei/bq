@@ -28,17 +28,18 @@ Optional keys follow, each only when it applies, and each is shown in the masthe
 In order: `## Code findings`, `## Business findings`, `## Process & convention findings`,
 `## Prior findings triaged`, `## Validation`, `## Verdict`. Write "None." for an empty section.
 `## Validation` carries a `- Last ID: F<n>` line, the highest ID this file has ever used, kept on
-every rewrite so new IDs start above it (a fresh file keeps its own). The renderer warns when it is
+every rewrite so new IDs start above it (a fresh file keeps its own; with no such line, start
+above the highest ID in the file). The renderer warns when it is
 lower than an ID used in the file (card, nit, triage or `- Dropped F<n>:` line).
 
-`## Validation` also carries exactly one Verify line, written at Close (`/bq:review-mr` **Verify**):
+`## Validation` also carries exactly one Verify line, written at Close (`verify.md`):
 
 ```
 - Verify: N found, K kept, D downgraded, X dropped (<method>; trigger: <threshold that fired>)
 ```
 
-This file is the one owner of the line's syntax and vocabulary; the command and the skill point
-here. N = K+D+X.
+This file is the one owner of the line's syntax and vocabulary; `verify.md`, the command and the
+skill point here. N = K+D+X.
 
 - `<method>`, exactly one of: `Cass refute round`, `Maestro re-read`, `Maestro re-read (verify
   round failed)`, `Maestro re-read (no subagent on this install)` (every Copilot run, whatever the
@@ -125,14 +126,14 @@ this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
   ID whose Marker or Posted value is malformed, or whose tail is a near miss, is **unrepairable**:
   its malformed value isn't compared (carry it verbatim; correct it only with the user's
   confirmation), its valid half still is, dropping it is still reported,
-  and it is marked do-not-post until the user decides.<!-- claude-only --> The script also repeats
+  and it is marked do-not-post and the user is asked before any posting<!-- claude-only -->. The script also repeats
   the renderer's malformed and near-miss posted-state lines from either file, prefixed `old file:`
   or `new file:`, and prints `unrepairable: F<n> …` for each unrepairable ID; a `new file:` line
   that carries such an ID's old tail verbatim is folded into it. Exit 1: an actionable line remains
   (fix and re-run); exit 3: only `old file:` and `unrepairable:` lines remain; exit 0: clean or only
-  `old file:` lines. Exit 2 is a usage error, and exit 1 with no output a read error.<!-- copilot: --><!-- /claude-only -->
-  Validation logs each `old file:` line as `- Guard (old file): <line>` and each unrepairable ID as
-  `- Guard (unresolved): <line>`.
+  `old file:` lines. Exit 2 is a usage error, and exit 1 with no output a read error (check the paths, else check by
+hand). Validation logs each `old file:` line as `- Guard (old file): <line>` and each unrepairable
+ID as `- Guard (unresolved): <line>`.<!-- copilot: . Validation logs each unrepairable ID as `- Guard (unresolved): F<n> …`. --><!-- /claude-only -->
 
 - **Anchor** is one of five forms (meaning and sides in `comment-style.md` section 2):
   `<repo>/<path>:<n>`, `:<a>-<b>` (new side), `:-<n>`, `:-<a>-<b>` (old side), or
@@ -186,8 +187,9 @@ cannot leave `reviews/`. A `full` or `since-last` review writes `reviews/{slug}.
 review writes `reviews/{slug}-fresh-<sha7>.md`, where `<sha7>` = the first 7 characters of the head
 SHA. The suffix is added after the slug is derived, so repeated `-` still collapse in the slug
 itself. The head SHA must match `[0-9a-f]{7,40}`. Quote paths passed to a shell
-(`git show <sha>:"<path>"`, the render command) and refuse paths from diff text containing `..` or
-shell metacharacters. A re-review of the same MR overwrites the file and records the head SHA
+(`git show <sha>:"<path>"`, the render command). A path from diff text must be repo-relative:
+refuse any containing `..` or shell metacharacters (`` ` $ ; | & < > ( ) ``, quotes, newlines),
+and never pass a refused path to a shell. A re-review of the same MR overwrites the file and records the head SHA
 it reviewed in the header.
 
 ## Comment rules (brief)

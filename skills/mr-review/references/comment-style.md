@@ -42,6 +42,8 @@ Five forms. Line numbers are 1-based, and a range stays on one side (`a` <= `b`)
   GitHub expects with `side: LEFT`). A deleted file uses its old path.
 - In diff is computed from `git diff -U0` hunks (Close), so it is conservative: a context line, or a
   range bridging two hunks, reads `no`. A hunk count of 0 covers no lines; a missing count means 1.
+  By hand, read the hunk headers `@@ -a,b +c,d @@` of the head-side path: a new-side Anchor checks
+  `+c,d`, an old-side one `-a,b`; a file-level Anchor is `no`.
 - Path hygiene: repo-relative only. Never `/Users/`, `/home/`, `/tmp/` or any absolute local path,
   in any field.
 - Optional for business findings (a missing behavior has no line).

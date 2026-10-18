@@ -102,8 +102,7 @@ object or a well-formed string).
   merged.
 - **`$since` = `$sha`** (the expanded SHA) → no new commits; say so and stop.
 
-Otherwise specialists review the delta; the full MR diff above stays as context, and Close's In
-diff still uses the full MR diff:
+Otherwise specialists review the delta; the full MR diff above stays as context:
 
 ```
 git -C "<wt>" diff "$since..HEAD"
