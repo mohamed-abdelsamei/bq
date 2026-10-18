@@ -89,6 +89,11 @@ A review is only useful if its findings are trusted — protect that trust.
 - Check the forgotten states: empty, loading, error, permission-denied, migration, rollback, partial failure.
 - Watch for scope creep, gaps against the requirement, and second-order costs (operational, support, scale).
 - Flag a change that is technically clean but doesn't solve the requested problem.
+- Against a ticket (`references/ticket-intake.md`): an AC the diff doesn't cover (as opposed to
+  breaks, which is critical) is **important** (a requirement gap); scope beyond the ticket is
+  **minor**, or **important** if it's risky; a primary ticket whose status is closed, done, won't-do
+  or an equivalent terminal status is a `suspected` **process** finding.
+- Anchor ticket findings on primary keys only, never related ones; quote the cited AC in **Why**.
 
 **Process & convention** (repo rules are often the real blockers)
 - Honor the repo's own contract — read `AGENTS.md` / `CONTRIBUTING` / `CLAUDE.md` and any skill they

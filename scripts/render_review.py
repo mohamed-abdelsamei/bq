@@ -31,6 +31,9 @@ HEADER_KEYS = ("MR", "Title", "Head SHA", "Target", "Date", "Reviewers", "Verdic
 OPTIONAL_HEADER_KEYS = ("Mode", "Since", "Ticket")  # absent is fine; shown in the masthead when present
 MODES = ("fresh", "full", "since-last")
 SHA_RE = re.compile(r"[0-9a-f]{7,40}")
+# Lenient: a Ticket header needs a state on at least one key: a "(...)" group holding "fetched" or
+# "not fetched", after an optional source ("(branch, fetched via x)"). Odd cases stay unwarned.
+TICKET_STATE_RE = re.compile(r"\([^)]*\b(?:not )?fetched\b", re.I)
 META_ORDER = ("MR", "Head SHA", "Target", "Date", "Reviewers", "Mode", "Since", "Ticket",
               "Title")  # Title last: it can be long
 IN_DIFF = ("yes", "no")
@@ -756,6 +759,9 @@ def render(text, name):
         problem("header Mode %r is not one of: %s" % (header["Mode"], ", ".join(MODES)))
     if "Since" in header and not SHA_RE.fullmatch(header["Since"]):
         problem("header Since %r is not a 7-40 character lowercase hex SHA" % header["Since"])
+    if "Ticket" in header and not TICKET_STATE_RE.search(header["Ticket"]):
+        warn("header Ticket %r gives no key a state; write KEY (fetched) or KEY (not fetched: <reason>)"
+             % header["Ticket"])  # soft: stderr only, no banner
 
     cards, nits = [], []
     for heading, axis in SECTIONS[:3]:

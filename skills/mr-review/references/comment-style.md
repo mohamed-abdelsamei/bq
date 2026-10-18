@@ -13,8 +13,8 @@ apply in full.
   fence, `-`, `>`), so it cannot break the report structure.
 - **Neutral voice about the code.** "The loop never exits on 4xx", not "you forgot to...". No "you".
 - **Confidence sets the mood.** `confirmed` = reproduced, a command was run, or read directly in the
-  cited code: assert it. `suspected` = anything else: phrase it as a question ("Is the toast required
-  by AC-3? The diff adds none.").
+  cited code: assert it. `suspected` = anything else: phrase it as a question ("Should an exhausted
+  retry show an error state? `sync()` returns `None` and nothing is surfaced.").
 - **`[nit]`** is labelled, one line, and never blocking. No concrete risk means nit at most.
 - **Strengths:** 0-2, each earned and specific (what is good and why it matters). No filler praise
   ("nice work", "LGTM overall"). Write them as at most one `Strengths: a; b` line at the top of the
@@ -82,6 +82,10 @@ posted, approved or merged otherwise.
   replacement itself contains triple backticks, wrap it in a longer outer fence (four or more).
 - **Line outside the diff:** post a plain comment with a normal code block, not a suggestion.
 - Rendering of suggestions created through the GitLab API is unverified; say so if it matters.
+- **No ticket text.** A posted comment states the expected behaviour in code terms and never
+  references, quotes or paraphrases the ticket (no key, no AC text). Only the local md may quote it,
+  and only in **Why**: at post time a Why that quotes the ticket is replaced with code evidence or
+  left out. What and Fix are posted as written, so they are ticket-free already in the md.
 
 ## 5. Examples
 

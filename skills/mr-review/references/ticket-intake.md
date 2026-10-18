@@ -136,5 +136,4 @@ Not-found results follow **Not found or not visible** above instead.
 
 ## Posting
 
-Posted text never references or paraphrases the ticket; it states expected behaviour in code
-terms. The rest of the report side belongs with the report format.
+Ticket text in posted comments: `comment-style.md` section 4.

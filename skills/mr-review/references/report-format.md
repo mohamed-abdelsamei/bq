@@ -15,7 +15,13 @@ Optional keys follow, each only when it applies, and each is shown in the masthe
 - `Mode`: `fresh`, `full` or `since-last`. Any other value gets a warning.
 - `Since`: the baseline SHA (`[0-9a-f]{7,40}`) a `since-last` review covered from. Anything else gets
   a warning.
-- `Ticket`: free text, e.g. `ABC-12 (fetched)` or `ABC-12 (not fetched: <reason>)`.
+- `Ticket`: the primary keys only (branch or title, see `ticket-intake.md`), each with its state,
+  comma-separated: `ABC-12 (fetched), ABC-13 (not fetched: no Jira skill/tool available)`. Related
+  keys go only in the Validation `- Ticket:` line. An upper-case branch key or a title key that
+  isn't found is written `KEY (not fetched: not found or not visible)`. Leave the line out when no
+  ticket was detected, when only related keys were used, or when the only candidate was a lowercase
+  branch guess that wasn't found. The renderer warns (stderr only, no banner) when no `(...)` group
+  carries a `fetched` or `not fetched` state, so `(branch, fetched via <tool>)` counts too.
 
 ## Sections
 
@@ -53,6 +59,10 @@ this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
 - **In diff** says whether every anchored line lies inside one diff hunk on the anchor's side. The
   Maestro writes it at Close, never a specialist. `no` means the finding cannot be posted inline. It
   is shown as a tag; any value other than `yes` or `no` gets a warning.
+- **Why** of a business finding that cites a ticket AC quotes it, prefixed with its primary key:
+  ``**Why:** `ABC-12 AC-2: the user sees an error toast` ``. It is still one line of inline code
+  (`comment-style.md` section 1); quote one AC line, or the part of it that matters. Write any
+  backtick inside the quoted AC as `'` so the code span holds.
 - **Marker** is the 12-hex posting marker; **Posted** is added once the finding is posted.
 
 - **Anchor** is one of five forms (meaning and sides in `comment-style.md` section 2):
@@ -108,7 +118,8 @@ it reviewed in the header.
 
 Lead with impact; one issue per finding; quote evidence; neutral voice; a question when
 `suspected`; no `/Users/`, `/home/`, `/tmp/` paths. Full rules and the suggestion gates:
-`comment-style.md`. Nothing is posted without an explicit user go-ahead.
+`comment-style.md`. Nothing is posted without an explicit user go-ahead. Ticket text in posted
+comments: `comment-style.md` section 4.
 
 ## Sample
 
@@ -122,6 +133,7 @@ Lead with impact; one issue per finding; quote evidence; neutral voice; a questi
 **Reviewers:** Cass (code), Sol (business)
 **Verdict:** Request changes
 **Mode:** full
+**Ticket:** SYNC-41 (fetched)
 
 ## Code findings
 ### [important] Retry loop never stops on 4xx
@@ -144,13 +156,13 @@ Proposed patch (not posted)
 - [nit] F3 Rename `d` to `delay`. (`acme-sync/sync/client/retry.py:50`)
 
 ## Business findings
-### [minor] No user-visible failure state
+### [important] No user-visible failure state
 **ID:** F2
 **Axis:** business
 **Confidence:** suspected
-**What:** Is the user told when retries are exhausted?
-**Why:** AC-3 requires an error toast; the diff adds none.
-**Fix:** Surface the final failure, or confirm AC-3 is out of scope.
+**What:** Is the user told when retries are exhausted? The diff adds no error state.
+**Why:** `SYNC-41 AC-3: the user sees an error toast when sync gives up`
+**Fix:** Surface the final failure state to the user, or confirm an error state is out of scope.
 
 ## Process & convention findings
 None.
@@ -160,6 +172,7 @@ None.
 
 ## Validation
 - `pytest tests/sync` — pass. CI green on 4f2a9c1.
+- Ticket: used SYNC-41 (branch, fetched via the session's Jira tool)
 
 ## Verdict
 Strengths: backoff is capped and jittered; the new tests cover the 5xx path.

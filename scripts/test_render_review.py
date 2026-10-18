@@ -73,8 +73,8 @@ class RenderTests(unittest.TestCase):
         def nums(row):
             return re.findall(r'<td class="num"[^>]*>([^<]*)</td>', row)
         # head, critical, important, minor, nit, total
-        self.assertEqual(nums(rows[2]), ["1", "0", "0", "1", "Yes"])   # important
-        self.assertEqual(nums(rows[3]), ["0", "1", "0", "1", "No"])    # minor
+        self.assertEqual(nums(rows[2]), ["1", "1", "0", "2", "Yes"])   # important
+        self.assertEqual(nums(rows[3]), ["0", "0", "0", "0", "No"])    # minor
         self.assertEqual(nums(rows[4]), ["1", "0", "0", "1", "No"])    # nit
         self.assertEqual(nums(rows[5])[:4], ["2", "1", "0", "3"])      # totals
         self.assertNotIn("cards parsed", doc)
@@ -83,7 +83,9 @@ class RenderTests(unittest.TestCase):
         self.assertIn('class="ln add">+for _ in range(MAX_ATTEMPTS):', doc)
         self.assertEqual(doc.count("Head SHA: <code>4f2a9c1</code>"), 3)  # two cards + footer
         self.assertIn('<span class="tag blocking">Blocking</span>', doc)
-        self.assertIn('<span class="tag">Non-blocking</span>', doc)
+        self.assertEqual(doc.count('<span class="tag blocking">Blocking</span>'), 2)
+        minor = render(sample().replace("### [important] No user-visible", "### [minor] No user-visible"))[0]
+        self.assertIn('<span class="tag">Non-blocking</span>', minor)
         self.assertIn("<dt>Head SHA</dt><dd><code>4f2a9c1</code></dd>", doc)
         self.assertLess(doc.index("Retry loop never stops"), doc.index("No user-visible failure"))
         self.assertIn("Generated from review.md. This renderer never posts anything.", doc)
@@ -196,7 +198,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn("<h2>Unparsed text</h2>", doc)
         self.assertIn("Retry loop never stops on 4xx", doc)  # kept, escaped
         self.assertTrue(any("unparsed" in w for w in warns))
-        md = sample().replace("### [important]", "### [urgent]")
+        md = sample().replace("### [important]", "### [urgent]", 1)
         self.assertIn("1 of 2 cards parsed", render(md)[0])
 
     def test_contradictions(self):
@@ -205,7 +207,7 @@ class RenderTests(unittest.TestCase):
         self.assertIn("Verdict contradicts findings", d)
         d = render(base.replace("**Verdict:** Request changes", "**Verdict:** Approve with changes", 1))[0]
         self.assertIn("Verdict contradicts findings", d)
-        none = re.sub(r"### \[important\].*?(?=- \[nit\])", "", base, flags=re.S)
+        none = re.sub(r"### \[important\].*?(?=- \[nit\]|\n## )", "", base, flags=re.S)
         d = render(none)[0]
         self.assertIn("Verdict contradicts findings", d)
         self.assertNotIn("Verdict contradicts", render(base)[0])
@@ -556,6 +558,59 @@ class V2FieldTests(unittest.TestCase):
         self.assertEqual(warns, [])
         self.assertIn("<span>F is not an id here</span>", doc)
 
+    def test_ticket_line_shown_in_masthead(self):
+        hdr = "**Ticket:** ABC-12 (fetched), ABC-13 (not fetched: no Jira skill/tool available)\n"
+        doc, warns = render(v2_review(header=hdr))
+        self.assertEqual(warns, [])
+        self.assertIn("<dt>Ticket</dt><dd>ABC-12 (fetched), ABC-13 (not fetched: no Jira skill/tool "
+                      "available)</dd>", doc)
+
+    def test_ticket_state_warning_is_soft_and_lenient(self):
+        # One key with a state is enough; "fetched via <tool>" counts.
+        for ok in ("ABC-12 (fetched)", "ABC-12 (fetched via the session's Jira tool)",
+                   "ABC-12 (not fetched: tool not authorised)", "ABC-12, ABC-13 (fetched)",
+                   "ABC-12 (Fetched)", "ABC-12 (not fetched: not found or not visible)"):
+            doc, warns = render(v2_review(header="**Ticket:** %s\n" % ok))
+            self.assertEqual(warns, [], ok)
+        # No state for any key: a hand-written header. Warned on stderr, no banner, still shown.
+        for bad in ("ABC-12", "ABC-12, ABC-13", "ABC-12 (done)", "ABC-12 fetched", "ABC-12 (prefetched)"):
+            doc, warns = render(v2_review(header="**Ticket:** %s\n" % bad))
+            self.assertEqual(len(warns), 1, (bad, warns))
+            self.assertIn("Ticket", warns[0])
+            self.assertIn("(fetched", warns[0])
+            self.assertNotIn('role="alert"', doc)
+            self.assertIn("<dt>Ticket</dt><dd>%s</dd>" % bad, doc)
+
+    def test_sample_carries_ticket_and_quoted_ac(self):
+        s = sample()
+        self.assertRegex(s, r"\n\*\*Ticket:\*\* [A-Z]+-\d+ \(fetched")
+        why = [l for l in s.splitlines() if l.startswith("**Why:** `") and " AC-" in l]
+        self.assertEqual(len(why), 1, why)
+        self.assertRegex(why[0], r"^\*\*Why:\*\* `[A-Z]+-\d+ AC-\d+: [^`]+`$")
+        self.assertIn("<dt>Ticket</dt>", render(s)[0])
+        self.assertIn("fetched via the session's Jira tool", s)
+        card = s.split("### [important] No user-visible failure state\n")[1].split("\n\n")[0]
+        self.assertIn("**Confidence:** suspected", card)
+        what = re.search(r"^\*\*What:\*\* (.*)$", card, re.M).group(1)
+        self.assertIn("?", what)
+        for k in ("What", "Fix"):  # posted as-is, so ticket-free already in the md
+            v = re.search(r"^\*\*%s:\*\* (.*)$" % k, card, re.M).group(1)
+            self.assertNotRegex(v, r"[A-Z][A-Z0-9]+-\d+|\bAC\b|ticket", k)
+
+    def test_ticket_state_after_a_source(self):
+        for ok in ("ABC-12 (branch, fetched via the session's Jira tool)",
+                   "ABC-12 (title, not fetched: tool not authorised)"):
+            self.assertEqual(render(v2_review(header="**Ticket:** %s\n" % ok))[1], [], ok)
+
+    def test_ac_quote_with_backtick_replaced_keeps_one_code_span(self):
+        # A backtick inside the quoted AC is written as ' so the inline code span holds.
+        card = V2_CARD.replace("**Why:** because", "**Why:** `ABC-12 AC-2: running 'make test' passes`")
+        doc, warns = render(v2_review(card=card))
+        self.assertEqual(warns, [])
+        why = doc.split("<dt>Why</dt><dd>")[1].split("</dd>")[0]
+        self.assertEqual(why.count("<code>"), 1, why)
+        self.assertNotIn("`", why)
+
     def test_v2_fields_are_escaped(self):
         card = V2_CARD.replace("F3", "<b>F3</b>").replace("yes", "<i>yes</i>").replace(
             "0123456789ab", "<script>x</script>")
@@ -816,7 +871,7 @@ class CssTests(unittest.TestCase):
     def test_severity_bar_segments_are_integers(self):
         doc = render(sample())[0]
         self.assertEqual(re.findall(r'class="seg tone-(\w+)" style="flex-grow:(\d+)"', doc),
-                         [("important", "1"), ("minor", "1"), ("nit", "1")])
+                         [("important", "2"), ("nit", "1")])
 
     def test_focus_and_print(self):
         self.assertIn(":focus-visible{outline:2px solid var(--focus);outline-offset:2px}", self.css)
