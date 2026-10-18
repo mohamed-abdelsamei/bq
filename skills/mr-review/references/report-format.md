@@ -89,7 +89,38 @@ this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
   ``**Why:** `ABC-12 AC-2: the user sees an error toast` ``. It is still one line of inline code
   (`comment-style.md` section 1); quote one AC line, or the part of it that matters. Write any
   backtick inside the quoted AC as `'` so the code span holds.
-- **Marker** is the 12-hex posting marker; **Posted** is added once the finding is posted.
+- **Marker** is the posting marker (R21, D7): exactly 12 lowercase hex characters,
+  `sha256("<key>|<source>|<ID>")[:12]`, where `<key>` is the review key (`mr-<id>` or
+  `branch-<name>`, `isolated-checkout.md`) and `<source>` is `canonical` or `fresh-<sha7>`. It is
+  computed once, at first post, then carried verbatim and never recomputed. Leave `**Marker:**` out
+  until the first post; never fill it at review time. <!-- claude-only -->To compute it, run
+  `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/render_review.py" --marker <key> <source> <ID>`.<!-- copilot:
+  To compute it, run `printf '%s' '<key>|<source>|<ID>' | shasum -a 256 | cut -c1-12`. --><!-- /claude-only -->
+  The renderer warns when it isn't 12 lowercase hex.
+- **Posted** is added once the finding is posted: `<platform ref> @ <sha7>`, the SHA the comment was
+  posted against. The ref is loose on purpose until the posting spikes pin it down: a GitHub
+  review-comment id or URL, or a GitLab note or discussion id (e.g. `!123#note_881`). The renderer
+  warns when the value doesn't end in ` @ <sha7>` (7-40 lowercase hex).
+- **Posted state off a card.** A nit or a `Not re-raised:` / `Fixed:` triage line keeps the same
+  values as a trailing `(Marker <h12>, Posted <ref> @ <sha7>)`, with whichever of the two it has
+  (`(Marker <h12>)` and `(Posted <ref> @ <sha7>)` are fine). A final `(...)` starting `Marker ` or
+  `Posted `, optionally followed by `.` or `;`, is read as that tail, and the renderer checks it like
+  the card fields. The ref may not contain parentheses. The renderer also warns on a near miss: a
+  nit or triage line with a `(` opening on `Marker` or `Posted` in any case but no tail at its end
+  (`(Marker: …)`, lowercase, text after the tail, swapped order), and a `Not re-raised`/`Fixed`
+  line with an F-ID in any other form, such as a bold label `- **Not re-raised:** F2`.
+- **Rewrite guard** (R25). Before rewriting `{slug}.md`, the Maestro copies the old file to scratch,
+  then checks the new file against the copy <!-- claude-only -->with `render_review.py --previous
+  <old.md> <new.md>`, which prints one line per problem (nothing when clean, exit 0) and writes no
+  html<!-- copilot: by hand --><!-- /claude-only -->. It reports: an ID that had a Marker or Posted value
+  anywhere in the old file (card, nit or triage line) and is nowhere in the new one; a changed or
+  missing Marker or Posted value on such an ID; a `Last ID` that is missing or lower than the old
+  one, or else a max ID (highest of Last ID and every ID in the file) lower than the old one; and an
+  ID at or below the old max that the old file no longer held (a used-up number coming back). An
+  ID with neither value, such as an unposted `Fixed:` line or an unposted `Not re-raised:` finding,
+  may disappear without a report. Reuse of a number still in the old file isn't detected. It also
+  repeats the renderer's malformed and near-miss posted-state lines from either file, prefixed
+  `old file:` or `new file:`.
 
 - **Anchor** is one of five forms (meaning and sides in `comment-style.md` section 2):
   `<repo>/<path>:<n>`, `:<a>-<b>` (new side), `:-<n>`, `:-<a>-<b>` (old side), or
@@ -103,9 +134,11 @@ this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
   Confirmed findings only; the gates are in `comment-style.md`.
 - A nit may be one line: `- [nit] Title — note. (`path:line`)`. It may start with its ID:
   `- [nit] F7 Title — note. (`path:line`)`. The renderer reads that prefix as an ID only when the
-  file has at least one card `**ID:**`; otherwise the nit text is kept verbatim. The trailing
+  file has at least one card `**ID:**`, a `- Last ID:` line or a `Not re-raised`/`Fixed` triage ID,
+  or when the nit itself ends in a posted-state tail; otherwise the nit text is kept verbatim. The trailing
   `(path:line)` is free text and is not validated: older files wrote it loosely, and checking it
-  would add warnings to files that rendered clean.
+  would add warnings to files that rendered clean. A posted nit ends with the posted-state tail
+  described above.
 
 ## Severity, blocking, verdict
 

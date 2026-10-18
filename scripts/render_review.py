@@ -3,9 +3,13 @@
 
 Usage: python3 scripts/render_review.py <review.md> [-o out.html]
        python3 scripts/render_review.py --in-diff <diff-file> [--repo <name>] <review.md>
+       python3 scripts/render_review.py --previous <old.md> <review.md>
+       python3 scripts/render_review.py --marker <key> <source> <ID>
 
 --in-diff prints `<ID or title>\t<anchor>\tyes|no|nofile|malformed` for each card with an Anchor, computed
 from a `git diff -U0` file (git diff output with `diff --git` headers), and writes nothing.
+--previous prints one line per posted-state problem of a canonical rewrite against the file it replaces
+(nothing when clean), and writes nothing. --marker prints the 12-hex posting marker.
 
 The md is the source of truth (format: skills/mr-review/references/report-format.md); the html is
 derived and regenerable. Same input gives byte-identical output (no timestamps). Parsing is strict:
@@ -17,6 +21,7 @@ Every md-derived string is escaped with html.escape(quote=True). There is no raw
 """
 import argparse
 import codecs
+import hashlib
 import html
 import re
 import sys
@@ -286,6 +291,22 @@ ANCHOR_LINES = re.compile(r"^(\S.*):(-?)([1-9]\d*)(?:-([1-9]\d*))?$")
 ANCHOR_DELETED = re.compile(r"^(\S.*) \(deleted\)$")
 ANCHOR_TWO = re.compile(r":-?\d+(?:-\d+)?[\s,;]")
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+# Posted state (R21, R25). A Marker is exactly 12 lowercase hex; Posted is `<platform ref> @ <sha7>`, the ref
+# free text (a review-comment id or URL, a note or discussion id) so the posting spike can pin it later.
+# Triage lines and nits carry both as a trailing `(Marker <h12>, Posted <ref> @ <sha7>)`, either part
+# optional; a final `(...)` that starts `Marker ` or `Posted ` (then an optional `.` or `;`) is read as that
+# tail and checked. A nit or triage line with a `(` opening on Marker/Posted (any case) but no such tail is a near miss
+# and warns, as does a Not re-raised/Fixed line with an F-ID in any other form (e.g. a bold label).
+MARKER_RE = re.compile(r"[0-9a-f]{12}")
+POSTED_RE = re.compile(r"\S.*? @ [0-9a-f]{7,40}")
+TAIL = re.compile(r"\(((?:Marker|Posted) [^()]*)\)\s*[.;]?\s*$")
+STATE_WORD = re.compile(r"\(\W*(?:marker|posted)\b", re.I)  # a near-miss tail; a title saying "posted" is fine
+TAIL_BODY = re.compile(r"(?:Marker (?P<m>[^,\s]+)(?:, Posted (?P<p>.+))?|Posted (?P<p2>.+))")
+TRIAGE = re.compile(r"^\s*[-*]\s+(?:Not re-raised|Fixed):\s+(F\d+)\b(.*)$")
+TRIAGE_LOOSE = re.compile(r"^\s*[-*]\s+\W*(?:not re-raised|fixed)\b.*\bF\d+\b", re.I)
+LAST_ID = re.compile(r"^\s*[-*]\s+Last ID:\s*F(\d+)\s*$")
+MARKER_SOURCE = re.compile(r"canonical|fresh-[0-9a-f]{7}")
+MARKER_KEY = re.compile(r"[a-z0-9-]{1,64}")  # the isolated-checkout <key>: mr-<id> or branch-<slug>
 
 
 def e(s):
@@ -602,6 +623,146 @@ def in_diff_report(text, diff_text, repo=None):
     return out
 
 
+def marker(key, source, fid):
+    """The posting marker h12 = sha256("<key>|<source>|<ID>")[:12] (D7), computed once at first post."""
+    if not MARKER_KEY.fullmatch(key) or not MARKER_SOURCE.fullmatch(source) or not CARD_ID.fullmatch(fid):
+        raise ValueError("expected a key of [a-z0-9-] (mr-<id> or branch-<name>), source canonical or fresh-<sha7>, and an ID F<n>")
+    return hashlib.sha256(("%s|%s|%s" % (key, source, fid)).encode("utf-8")).hexdigest()[:12]
+
+
+def parse_tail(text):
+    """-> (marker or None, posted or None, problem or None) from a trailing `(Marker .., Posted ..)`."""
+    m = TAIL.search(text)
+    if not m:
+        return None, None, None
+    b = TAIL_BODY.fullmatch(m.group(1).strip())
+    if not b:
+        return None, None, "malformed (Marker <h12>, Posted <ref> @ <sha7>) tail %r" % m.group(0)[:80]
+    return b.group("m"), b.group("p") or b.group("p2"), None
+
+
+def state_problems(what, mk, posted):
+    out = []
+    if mk is not None and not MARKER_RE.fullmatch(mk):
+        out.append("%s has a malformed Marker %r (expected 12 lowercase hex)" % (what, mk))
+    if posted is not None and not POSTED_RE.fullmatch(posted):
+        out.append("%s has a malformed Posted %r (expected '<platform ref> @ <sha7>')" % (what, posted))
+    return out
+
+
+def _field(card, k):
+    return " ".join(card["fields"][k]).strip() if k in card["fields"] else None
+
+
+def scan_state(by_name, cards, nits):
+    """Shared by render() and posted_state(), so both read the same IDs. `by_name` maps a lower-case section
+    name to its lines. Sets each nit's "id" (and strips it from "text") when its text starts `F<n> ` and the
+    nit carries a posted-state tail or the file has a card ID, a Last ID line or a triage ID. -> (triage
+    [(ID, rest of line)], Last ID or None, [malformed triage lines])."""
+    triage, loose, last = [], [], None
+    for name in ("prior findings triaged", "validation"):
+        fence = None
+        for ln in by_name.get(name, []):
+            inside, fence = fence, fence_step(ln, fence)
+            if inside is not None or fence is not None:
+                continue
+            if name == "validation":
+                lm = LAST_ID.match(ln)
+                if lm and last is None:
+                    last = int(lm.group(1))
+                continue
+            t = TRIAGE.match(ln)
+            if t:
+                triage.append((t.group(1), t.group(2)))
+            elif TRIAGE_LOOSE.match(ln):
+                loose.append(ln.strip())
+    gate = any(c["id"] for c in cards) or last is not None or bool(triage)
+    for n in nits:
+        idm = NIT_ID.match(n["text"])
+        if idm and (gate or TAIL.search(idm.group(2))):
+            n["id"], n["text"] = idm.group(1), idm.group(2)
+    return triage, last, loose
+
+
+def tail_problems(nits, triage, loose):
+    """-> the posted-state problems of nit and triage lines (scan_state output): malformed triage lines,
+    malformed or near-miss tails and bad Marker/Posted values. Shared by render() and previous_report()."""
+    out = ["triage line %r is not in the form '- Not re-raised: F<n> ...' or '- Fixed: F<n> ...'" % ln[:60]
+           for ln in loose]
+    tails = [("nit %r" % n["text"][:40], n["text"]) for n in nits]
+    tails += [("triage line %s" % fid, rest) for fid, rest in triage]
+    for what, text_ in tails:
+        mk, posted, bad = parse_tail(text_)
+        if bad:
+            out.append("%s has a %s" % (what, bad))
+        elif mk is None and posted is None and STATE_WORD.search(text_):
+            out.append("%s has a Marker/Posted near-miss: a '(' naming Marker/Posted but no "
+                       "'(Marker <h12>, Posted <ref> @ <sha7>)' tail at its end" % what)
+        out += state_problems(what, mk, posted)
+    return out
+
+
+def posted_state(text):
+    """-> ({ID number: (ID, Marker, Posted)} over cards, nits and Not re-raised/Fixed triage lines, Last ID or
+    None, tail problems). Sections are matched by name, any case; nit IDs are read as in render() (scan_state)."""
+    _, _, sections, _ = split_document(split_lines(text), lambda _m: None)
+    axis_of = {h.lower(): a for h, a in SECTIONS[:3]}
+    by_name, cards, nits = {}, [], []
+    for heading, slines in sections:
+        name = heading.strip().lower()
+        by_name.setdefault(name, []).extend(slines)
+        if name in axis_of:
+            c, n, _ = parse_findings(slines, axis_of[name], lambda _m: None)
+            cards += c
+            nits += n
+    triage, last, loose = scan_state(by_name, cards, nits)
+    items = [(fid,) + parse_tail(rest)[:2] for fid, rest in triage]
+    items += [(c["id"], _field(c, "Marker"), _field(c, "Posted")) for c in cards if c["id"]]
+    items += [(n["id"],) + parse_tail(n["text"])[:2] for n in nits if n["id"]]
+    ids = {}
+    for fid, mk, posted in items:
+        if not CARD_ID.fullmatch(fid):
+            continue
+        prev = ids.get(int(fid[1:]), (fid, None, None))
+        ids[int(fid[1:])] = (fid, prev[1] if prev[1] is not None else mk, prev[2] if prev[2] is not None else posted)
+    return ids, last, tail_problems(nits, triage, loose)
+
+
+def previous_report(old_text, new_text):
+    """-> problems of a canonical rewrite against the file it replaces (R25): a prior ID with a Marker or
+    Posted value that is gone or whose value changed, a lower Last ID or max ID, and an ID that the old file
+    had already used up (at or below its Last ID/max but absent from it) appearing again, plus every malformed
+    or near-miss posted-state line in either file (prefixed "old file: "/"new file: "). Unposted IDs (no
+    Marker, no Posted) may disappear."""
+    old, old_last, old_bad = posted_state(old_text)
+    new, new_last, new_bad = posted_state(new_text)
+    # near misses in either file, so a render warning that went unread can't hide a posted ID
+    out = ["old file: " + m for m in old_bad] + ["new file: " + m for m in new_bad]
+    for num, (fid, mk, posted) in old.items():
+        if mk is None and posted is None:
+            continue
+        if num not in new:
+            out.append("prior ID %s has a Marker or Posted value but is missing from the new file (dropped); "
+                       "keep it as a card, nit or Not re-raised/Fixed line with its values" % fid)
+            continue
+        for label, was, now in (("Marker", mk, new[num][1]), ("Posted", posted, new[num][2])):
+            if was is not None and was != now:
+                out.append("prior ID %s %s changed from %r to %r; carry it verbatim" % (fid, label, was, now))
+    old_top = max(max(old, default=0), old_last or 0)  # the highest ID ever used, as far as each file shows
+    new_top = max(max(new, default=0), new_last or 0)
+    if old_last is not None and new_last is None:
+        out.append("Last ID line missing (the old file has - Last ID: F%d)" % old_last)
+    elif old_last is not None and new_last < old_last:
+        out.append("Last ID F%d is lower than the old Last ID F%d" % (new_last, old_last))
+    elif new_top < old_top:
+        out.append("max ID F%d is lower than the old max ID F%d" % (new_top, old_top))
+    for num, (fid, _, _) in sorted(new.items()):
+        if num <= old_top and num not in old:
+            out.append("ID %s reuses a number the old file had already used up (at or below F%d, not in it); "
+                       "give the finding a new ID above it" % (fid, old_top))
+    return out
+
+
 def norm_verdict(s):
     s = re.sub(r"[*_`]", "", s).strip().rstrip(".").strip().lower()
     for v in VERDICTS:
@@ -799,11 +960,8 @@ def render(text, name):
         nits += n
         unparsed += u
     parsed = len(cards)
-    if any(c["id"] for c in cards):  # a file without card IDs keeps nit text verbatim (`F5 reloads ...`)
-        for n in nits:
-            idm = NIT_ID.match(n["text"])
-            if idm:
-                n["id"], n["text"] = idm.group(1), idm.group(2)
+    # nit IDs: see scan_state. A file without card IDs, Last ID, triage IDs or tails keeps nit text verbatim.
+    triage, _, loose = scan_state({k.lower(): v for k, v in by_name.items()}, cards, nits)
     for c in cards:
         if c["in_diff"] is not None and c["in_diff"] not in IN_DIFF:
             problem("card %r has In diff %r (expected yes or no)" % (c["title"], c["in_diff"]))
@@ -817,6 +975,10 @@ def render(text, name):
                 problem("card %r has a reversed Anchor range %r (b < a)" % (c["title"], raw))
         if c["id"] and not CARD_ID.fullmatch(c["id"]):
             problem("card %r has ID %r (expected F<n>, e.g. F1)" % (c["title"], c["id"]))
+        for msg in state_problems("card %r" % c["title"], _field(c, "Marker"), _field(c, "Posted")):
+            problem(msg)
+    for msg in tail_problems(nits, triage, loose):
+        problem(msg)
     seen = {}  # ID number (or raw text) -> [first form, uses]; dicts keep insertion order: deterministic
     for x in cards + nits:
         if x["id"]:
@@ -977,19 +1139,39 @@ def render(text, name):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Render a bq MR review md to a self-contained html file.")
-    ap.add_argument("review", help="path to the review .md")
+    ap.add_argument("review", nargs="?", help="path to the review .md")
     ap.add_argument("-o", "--output", help="output path (default: input with .html)")
-    ap.add_argument("--in-diff", metavar="DIFF", help="print each anchored card's In diff value against "
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--in-diff", metavar="DIFF", help="print each anchored card's In diff value against "
                     "this `git diff -U0` file; writes and renders nothing")
     ap.add_argument("--repo", help="with --in-diff: the <repo> prefix of anchors")
+    mode.add_argument("--previous", metavar="OLD", help="print what the review md dropped or changed against "
+                    "OLD, the canonical file it rewrites (R25); writes and renders nothing")
+    mode.add_argument("--marker", nargs=3, metavar=("KEY", "SOURCE", "ID"), help="print the posting marker "
+                    "sha256(KEY|SOURCE|ID)[:12]; SOURCE is canonical or fresh-<sha7>")
     args = ap.parse_args(argv)
+    if args.marker:
+        if args.review or args.output or args.repo:
+            ap.error("--marker takes no review path, -o or --repo")
+        try:
+            print(marker(*args.marker))
+        except ValueError as ex:
+            ap.error(str(ex))
+        return 0
+    if not args.review:
+        ap.error("the review .md path is required")
     src = Path(args.review)
     try:
         text = src.read_bytes().decode("utf-8", errors="replace")
         diff_text = Path(args.in_diff).read_bytes().decode("utf-8", errors="replace") if args.in_diff else None
+        old_text = Path(args.previous).read_bytes().decode("utf-8", errors="replace") if args.previous else None
     except OSError as ex:
         print("render_review: cannot read %s (%s)" % (ex.filename or src, type(ex).__name__), file=sys.stderr)
         return 1
+    if old_text is not None:
+        for line in previous_report(old_text, text):
+            print(line)
+        return 0
     if diff_text is not None:
         for line in in_diff_report(text, diff_text, args.repo):
             print(line)

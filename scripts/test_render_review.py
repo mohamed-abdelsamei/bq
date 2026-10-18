@@ -891,6 +891,258 @@ class InDiffCliTests(unittest.TestCase):
             self.assertEqual(r.stdout, "")
 
 
+class PostedFieldTests(unittest.TestCase):
+    def test_good_marker_and_posted_forms_render_clean(self):
+        for posted in ("github review comment 987 @ 1a2b3c4", "https://github.com/o/r/pull/1#discussion_r55 @ 1a2b3c4",
+                       "!123#note_881 @ 4f2a9c1", "discussion 8f3e @ " + "a" * 40):
+            doc, warns = render(v2_review(card=V2_CARD.replace("github review comment 987 @ 1a2b3c4", posted)))
+            self.assertEqual(warns, [], posted)
+            self.assertNotIn('role="alert"', doc)
+
+    def test_malformed_marker_warns_with_banner(self):
+        for bad in ("0123456789AB", "0123456789a", "0123456789abc", "bq:0123456789ab", "zzzzzzzzzzzz"):
+            doc, warns = render(v2_review(card=V2_CARD.replace("0123456789ab", bad)))
+            self.assertTrue(any("Marker" in w for w in warns), (bad, warns))
+            self.assertIn("Review file structure problems", doc)
+
+    def test_malformed_posted_warns_with_banner(self):
+        for bad in ("github review comment 987", "987 @1a2b3c4", "987 @ 1A2B3C4", "987 @ abc12", "@ 1a2b3c4"):
+            doc, warns = render(v2_review(card=V2_CARD.replace("github review comment 987 @ 1a2b3c4", bad)))
+            self.assertTrue(any("Posted" in w for w in warns), (bad, warns))
+            self.assertIn("Review file structure problems", doc)
+
+    def test_triage_and_nit_tails_are_checked(self):
+        good = ("- Not re-raised: F5 — Old thing (Marker aaaaaaaaaaaa, Posted !1#note_2 @ 1a2b3c4)\n"
+                "- Fixed: F6 — `return x` (Posted !1#note_3 @ 1a2b3c4)\n- Fixed: F7 — `ok`\n")
+        md = v2_review().replace("## Prior findings triaged\nNone.", "## Prior findings triaged\n" + good)
+        self.assertEqual(render(md)[1], [])
+        for bad in ("- Fixed: F6 — `x` (Marker AAA, Posted !1#note_3 @ 1a2b3c4)\n",
+                    "- Not re-raised: F6 — y (Posted !1#note_3)\n"):
+            md = v2_review().replace("## Prior findings triaged\nNone.", "## Prior findings triaged\n" + bad)
+            warns = render(md)[1]
+            self.assertEqual(len(warns), 1, (bad, warns))
+        warns = render(v2_review(nits="- [nit] F4 Rename. (`repo/a.py:2`) (Marker 123, Posted x @ 1a2b3c4)\n"))[1]
+        self.assertTrue(any("Marker" in w for w in warns), warns)
+
+    def test_marker_helper(self):
+        self.assertEqual(rr.marker("mr-123", "canonical", "F1"), "2a85e007323e")
+        self.assertEqual(rr.marker("mr-123", "fresh-4f2a9c1", "F2"), "c2e9b2b6748d")
+        self.assertEqual(len(rr.marker("branch-feat-x", "canonical", "F1")), 12)  # a slugged branch key
+        for bad in (("mr-123", "fresh", "F1"), ("mr-123", "fresh-4F2A9C1", "F1"), ("mr-123", "canonical", "1"),
+                    ("", "canonical", "F1"), ("a|b", "canonical", "F1"), ("MR-123", "canonical", "F1"),
+                    ("feat/x", "canonical", "F1"), ("branch-feat/x", "canonical", "F1"), ("a" * 65, "canonical", "F1")):
+            with self.assertRaises(ValueError, msg=bad):
+                rr.marker(*bad)
+        r = subprocess.run([sys.executable, str(SCRIPTS / "render_review.py"), "--marker", "mr-123", "canonical", "F1"],
+                           capture_output=True, text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+        self.assertEqual((r.returncode, r.stdout), (0, "2a85e007323e\n"), r.stderr)
+        r = subprocess.run([sys.executable, str(SCRIPTS / "render_review.py"), "--marker", "mr-123", "fresh", "F1"],
+                           capture_output=True, text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.stdout, "")
+
+
+class NearMissTests(unittest.TestCase):
+    def triage_warns(self, line):
+        md = v2_review().replace("## Prior findings triaged\nNone.", "## Prior findings triaged\n" + line)
+        doc, warns = render(md)
+        return doc, warns
+
+    def test_trailing_period_or_semicolon_after_tail_is_fine(self):
+        for end in (".", ";", ". "):
+            line = "- Fixed: F6 — `x` (Marker aaaaaaaaaaaa, Posted !1#note_3 @ 1a2b3c4)%s\n" % end
+            self.assertEqual(self.triage_warns(line)[1], [], end)
+        self.assertEqual(rr.parse_tail("x (Marker aaaaaaaaaaaa)."), ("aaaaaaaaaaaa", None, None))
+
+    def test_near_miss_tails_warn(self):
+        for bad in ("- Fixed: F6 — `x` (Marker: aaaaaaaaaaaa)\n",
+                    "- Fixed: F6 — `x` (marker aaaaaaaaaaaa, posted !1 @ 1a2b3c4)\n",
+                    "- Fixed: F6 — `x` (Marker aaaaaaaaaaaa) see thread\n",
+                    "- Fixed: F6 — `x` (Marker aaaaaaaaaaaa, Posted note(3) @ 1a2b3c4)\n",
+                    "- Fixed: F6 — `x` (Posted !1#note_3 @ 1a2b3c4, Marker aaaaaaaaaaaa)\n",
+                    "- **Not re-raised:** F2 — Old thing (Marker aaaaaaaaaaaa)\n",
+                    "- **Fixed**: F2 — `x`\n"):
+            doc, warns = self.triage_warns(bad)
+            self.assertEqual(len(warns), 1, (bad, warns))
+            self.assertIn("Review file structure problems", doc)
+        for bad in ("- [nit] F4 Rename. (Marker: aaaaaaaaaaaa)\n", "- [nit] F4 Rename. (posted x @ 1a2b3c4)\n"):
+            self.assertEqual(len(render(v2_review(nits=bad))[1]), 1, bad)
+
+    def test_pre_v2_lines_without_ids_or_state_words_stay_clean(self):
+        md = v2_review().replace("## Prior findings triaged\nNone.",
+                                 "## Prior findings triaged\n- Fixed: the null check landed.\n- Refuted: bot x")
+        self.assertEqual(render(md)[1], [])
+        line = "- Not re-raised: F6 — Never posted, Marker text in a title\n"  # state words outside a "(" are prose
+        self.assertEqual(self.triage_warns(line)[1], [])
+        # A contrived pre-v2 nit that happens to say "Marker" now warns; accepted (no real file does this).
+        warns = render(review(code=CARD_MD + "- [nit] Rename (Marker this as todo)\n", verdict="Request changes"))[1]
+        self.assertEqual(len(warns), 1, warns)
+
+
+PREV_CARD = V2_CARD.replace("F3", "F1").replace("0123456789ab", "aaaaaaaaaaa1").replace(
+    "github review comment 987 @ 1a2b3c4", "https://github.com/o/r/pull/1#discussion_r5 @ 1a2b3c4")
+PREV_TRIAGE = ("- Not re-raised: F3 — Old issue (Marker aaaaaaaaaaa3, Posted !1#note_3 @ 1a2b3c4)\n"
+               "- Fixed: F4 — `return x` (Marker aaaaaaaaaaa4, Posted !1#note_4 @ 1a2b3c4)\n"
+               "- Fixed: F5 — `ok = True`\n"
+               "- Not re-raised: F6 — Never posted\n"
+               "- Not re-raised: F9 — Marker only (Marker aaaaaaaaaaa9)\n")
+
+
+def prev_review(card=PREV_CARD, nits="- [nit] F2 Rename `d`. (`repo/a.py:2`)\n", triage=PREV_TRIAGE,
+                last="- Last ID: F10\n"):
+    md = v2_review(card=card, nits=nits).replace("## Prior findings triaged\nNone.",
+                                                  "## Prior findings triaged\n" + triage.rstrip("\n"))
+    return md.replace("## Validation\nok\n", "## Validation\nok\n" + last, 1)
+
+
+# The rewrite: F1 carried, F2 nit kept, F3 still not re-raised, F4 posted Fixed kept, F9 kept, a new F11;
+# the unposted F5 (Fixed) and F6 (Not re-raised) are gone, which is allowed.
+NEW_TRIAGE = PREV_TRIAGE.replace("- Fixed: F5 — `ok = True`\n", "").replace("- Not re-raised: F6 — Never posted\n", "")
+NEW_CARD = PREV_CARD + V2_CARD.replace("F3", "F11").replace("**Carried:** from 1a2b3c4\n", "").replace(
+    "**Marker:** 0123456789ab\n**Posted:** github review comment 987 @ 1a2b3c4\n", "")
+
+
+class PreviousTests(unittest.TestCase):
+    def check(self, new, old=None):
+        return rr.previous_report(prev_review() if old is None else old, new)
+
+    def test_clean_rewrite_passes(self):
+        self.assertEqual(rr.render(prev_review(), "x")[1], [])
+        new = prev_review(card=NEW_CARD, triage=NEW_TRIAGE, last="- Last ID: F11\n")
+        self.assertEqual(rr.render(new, "x")[1], [])
+        self.assertEqual(self.check(new), [])
+        self.assertEqual(self.check(prev_review()), [])  # unchanged rewrite
+
+    def test_unposted_ids_dropped_silently(self):
+        for triage in (PREV_TRIAGE.replace("- Fixed: F5 — `ok = True`\n", ""),
+                       PREV_TRIAGE.replace("- Not re-raised: F6 — Never posted\n", ""), NEW_TRIAGE):
+            self.assertEqual(self.check(prev_review(triage=triage)), [], triage)
+        self.assertEqual(self.check(prev_review(nits="")), [])  # the unposted nit F2
+
+    def test_dropped_posted_id_warns(self):
+        cases = {"F1": prev_review(card=NEW_CARD.replace(PREV_CARD, "")),
+                 "F3": prev_review(triage=PREV_TRIAGE.replace(PREV_TRIAGE.splitlines()[0] + "\n", "")),
+                 "F4": prev_review(triage=PREV_TRIAGE.replace(PREV_TRIAGE.splitlines()[1] + "\n", "")),
+                 "F9": prev_review(triage=PREV_TRIAGE.replace(PREV_TRIAGE.splitlines()[4] + "\n", ""))}
+        for fid, new in cases.items():
+            out = self.check(new)
+            self.assertEqual(len(out), 1, (fid, out))
+            self.assertIn(fid + " ", out[0])
+            self.assertIn("dropped", out[0])
+
+    def test_posted_id_may_move_between_card_nit_and_triage(self):
+        moved = PREV_TRIAGE + ("- Not re-raised: F1 — Bad thing (Marker aaaaaaaaaaa1, Posted "
+                               "https://github.com/o/r/pull/1#discussion_r5 @ 1a2b3c4)\n")
+        self.assertEqual(self.check(prev_review(card=NEW_CARD.replace(PREV_CARD, ""), triage=moved)), [])
+        nit = "- [nit] F3 Old issue. (Marker aaaaaaaaaaa3, Posted !1#note_3 @ 1a2b3c4)\n"
+        self.assertEqual(self.check(prev_review(nits=nit, triage=PREV_TRIAGE.split("\n", 1)[1])), [])
+
+    def test_changed_or_missing_marker_or_posted_warns(self):
+        cases = (("Marker", prev_review(card=PREV_CARD.replace("aaaaaaaaaaa1", "bbbbbbbbbbb1"))),
+                 ("Marker", prev_review(card=PREV_CARD.replace("**Marker:** aaaaaaaaaaa1\n", ""))),
+                 ("Posted", prev_review(card=PREV_CARD.replace("@ 1a2b3c4", "@ 9f9f9f9"))),
+                 ("Posted", prev_review(card=re.sub(r"\*\*Posted:\*\*.*\n", "", PREV_CARD))),
+                 ("Marker", prev_review(triage=PREV_TRIAGE.replace("aaaaaaaaaaa4", "ccccccccccc4"))),
+                 ("Posted", prev_review(triage=PREV_TRIAGE.replace(", Posted !1#note_3 @ 1a2b3c4", ""))))
+        for field, new in cases:
+            out = self.check(new)
+            self.assertEqual(len(out), 1, (field, out))
+            self.assertIn(field, out[0])
+        # gaining a Posted value (a new post) is fine
+        self.assertEqual(self.check(prev_review(triage=PREV_TRIAGE.replace(
+            "(Marker aaaaaaaaaaa9)", "(Marker aaaaaaaaaaa9, Posted !1#note_9 @ 1a2b3c4)"))), [])
+
+    def test_lower_last_id_or_max_id_warns(self):
+        out = self.check(prev_review(last="- Last ID: F9\n"))
+        self.assertEqual(len(out), 1, out)
+        self.assertIn("Last ID", out[0])
+        out = self.check(prev_review(last=""))
+        self.assertTrue(out and all("Last ID" in w or "max ID" in w for w in out), out)
+        # an old file without Last ID: its max ID is the floor
+        old = prev_review(last="")
+        self.assertEqual(self.check(prev_review(last=""), old), [])
+        out = self.check(prev_review(last="", triage=NEW_TRIAGE.replace(PREV_TRIAGE.splitlines()[4] + "\n", "")
+                                     + "- Not re-raised: F9 — Marker only (Marker aaaaaaaaaaa9)\n"), old)
+        self.assertEqual(out, [])
+        out = self.check(prev_review(last="", triage=PREV_TRIAGE.replace("F9", "F8").replace("aaaaaaaaaaa9", "x" * 12)),
+                         old)
+        self.assertTrue(any("max ID" in w for w in out), out)
+
+    def test_reused_id_warns(self):
+        reuse = NEW_CARD.replace("F11", "F7")  # F7 was below Last ID F10 and not in the old file
+        out = self.check(prev_review(card=reuse, triage=NEW_TRIAGE))
+        self.assertEqual(len(out), 1, out)
+        self.assertIn("F7", out[0])
+        self.assertIn("reuse", out[0])
+        reuse = NEW_CARD.replace("F11", "F5")  # F5 is in the old file (an unposted Fixed): not detected as reuse
+        self.assertEqual(self.check(prev_review(card=reuse, triage=NEW_TRIAGE)), [])
+
+    def test_posted_nit_in_a_nit_only_file(self):
+        nit = "- [nit] F2 Rename `d`. (`repo/a.py:2`) (Marker aaaaaaaaaaa2, Posted !1#note_2 @ 1a2b3c4)\n"
+        for last, triage in (("- Last ID: F2\n", ""), ("", ""), ("", "- Fixed: F1 — `ok`\n")):
+            old = prev_review(card=CARD_MD, nits=nit, triage=triage or "None.\n", last=last)
+            self.assertEqual(rr.posted_state(old)[0][2], ("F2", "aaaaaaaaaaa2", "!1#note_2 @ 1a2b3c4"), last)
+            self.assertEqual(self.check(old, old), [], last)
+            out = self.check(prev_review(card=CARD_MD, nits="", triage=triage or "None.\n", last=last), old)
+            self.assertTrue(any("F2 " in w and "dropped" in w for w in out), (last, out))
+        # render reads the same nit ID (shown as an ID tag) under the same rule
+        doc, warns = render(prev_review(card=CARD_MD, nits=nit, triage="None.\n", last=""))
+        self.assertEqual(warns, [])
+        self.assertIn("<code>F2</code> Rename", doc)
+        doc, warns = render(prev_review(card=CARD_MD, nits="- [nit] F2 Rename.\n", triage="None.\n", last="- Last ID: F2\n"))
+        self.assertEqual(warns, [])
+        self.assertIn("<code>F2</code> Rename", doc)
+
+    def test_near_miss_lines_in_either_file_are_printed(self):
+        bad = PREV_TRIAGE.replace("(Marker aaaaaaaaaaa4, Posted !1#note_4 @ 1a2b3c4)", "(Marker aaaaaaaaaaa4) trailing")
+        old = prev_review(triage=bad)
+        new = prev_review(triage=bad.replace(bad.splitlines()[1] + "\n", ""))  # F4 dropped
+        out = self.check(new, old)
+        self.assertTrue(any(w.startswith("old file: ") and "F4" in w and "near-miss" in w for w in out), out)
+        out = self.check(old, prev_review())
+        self.assertTrue(any(w.startswith("new file: ") and "F4" in w for w in out), out)
+        out = self.check(prev_review(triage=PREV_TRIAGE + "- **Fixed:** F7 — `x`\n"))
+        self.assertTrue(any(w.startswith("new file: ") for w in out), out)
+
+    def test_trailing_period_is_not_a_change(self):
+        new = prev_review(triage=PREV_TRIAGE.replace("@ 1a2b3c4)\n", "@ 1a2b3c4).\n"))
+        self.assertEqual(self.check(new), [])
+
+    def test_cli_modes_are_exclusive_and_extra_paths_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            md = Path(d) / "review.md"
+            md.write_text(prev_review(), encoding="utf-8")
+            env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+            base = [sys.executable, str(SCRIPTS / "render_review.py")]
+            for args in (["--previous", str(md), "--in-diff", str(md), str(md)],
+                         ["--marker", "mr-1", "canonical", "F1", "--previous", str(md), str(md)],
+                         ["--marker", "mr-1", "canonical", "F1", str(md)],
+                         ["--previous", str(md), str(md), str(md)],
+                         [str(md), str(md)]):
+                r = subprocess.run(base + args, capture_output=True, text=True, env=env)
+                self.assertEqual((r.returncode, r.stdout), (2, ""), args)
+            self.assertEqual(sorted(p.name for p in Path(d).iterdir()), ["review.md"])
+
+    def test_cli_prints_problems_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as d:
+            old, new = Path(d) / "old.md", Path(d) / "review.md"
+            old.write_text(prev_review(), encoding="utf-8")
+            new.write_text(prev_review(last="- Last ID: F9\n"), encoding="utf-8")
+            cmd = [sys.executable, str(SCRIPTS / "render_review.py"), "--previous", str(old), str(new)]
+            env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+            r = subprocess.run(cmd, capture_output=True, text=True, env=env)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(len(r.stdout.splitlines()), 1, r.stdout)
+            self.assertIn("Last ID", r.stdout)
+            self.assertEqual(sorted(p.name for p in Path(d).iterdir()), ["old.md", "review.md"])
+            new.write_text(prev_review(), encoding="utf-8")
+            r = subprocess.run(cmd, capture_output=True, text=True, env=env)
+            self.assertEqual((r.returncode, r.stdout), (0, ""))
+            r = subprocess.run(cmd[:3] + [str(Path(d) / "missing.md"), str(new)], capture_output=True, text=True,
+                               env=env)
+            self.assertEqual((r.returncode, r.stdout), (1, ""))
+
+
 class CssTests(unittest.TestCase):
     TEXT_VARS = {"text", "muted", "accent", "ok", "sev-critical", "sev-important", "sev-minor", "sev-nit"}
     SURFACES = ("bg", "surface", "surface-2")

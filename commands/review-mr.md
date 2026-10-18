@@ -239,20 +239,34 @@ metacharacters (`` ` $ ; | & < > ( ) `` quotes, newlines) and never pass it to a
   Specialists never write In diff.
 
 Write the review per the mr-review skill's `references/report-format.md` (slug rule there: derived,
-`[a-z0-9-]` only, never copied verbatim). In `full`, write the canonical review (found per
+`[a-z0-9-]` only, never copied verbatim). Before overwriting an existing canonical file (`full` or a
+since mode), first copy it to a scratch file for the **Rewrite guard** below. In `full`, write the canonical review (found per
 **Mode**, else `~/.ai/<project>/reviews/{slug}.md`) with `**Mode:** full`. A finding matches a
 prior open one when it's the same issue at the same or a moved anchor; when unsure, it's new. A
 match keeps its `ID`, `Marker` and `Posted` and gets `**Carried:** from <sha7>` (the prior Head
 SHA). Each prior open finding not raised again goes under `## Prior findings triaged` as
 `Not re-raised: <ID> — <title> (Marker <h12>, Posted <ref> @ <sha7>)`, keeping whichever of those
 it had. A prior finding the head code shows resolved becomes `Fixed: <ID> — <evidence> (Marker
-<h12>, Posted <ref> @ <sha7>)` with the same tail; a Fixed line with a Posted value is carried
-forward on every rewrite, an unposted one is written once and dropped on the next rewrite. New IDs
+<h12>, Posted <ref> @ <sha7>)` with the same tail; a Fixed line with a Marker or Posted value is
+carried forward on every rewrite, one with neither is written once and dropped on the next rewrite. New IDs
 start at the prior `## Validation` line `- Last ID: F<n>` plus 1 (no such line: the highest ID in
 the file plus 1) and are never reused (matching and ID assignment happen before **Verify**); every
 rewrite carries the updated `- Last ID:` line. In the
 since modes, the ID, matching and Last ID rules above apply; the rest is per **Since**. In
-`fresh`, write the fresh file per **Fresh**. Tell the user the review worktree `<wt>` is kept for
+`fresh`, write the fresh file per **Fresh**.
+
+**Rewrite guard** (R25, `report-format.md`). After writing the new canonical md over the old one
+(copied to scratch first, above),<!-- claude-only --> run `python3
+"${CLAUDE_PLUGIN_ROOT}/scripts/render_review.py" --previous "<scratch copy>" "<the md path>"` (both
+absolute and quoted). It prints one line per problem and nothing when clean; fix the new md (restore
+the dropped ID, its verbatim Marker/Posted, or the Last ID) and re-run until it prints nothing. If
+the script is unavailable,<!-- copilot: --><!-- /claude-only --> check the same rules by hand
+against the scratch copy: every ID that had a Marker or Posted value is still present (card, nit or
+triage line) with the same values, `Last ID` is not lower, and no new ID reuses a number at or below
+the old max. An ID with neither value may go. A fresh review rewrites no canonical file, so the guard
+doesn't run.
+
+Tell the user the review worktree `<wt>` is kept for
 re-reviews and that `/bq:review-mr cleanup` removes it.
 
 <!-- claude-only -->Then derive the html: run
