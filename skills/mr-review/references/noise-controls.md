@@ -14,19 +14,19 @@ at the **rules ref** `<rref>`, never at the MR or branch head, which the author 
 - **Hosted MR/PR or remote branch:** `<rref>` = `refs/bq-review/<key>/base` (the fetched target).
 - **`current branch`:** `<rref>` = `<mb>`, the merge-base of HEAD and the target ref the branch
   review already diffs against (`refs/bq-review/<key>/base` when fetched per
-  `isolated-checkout.md`, else the local target ref): `mb=$(git -C "<repo>" merge-base HEAD
+  `isolated-checkout.md`, else the local target ref): `mb=$(git -C "<dir>" merge-base HEAD
   "<target ref>")`, which must match `[0-9a-f]{7,40}`.
 - **`current changes` or a pasted patch:** `<rref>` = `HEAD`. A bare patch with no repo has no
   rules ref: no rules, no attribute or CI checks.
 
-`<repo>` is `<wt>` when there is one, else the user's checkout (read-only commands only).
+`<dir>` is `<wt>` when there is one, else the user's checkout (read-only commands only).
 
 ## REVIEW.md
 
 **Source.**
 
 ```sh
-git -C "<repo>" show "<rref>:REVIEW.md"
+git -C "<dir>" show "<rref>:REVIEW.md"
 ```
 
 A non-zero exit means none: `- Review rules: none found at target`. Then check whether the change
@@ -34,8 +34,8 @@ edits it:
 
 ```sh
 git -C "<wt>" diff --name-only "refs/bq-review/<key>/base...HEAD" -- REVIEW.md   # hosted MR/PR, remote branch
-git -C "<repo>" diff --name-only "<mb>...HEAD" -- REVIEW.md                      # current branch
-git -C "<repo>" diff --name-only HEAD -- REVIEW.md                               # current changes (staged + unstaged)
+git -C "<dir>" diff --name-only "<mb>...HEAD" -- REVIEW.md                      # current branch
+git -C "<dir>" diff --name-only HEAD -- REVIEW.md                               # current changes (staged + unstaged)
 ```
 
 For a pasted patch, it edits REVIEW.md when a `--- a/REVIEW.md` or `+++ b/REVIEW.md` line is in
@@ -138,8 +138,8 @@ These paths get no line-level review:
 `linguist-generated: not checked (git too old)`):
 
 ```sh
-git -C "<repo>" diff --name-only "<diff range>" |
-  git -C "<repo>" check-attr --stdin --source "<rref>" linguist-generated
+git -C "<dir>" diff --name-only "<diff range>" |
+  git -C "<dir>" check-attr --stdin --source "<rref>" linguist-generated
 ```
 
 **Headers.** A header counts when one of the first 5 lines matches this extended regex:
@@ -148,9 +148,11 @@ git -C "<repo>" diff --name-only "<diff range>" |
 Code generated .* DO NOT EDIT|@generated|[Tt]his file (is|was) (auto-?|automatically )?generated|^[[:space:]]*(#|//|/\*|\*|--|;|<!--)[[:space:]]*DO NOT EDIT
 ```
 
-It is a skip reason only when **both** the target-side file (`git -C "<repo>" show "<rref>:<path>"`)
-and the head-side file carry a matching header. Head-side lines are read with `git -C "<repo>" show
-"<sha>:<path>"`, with the path refusals in `/bq:review-mr` Close. A header that an existing file
+It is a skip reason only when **both** the target-side file (`git -C "<dir>" show "<rref>:<path>"`)
+and the head-side file carry a matching header. Head-side lines are read with `git -C "<dir>" show
+"<sha>:<path>"`, with the path refusals in `/bq:review-mr` Close; for `current changes` or a pasted
+patch, take them from the saved patch's new side where it covers the first 5 lines; other first
+lines are unchanged: read them at `<sha>`. A header that an existing file
 gains in this MR is not a skip reason: the file gets full line review and the process note
 `- Header added by this MR: <path>`. A header the MR removes likewise ends the skip, with
 `- Header removed by this MR: <path>`. A new file with only a header is reviewed in full.
@@ -165,7 +167,7 @@ scripts).
 **CI-owned checks.** Issues a lint, format or type check owns are not reported. "CI-owned" means the
 tool is run by the repo's CI files at `<rref>` (`.github/workflows/*`, `.gitlab-ci.yml`,
 `.circleci/config.yml`, `azure-pipelines.yml`, `Jenkinsfile`, and what they invoke), read with
-`git -C "<repo>" show "<rref>:<file>"`. When none are found, lint issues are reported as nits.
+`git -C "<dir>" show "<rref>:<file>"`. When none are found, lint issues are reported as nits.
 Validation: `- CI-owned: ruff, mypy (.github/workflows/ci.yml at target)` or `- CI-owned: none
 found; lint issues reported as nits`.
 
@@ -201,7 +203,9 @@ before ID assignment and Verify:
 - Show first the nits that match a prior open ID, then confirmed before suspected. A nit carrying a
   prior ID, Marker or Posted value is always shown, even past the cap, so the rewrite guard holds.
 - The rest collapse into one nit line: `- [nit] N more not shown: <short titles>`, titles
-  comma-separated, without parentheses (so the line can't be read as a posted-state tail).
+  comma-separated, without parentheses (so the line can't be read as a posted-state tail). Write it
+  last in each findings section that lost nits, N counting that section's; the renderer shows it
+  but doesn't count it as a finding.
 - **Collapsed nits get no IDs and consume none**: they are not cards, are never posted or
   verified, and don't move `Last ID`. A card that Verify downgrades to nit keeps its ID and is
   shown past the cap.

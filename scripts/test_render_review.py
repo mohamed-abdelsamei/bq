@@ -1131,7 +1131,7 @@ class PreviousTests(unittest.TestCase):
             cmd = [sys.executable, str(SCRIPTS / "render_review.py"), "--previous", str(old), str(new)]
             env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
             r = subprocess.run(cmd, capture_output=True, text=True, env=env)
-            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(r.returncode, 1, r.stderr)  # an actionable line: exit 1
             self.assertEqual(len(r.stdout.splitlines()), 1, r.stdout)
             self.assertIn("Last ID", r.stdout)
             self.assertEqual(sorted(p.name for p in Path(d).iterdir()), ["old.md", "review.md"])
@@ -1141,6 +1141,172 @@ class PreviousTests(unittest.TestCase):
             r = subprocess.run(cmd[:3] + [str(Path(d) / "missing.md"), str(new)], capture_output=True, text=True,
                                env=env)
             self.assertEqual((r.returncode, r.stdout), (1, ""))
+
+
+class BranchReviewFixTests(unittest.TestCase):
+    """Task 9a: the guard's exit code, backtick spans in near-miss detection, Last ID below the max ID,
+    the collapsed-nit line and a backticked Since."""
+
+    def run_previous(self, old_md, new_md):
+        with tempfile.TemporaryDirectory() as d:
+            old, new = Path(d) / "old.md", Path(d) / "review.md"
+            old.write_text(old_md, encoding="utf-8")
+            new.write_text(new_md, encoding="utf-8")
+            cmd = [sys.executable, str(SCRIPTS / "render_review.py"), "--previous", str(old), str(new)]
+            return subprocess.run(cmd, capture_output=True, text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+
+    def test_previous_exit_codes(self):
+        r = self.run_previous(prev_review(), prev_review(last="- Last ID: F9\n"))  # actionable
+        self.assertEqual(r.returncode, 1, r.stdout)
+        r = self.run_previous(prev_review(), prev_review())
+        self.assertEqual((r.returncode, r.stdout), (0, ""))
+
+    def test_state_words_inside_backtick_code_are_not_near_misses(self):
+        for line in ("- Fixed: F6 — `value = get(marker)` returns early\n",
+                     '- Fixed: F6 — `setState("posted")` now runs once\n',
+                     "- Not re-raised: F6 — Uses `(marker)` again (Marker aaaaaaaaaaaa)\n"):
+            md = v2_review().replace("## Prior findings triaged\nNone.", "## Prior findings triaged\n" + line)
+            self.assertEqual(render(md)[1], [], line)
+        self.assertEqual(render(v2_review(nits="- [nit] F4 Rename `get(posted)`. (`repo/a.py:2`)\n"))[1], [])
+        # outside a code span it still warns, and a real tail is still parsed and checked
+        md = v2_review().replace("## Prior findings triaged\nNone.",
+                                 "## Prior findings triaged\n- Fixed: F6 — `x` (marker aaaaaaaaaaaa)\n")
+        self.assertEqual(len(render(md)[1]), 1)
+        self.assertEqual(rr.parse_tail("`get(marker)` (Marker aaaaaaaaaaaa)"), ("aaaaaaaaaaaa", None, None))
+
+    def test_last_id_below_the_highest_used_id_warns(self):
+        doc, warns = render(prev_review(last="- Last ID: F8\n"))  # F9 is in the triage
+        self.assertEqual(len(warns), 1, warns)
+        self.assertIn("Last ID F8", warns[0])
+        self.assertIn("F9", warns[0])
+        self.assertIn("Review file structure problems", doc)
+        self.assertEqual(render(prev_review(last="- Last ID: F9\n"))[1], [])
+        self.assertEqual(render(prev_review(last=""))[1], [])  # no Last ID line: nothing to compare
+
+    def test_collapsed_nit_line_is_shown_but_not_counted(self):
+        nits = "- [nit] F4 Rename `d` to `delay`. (`repo/a.py:2`)\n- [nit] 3 more not shown: naming, spacing, typo\n"
+        doc, warns = render(v2_review(nits=nits))
+        self.assertEqual(warns, [])
+        self.assertIn("<strong>2</strong><span>findings</span>", doc)  # the card and one nit
+        self.assertIn('<span class="group-count">2</span>', doc)
+        self.assertIn("3 more not shown: naming, spacing, typo", doc)
+        base = render(v2_review())[0]
+        self.assertIn("<strong>2</strong><span>findings</span>", base)
+
+    def test_backticked_since_is_stripped_like_head_sha(self):
+        doc, warns = render(v2_review(header="**Mode:** since-last\n**Since:** `1a2b3c4`\n"))
+        self.assertEqual(warns, [])
+        self.assertIn("<dt>Since</dt><dd><code>1a2b3c4</code></dd>", doc)
+        self.assertTrue(render(v2_review(header="**Since:** `abc12`\n"))[1])
+
+
+class ReconcileTests(unittest.TestCase):
+    """Task 9a fix pass: guard on unreadable old tails, narrower backtick strip, collapsed-nit near
+    misses, Dropped IDs in the Last ID check."""
+
+    F4 = "(Marker aaaaaaaaaaa4, Posted !1#note_4 @ 1a2b3c4)"
+
+    def guard(self, old_tail, new_tail, old_title="`return x`"):
+        """-> the --previous run for an F4 triage line rewrite (None as new_tail drops F4)."""
+        line = PREV_TRIAGE.splitlines()[1] + "\n"
+        old = prev_review(triage=PREV_TRIAGE.replace(line, "- Fixed: F4 — %s %s\n" % (old_title, old_tail)))
+        new = prev_review(triage=PREV_TRIAGE.replace(line, "" if new_tail is None else
+                                                     "- Fixed: F4 — `return x` %s\n" % new_tail))
+        return BranchReviewFixTests.run_previous(self, old, new)
+
+    def assertUnrepairable(self, r, code):
+        out = r.stdout.splitlines()
+        self.assertEqual(r.returncode, code, r.stdout)
+        self.assertEqual([w for w in out if w.startswith("unrepairable: ")],
+                         ["unrepairable: F4 has a malformed or unreadable Marker/Posted in the old file; "
+                          "mark it do-not-post and ask the user"], r.stdout)
+        self.assertTrue(any(w.startswith("old file: ") for w in out), r.stdout)
+
+    def test_unrepairable_old_values_exit_3_whether_carried_or_corrected(self):
+        cases = ("(Marker aaaaaaaaaaa4, Posted !1#note_4)",  # no " @ "
+                 "(marker aaaaaaaaaaa4, Posted !1#note_4 @ 1a2b3c4)",  # near miss, a commit hash in the text
+                 "(Marker XYZ, Posted !1#note_4 @ 1a2b3c4)")
+        for old_tail in cases:
+            title = "`return x` at 1a2b3c4d" if "marker" in old_tail else "`return x`"
+            self.assertUnrepairable(self.guard(old_tail, old_tail, title), 3)  # carried verbatim
+            self.assertUnrepairable(self.guard(old_tail, self.F4, title), 3)  # corrected
+            # only the malformed half goes uncompared: changing or dropping the valid half is actionable;
+            # a near-miss tail has no readable half
+            valid_half = 3 if "(marker" in old_tail else 1
+            self.assertUnrepairable(self.guard(old_tail, "(Marker bbbbbbbbbbbb)", title), valid_half)
+            self.assertUnrepairable(self.guard(old_tail, "", title), valid_half)
+
+    def test_dropping_an_unrepairable_id_or_mixing_in_an_actionable_line_exits_1(self):
+        r = self.guard("(Marker XYZ, Posted !1#note_4 @ 1a2b3c4)", None)
+        self.assertUnrepairable(r, 1)  # dropped
+        self.assertTrue(any("F4" in w and "missing from the new file" in w for w in r.stdout.splitlines()), r.stdout)
+        old = prev_review(triage=PREV_TRIAGE.replace(self.F4, "(Marker XYZ, Posted !1#note_4 @ 1a2b3c4)"))
+        r = BranchReviewFixTests.run_previous(self, old, prev_review(last="- Last ID: F9\n"))
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertTrue(any(w.startswith("unrepairable: F4") for w in r.stdout.splitlines()), r.stdout)
+        # a new malformed value that differs from the old one stays a new-file problem
+        r = self.guard("(Marker XYZ, Posted !1#note_4 @ 1a2b3c4)", "(Marker QQQ, Posted !1#note_4 @ 1a2b3c4)")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertTrue(any(w.startswith("new file: ") for w in r.stdout.splitlines()), r.stdout)
+
+    def test_unrepairable_card_value(self):
+        old = prev_review(card=PREV_CARD.replace("aaaaaaaaaaa1", "AAAAAAAAAAA1"))
+        r = BranchReviewFixTests.run_previous(self, old, prev_review())
+        self.assertEqual(r.returncode, 3, r.stdout)
+        self.assertIn("unrepairable: F1 ", r.stdout)
+
+    def test_bold_label_old_line_is_unrepairable_whether_carried_or_rewritten(self):
+        line = PREV_TRIAGE.splitlines()[1] + "\n"
+        bold = "- **Fixed:** F4 — x (Marker aaaaaaaaaaa4, Posted !1#note_4 @ 1a2b3c4)\n"
+        old = prev_review(triage=PREV_TRIAGE.replace(line, bold))
+        for new_line in (bold, "- Fixed: F4 — x (Marker aaaaaaaaaaa4, Posted !1#note_4 @ 1a2b3c4)\n"):
+            r = BranchReviewFixTests.run_previous(self, old, prev_review(triage=PREV_TRIAGE.replace(line, new_line)))
+            self.assertEqual(r.returncode, 3, (new_line, r.stdout))
+        r = BranchReviewFixTests.run_previous(self, old, prev_review(triage=PREV_TRIAGE.replace(line, "")))
+        self.assertEqual(r.returncode, 1, r.stdout)  # dropped
+
+    def test_valid_half_of_an_unrepairable_id_is_still_compared(self):
+        r = self.guard("(Marker aaaaaaaaaaa4, Posted !1#note_4 @ ZZZ)", "(Marker bbbbbbbbbbbb, Posted !1#note_4 @ ZZZ)")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("F4 Marker changed", r.stdout)
+        r = self.guard("(Marker aaaaaaaaaaa4, Posted !1#note_4 @ ZZZ)", "(Marker aaaaaaaaaaa4, Posted !1#note_4 @ 1a2b3c4)")
+        self.assertEqual(r.returncode, 3, r.stdout)
+
+    def test_usage_error_exits_2_and_the_command_never_accepts_2(self):
+        r = subprocess.run([sys.executable, str(SCRIPTS / "render_review.py"), "--previous"], capture_output=True,
+                           text=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+        self.assertEqual(r.returncode, 2)
+        cmd = (SCRIPTS.parent / "commands" / "review-mr.md").read_text(encoding="utf-8")
+        self.assertIn("until it exits 0 or 3", cmd)
+        self.assertNotIn("exits 0 or 2", cmd)
+
+    def triage(self, line):
+        return render(v2_review().replace("## Prior findings triaged\nNone.", "## Prior findings triaged\n" + line))[1]
+
+    def test_code_span_tails_still_warn(self):
+        for line in ("- Fixed: F6 — x (`Marker aaaaaaaaaaaa`)\n",
+                     "- Fixed: F6 — fixed `(Marker aaaaaaaaaaaa, Posted !1#note_3 @ 1a2b3c4)` now\n",
+                     "- Fixed: F6 — done `(Posted !7#note_2 @ abcdef1)`\n",
+                     "- Fixed: F6 — done `(posted !7#note_2 @ abcdef1)`\n"):
+            self.assertEqual(len(self.triage(line)), 1, line)
+        for line in ("- Fixed: F6 — `value = get(marker)` returns early\n",
+                     '- Fixed: F6 — `setState("posted")` now runs once\n'):
+            self.assertEqual(self.triage(line), [], line)
+
+    def test_collapsed_nit_near_misses_warn_and_count(self):
+        for text in ("0 more not shown: x", "03 more not shown: x", "three more not shown: x",
+                     "3 more not shown x", "3 More not shown: x"):
+            doc, warns = render(v2_review(nits="- [nit] " + text + "\n"))
+            self.assertEqual(len(warns), 1, (text, warns))
+            self.assertIn("more not shown", warns[0])
+            self.assertIn("<strong>2</strong><span>findings</span>", doc)  # counted as an ordinary nit
+        self.assertEqual(render(v2_review(nits="- [nit] 3 more not shown: x\n"))[1], [])
+
+    def test_last_id_counts_dropped_ids(self):
+        warns = render(prev_review(last="- Dropped F12: no counter-case held\n- Last ID: F10\n"))[1]
+        self.assertEqual(len(warns), 1, warns)
+        self.assertIn("F12", warns[0])
+        self.assertEqual(render(prev_review(last="- Dropped F10: x\n- Last ID: F10\n"))[1], [])
 
 
 class CssTests(unittest.TestCase):

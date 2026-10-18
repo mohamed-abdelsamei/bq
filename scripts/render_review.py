@@ -9,13 +9,16 @@ Usage: python3 scripts/render_review.py <review.md> [-o out.html]
 --in-diff prints `<ID or title>\t<anchor>\tyes|no|nofile|malformed` for each card with an Anchor, computed
 from a `git diff -U0` file (git diff output with `diff --git` headers), and writes nothing.
 --previous prints one line per posted-state problem of a canonical rewrite against the file it replaces
-(nothing when clean), and writes nothing. --marker prints the 12-hex posting marker.
+(nothing when clean) and writes nothing; it exits 1 when a line is actionable (anything but the
+informational `old file:` and `unrepairable:` lines), else 3 when an `unrepairable:` line is printed
+(ask the user), else 0; 2 is a usage error. --marker prints the 12-hex posting marker.
 
 The md is the source of truth (format: skills/mr-review/references/report-format.md); the html is
 derived and regenerable. Same input gives byte-identical output (no timestamps). Parsing is strict:
 a `###` card that does not parse is shown escaped under a visible "N of M cards parsed" banner, never
 dropped, and counts come only from parsed cards. Odd input shows visible banners in the html and warnings on stderr (exit 0);
-the exit code is non-zero only when the input file cannot be read (or the output cannot be written).
+the exit code is non-zero only when the input file cannot be read (or the output cannot be written), or
+when --previous prints an actionable (1) or unrepairable (3) line.
 
 Every md-derived string is escaped with html.escape(quote=True). There is no raw HTML and no links.
 """
@@ -301,6 +304,11 @@ MARKER_RE = re.compile(r"[0-9a-f]{12}")
 POSTED_RE = re.compile(r"\S.*? @ [0-9a-f]{7,40}")
 TAIL = re.compile(r"\(((?:Marker|Posted) [^()]*)\)\s*[.;]?\s*$")
 STATE_WORD = re.compile(r"\(\W*(?:marker|posted)\b", re.I)  # a near-miss tail; a title saying "posted" is fine
+CODE_SPAN = re.compile(r"`[^`\n]+`")  # cut before the near-miss match only, so `get(marker)` is code, not a tail
+SPAN_TAIL = re.compile(r"\((?:marker|posted)\s", re.I)  # a span holding a tail-like "(Marker " is not cut
+COLLAPSED_NIT = re.compile(r"^[1-9]\d* more not shown:")  # the nit cap's summary line: shown, never counted
+COLLAPSED_LOOSE = re.compile(r"^\S+\s+more\s+not\s+shown\b", re.I)  # a near miss of it: warned, counted
+DROPPED = re.compile(r"^\s*[-*]\s+Dropped (F\d+):")  # a Verify drop in Validation: its ID counts toward Last ID
 TAIL_BODY = re.compile(r"(?:Marker (?P<m>[^,\s]+)(?:, Posted (?P<p>.+))?|Posted (?P<p2>.+))")
 TRIAGE = re.compile(r"^\s*[-*]\s+(?:Not re-raised|Fixed):\s+(F\d+)\b(.*)$")
 TRIAGE_LOOSE = re.compile(r"^\s*[-*]\s+\W*(?:not re-raised|fixed)\b.*\bF\d+\b", re.I)
@@ -514,7 +522,12 @@ def parse_findings(lines, section_axis, warn):
             finish()
             if not line.startswith("- [nit] "):
                 warn("nit line %r accepted case-insensitively; write it as '- [nit] ...'" % line[:60])
-            nits.append({"text": NIT.match(line).group(1), "id": None, "axis": section_axis})
+            text_ = NIT.match(line).group(1)
+            collapsed = bool(COLLAPSED_NIT.match(text_))
+            if not collapsed and COLLAPSED_LOOSE.match(text_):
+                warn("nit %r looks like the nit cap's summary line but is not '- [nit] N more not shown: "
+                     "<titles>' (N from 1); counted as a nit" % line[:60])
+            nits.append({"text": text_, "id": None, "axis": section_axis, "collapsed": collapsed})
         elif was is None and fence is None and NIT_START.match(line):
             finish()
             unparsed.append((line, "malformed nit line (expected `- [nit] text`)"))
@@ -684,6 +697,13 @@ def scan_state(by_name, cards, nits):
     return triage, last, loose
 
 
+def _cut_code(text):
+    """`text` minus inline code spans, except a span right after `(` or one holding `(Marker `/`(Posted `,
+    which could be a tail wrapped in backticks."""
+    return CODE_SPAN.sub(lambda m: m.group(0) if text[m.start() - 1:m.start()] == "(" or SPAN_TAIL.search(m.group(0))
+                         else "", text)
+
+
 def tail_problems(nits, triage, loose):
     """-> the posted-state problems of nit and triage lines (scan_state output): malformed triage lines,
     malformed or near-miss tails and bad Marker/Posted values. Shared by render() and previous_report()."""
@@ -695,7 +715,7 @@ def tail_problems(nits, triage, loose):
         mk, posted, bad = parse_tail(text_)
         if bad:
             out.append("%s has a %s" % (what, bad))
-        elif mk is None and posted is None and STATE_WORD.search(text_):
+        elif mk is None and posted is None and STATE_WORD.search(_cut_code(text_)):
             out.append("%s has a Marker/Posted near-miss: a '(' naming Marker/Posted but no "
                        "'(Marker <h12>, Posted <ref> @ <sha7>)' tail at its end" % what)
         out += state_problems(what, mk, posted)
@@ -704,7 +724,7 @@ def tail_problems(nits, triage, loose):
 
 def posted_state(text):
     """-> ({ID number: (ID, Marker, Posted)} over cards, nits and Not re-raised/Fixed triage lines, Last ID or
-    None, tail problems). Sections are matched by name, any case; nit IDs are read as in render() (scan_state)."""
+    None, [(ID number or None, tail problem, the line's posted-state text)]). Sections are matched by name, any case; nit IDs are read as in render() (scan_state)."""
     _, _, sections, _ = split_document(split_lines(text), lambda _m: None)
     axis_of = {h.lower(): a for h, a in SECTIONS[:3]}
     by_name, cards, nits = {}, [], []
@@ -725,27 +745,64 @@ def posted_state(text):
             continue
         prev = ids.get(int(fid[1:]), (fid, None, None))
         ids[int(fid[1:])] = (fid, prev[1] if prev[1] is not None else mk, prev[2] if prev[2] is not None else posted)
-    return ids, last, tail_problems(nits, triage, loose)
+    # tail problems one line at a time, in tail_problems() order, each with its ID number and its tail text
+    problems = []
+    for ln in loose:
+        m = re.search(r"\bF([1-9]\d*)\b", ln)
+        problems += [(int(m.group(1)) if m else None, msg, _tail_key(ln)) for msg in tail_problems([], [], [ln])]
+    for n in nits:
+        num = int(n["id"][1:]) if n["id"] and CARD_ID.fullmatch(n["id"]) else None
+        problems += [(num, msg, _tail_key(n["text"])) for msg in tail_problems([n], [], [])]
+    for fid, rest in triage:
+        num = int(fid[1:]) if CARD_ID.fullmatch(fid) else None
+        problems += [(num, msg, _tail_key(rest)) for msg in tail_problems([], [(fid, rest)], [])]
+    return ids, last, problems
+
+
+def _tail_key(text):
+    """The posted-state part of a line: its last `(...)` naming Marker/Posted, else the whole line."""
+    groups = [g for g in re.findall(r"\([^()]*\)", text) if re.search(r"marker|posted", g, re.I)]
+    return (groups[-1] if groups else text).strip()
+
+
+UNREPAIRABLE = ("unrepairable: %s has a malformed or unreadable Marker/Posted in the old file; mark it "
+                "do-not-post and ask the user")
 
 
 def previous_report(old_text, new_text):
     """-> problems of a canonical rewrite against the file it replaces (R25): a prior ID with a Marker or
     Posted value that is gone or whose value changed, a lower Last ID or max ID, and an ID that the old file
     had already used up (at or below its Last ID/max but absent from it) appearing again, plus every malformed
-    or near-miss posted-state line in either file (prefixed "old file: "/"new file: "). Unposted IDs (no
-    Marker, no Posted) may disappear."""
+    or near-miss posted-state line in either file (prefixed "old file: "/"new file: "). An old ID with a
+    malformed or unreadable Marker/Posted is unrepairable: it gets an `unrepairable:` line, its values are not
+    compared on its malformed half, a new-file line carrying its old tail verbatim is folded into that line,
+    and dropping it is still reported. Unposted IDs (no Marker, no Posted) may disappear."""
     old, old_last, old_bad = posted_state(old_text)
     new, new_last, new_bad = posted_state(new_text)
+    bad_ids = {num for num, _, _ in old_bad if num is not None}
+    bad_ids |= {num for num, (_, mk, posted) in old.items() if state_problems("", mk, posted)}
+    old_keys = {(num, key) for num, _, key in old_bad}
+    present = set(new) | {num for num, _, _ in new_bad if num is not None}  # a loose new line still names its ID
     # near misses in either file, so a render warning that went unread can't hide a posted ID
-    out = ["old file: " + m for m in old_bad] + ["new file: " + m for m in new_bad]
+    out = ["old file: " + m for _, m, _ in old_bad]
+    out += ["new file: " + m for num, m, key in new_bad if not (num in bad_ids and (num, key) in old_keys)]
+    for num in sorted(bad_ids):
+        fid = old[num][0] if num in old else "F%d" % num
+        out.append(UNREPAIRABLE % fid)
+        if num not in present:
+            out.append("prior ID %s is missing from the new file (dropped); keep it, with its Marker/Posted "
+                       "text carried verbatim" % fid)
     for num, (fid, mk, posted) in old.items():
         if mk is None and posted is None:
             continue
         if num not in new:
-            out.append("prior ID %s has a Marker or Posted value but is missing from the new file (dropped); "
-                       "keep it as a card, nit or Not re-raised/Fixed line with its values" % fid)
+            if num not in bad_ids:  # an unrepairable drop is reported above
+                out.append("prior ID %s has a Marker or Posted value but is missing from the new file (dropped); "
+                           "keep it as a card, nit or Not re-raised/Fixed line with its values" % fid)
             continue
         for label, was, now in (("Marker", mk, new[num][1]), ("Posted", posted, new[num][2])):
+            if num in bad_ids and state_problems("", *((was, None) if label == "Marker" else (None, was))):
+                continue  # only the malformed half of an unrepairable ID goes uncompared
             if was is not None and was != now:
                 out.append("prior ID %s %s changed from %r to %r; carry it verbatim" % (fid, label, was, now))
     old_top = max(max(old, default=0), old_last or 0)  # the highest ID ever used, as far as each file shows
@@ -757,7 +814,7 @@ def previous_report(old_text, new_text):
     elif new_top < old_top:
         out.append("max ID F%d is lower than the old max ID F%d" % (new_top, old_top))
     for num, (fid, _, _) in sorted(new.items()):
-        if num <= old_top and num not in old:
+        if num <= old_top and num not in old and num not in bad_ids:
             out.append("ID %s reuses a number the old file had already used up (at or below F%d, not in it); "
                        "give the finding a new ID above it" % (fid, old_top))
     return out
@@ -928,7 +985,7 @@ def render(text, name):
     structured = bool(by_name) or any(k in header for k in HEADER_KEYS)
     if "Mode" in header and header["Mode"] not in MODES:
         problem("header Mode %r is not one of: %s" % (header["Mode"], ", ".join(MODES)))
-    if "Since" in header and not SHA_RE.fullmatch(header["Since"]):
+    if "Since" in header and not SHA_RE.fullmatch(header["Since"].strip("`")):  # backticks allowed, as on Head SHA
         problem("header Since %r is not a 7-40 character lowercase hex SHA" % header["Since"])
     if "Ticket" in header and not TICKET_STATE_RE.search(header["Ticket"]):
         warn("header Ticket %r gives no key a state; write KEY (fetched) or KEY (not fetched: <reason>)"
@@ -961,7 +1018,14 @@ def render(text, name):
         unparsed += u
     parsed = len(cards)
     # nit IDs: see scan_state. A file without card IDs, Last ID, triage IDs or tails keeps nit text verbatim.
-    triage, _, loose = scan_state({k.lower(): v for k, v in by_name.items()}, cards, nits)
+    triage, last_id, loose = scan_state({k.lower(): v for k, v in by_name.items()}, cards, nits)
+    used = [int(x["id"][1:]) for x in cards + nits if x["id"] and CARD_ID.fullmatch(x["id"])]
+    used += [int(fid[1:]) for fid, _ in triage if CARD_ID.fullmatch(fid)]
+    used += [int(m.group(1)[1:]) for ln in by_name.get("Validation", []) for m in [DROPPED.match(ln)]
+             if m and CARD_ID.fullmatch(m.group(1))]
+    if last_id is not None and used and max(used) > last_id:
+        problem("Last ID F%d is lower than the highest ID used in the file, F%d; raise it so no ID is reused"
+                % (last_id, max(used)))
     for c in cards:
         if c["in_diff"] is not None and c["in_diff"] not in IN_DIFF:
             problem("card %r has In diff %r (expected yes or no)" % (c["title"], c["in_diff"]))
@@ -992,7 +1056,7 @@ def render(text, name):
     for c in cards:
         counts[(c["severity"], c["axis"])] += 1
     for n in nits:
-        counts[("nit", n["axis"])] += 1
+        counts[("nit", n["axis"])] += not n["collapsed"]
     blocking = sum(counts[(s, a)] for s in BLOCKING for a in AXES)
     hidden_blocking = max(0, total_blocking - sum(1 for c in cards if c["severity"] in BLOCKING))
 
@@ -1071,7 +1135,7 @@ def render(text, name):
         if k == "Head SHA":
             v = "<code>%s</code>" % e(v[:12])  # the full SHA is in the card footers and the page footer
         elif k == "Since":
-            v = "<code>%s</code>" % e(v)
+            v = "<code>%s</code>" % e(v.strip("`"))
         else:
             v = e(v)
         wide = k == "Title"
@@ -1092,7 +1156,7 @@ def render(text, name):
         if not group and not gnits:
             continue
         out.append('<section class="axis-group"><h2>%s<span class="group-count">%d</span></h2>' % (
-            e(heading), len(group) + len(gnits)))
+            e(heading), len(group) + sum(not n["collapsed"] for n in gnits)))
         out += [render_card(c, sha) for c in group]
         if gnits:
             out.append('<ul class="nits">%s</ul>' % "".join(
@@ -1169,9 +1233,12 @@ def main(argv=None):
         print("render_review: cannot read %s (%s)" % (ex.filename or src, type(ex).__name__), file=sys.stderr)
         return 1
     if old_text is not None:
-        for line in previous_report(old_text, text):
+        lines = previous_report(old_text, text)
+        for line in lines:
             print(line)
-        return 0
+        if any(not ln.startswith(("old file: ", "unrepairable: ")) for ln in lines):
+            return 1
+        return 3 if any(ln.startswith("unrepairable: ") for ln in lines) else 0  # 2 is argparse's usage error
     if diff_text is not None:
         for line in in_diff_report(text, diff_text, args.repo):
             print(line)

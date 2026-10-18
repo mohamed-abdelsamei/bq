@@ -11,6 +11,9 @@ apply in full.
 - **Quote evidence** (`code`, a test result, a spec line) rather than paraphrasing it. **Why**
   quotes at most one line of evidence, in inline code, with no line-leading markdown (`#`, a code
   fence, `-`, `>`), so it cannot break the report structure.
+- **Ticket-free title, What and Fix.** They are posted verbatim (section 4), so state the expected
+  behaviour in code terms: no ticket key, no AC text, no paraphrase of it. Only **Why** may quote
+  the ticket (`report-format.md`).
 - **Neutral voice about the code.** "The loop never exits on 4xx", not "you forgot to...". No "you".
 - **Confidence sets the mood.** `confirmed` = reproduced, a command was run, or read directly in the
   cited code: assert it. `suspected` = anything else: phrase it as a question ("Should an exhausted
@@ -87,7 +90,7 @@ posted, approved or merged otherwise.
 - **No ticket text.** A posted comment states the expected behaviour in code terms and never
   references, quotes or paraphrases the ticket (no key, no AC text). Only the local md may quote it,
   and only in **Why**: at post time a Why that quotes the ticket is replaced with code evidence or
-  left out. What and Fix are posted as written, so they are ticket-free already in the md.
+  left out. The title, What and Fix are posted as written (ticket-free per section 1).
 
 ## 5. Examples
 

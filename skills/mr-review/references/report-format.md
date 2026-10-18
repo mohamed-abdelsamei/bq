@@ -13,8 +13,8 @@ head SHA is written once here; the renderer stamps it on every card.
 Optional keys follow, each only when it applies, and each is shown in the masthead:
 
 - `Mode`: `fresh`, `full` or `since-last`. Any other value gets a warning.
-- `Since`: the baseline SHA (`[0-9a-f]{7,40}`) a `since-last` review covered from. Anything else gets
-  a warning.
+- `Since`: the baseline SHA (`[0-9a-f]{7,40}`) a `since-last` review covered from; backticks around
+  it are stripped, as for the baseline read from `Head SHA`. Anything else gets a warning.
 - `Ticket`: the primary keys only (branch or title, see `ticket-intake.md`), each with its state,
   comma-separated: `ABC-12 (fetched), ABC-13 (not fetched: no Jira skill/tool available)`. Related
   keys go only in the Validation `- Ticket:` line. An upper-case branch key or a title key that
@@ -28,7 +28,8 @@ Optional keys follow, each only when it applies, and each is shown in the masthe
 In order: `## Code findings`, `## Business findings`, `## Process & convention findings`,
 `## Prior findings triaged`, `## Validation`, `## Verdict`. Write "None." for an empty section.
 `## Validation` carries a `- Last ID: F<n>` line, the highest ID this file has ever used, kept on
-every rewrite so new IDs start above it (a fresh file keeps its own).
+every rewrite so new IDs start above it (a fresh file keeps its own). The renderer warns when it is
+lower than an ID used in the file (card, nit, triage or `- Dropped F<n>:` line).
 
 `## Validation` also carries exactly one Verify line, written at Close (`/bq:review-mr` **Verify**):
 
@@ -110,18 +111,28 @@ this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
   nit or triage line with a `(` opening on `Marker` or `Posted` in any case but no tail at its end
   (`(Marker: …)`, lowercase, text after the tail, swapped order), and a `Not re-raised`/`Fixed`
   line with an F-ID in any other form, such as a bold label `- **Not re-raised:** F2`.
-- **Rewrite guard** (R25). Before rewriting `{slug}.md`, the Maestro copies the old file to scratch,
-  then checks the new file against the copy <!-- claude-only -->with `render_review.py --previous
-  <old.md> <new.md>`, which prints one line per problem (nothing when clean, exit 0) and writes no
-  html<!-- copilot: by hand --><!-- /claude-only -->. It reports: an ID that had a Marker or Posted value
+- **Rewrite guard** (R25). Before rewriting `{slug}.md` (or its own fresh file, on a fresh re-run at
+  the same SHA), the Maestro copies the old file to scratch, then checks the new file against the
+  copy <!-- claude-only -->with `render_review.py --previous <old.md> <new.md>`, which prints one
+  line per problem (nothing when clean) and writes no html<!-- copilot: by hand --><!-- /claude-only -->.
+  The guard reports: an ID that had a Marker or Posted value
   anywhere in the old file (card, nit or triage line) and is nowhere in the new one; a changed or
   missing Marker or Posted value on such an ID; a `Last ID` that is missing or lower than the old
   one, or else a max ID (highest of Last ID and every ID in the file) lower than the old one; and an
   ID at or below the old max that the old file no longer held (a used-up number coming back). An
   ID with neither value, such as an unposted `Fixed:` line or an unposted `Not re-raised:` finding,
-  may disappear without a report. Reuse of a number still in the old file isn't detected. It also
-  repeats the renderer's malformed and near-miss posted-state lines from either file, prefixed
-  `old file:` or `new file:`.
+  may disappear without a report. Reuse of a number still in the old file isn't detected. An old
+  ID whose Marker or Posted value is malformed, or whose tail is a near miss, is **unrepairable**:
+  its malformed value isn't compared (carry it verbatim; correct it only with the user's
+  confirmation), its valid half still is, dropping it is still reported,
+  and it is marked do-not-post until the user decides.<!-- claude-only --> The script also repeats
+  the renderer's malformed and near-miss posted-state lines from either file, prefixed `old file:`
+  or `new file:`, and prints `unrepairable: F<n> …` for each unrepairable ID; a `new file:` line
+  that carries such an ID's old tail verbatim is folded into it. Exit 1: an actionable line remains
+  (fix and re-run); exit 3: only `old file:` and `unrepairable:` lines remain; exit 0: clean or only
+  `old file:` lines. Exit 2 is a usage error, and exit 1 with no output a read error.<!-- copilot: --><!-- /claude-only -->
+  Validation logs each `old file:` line as `- Guard (old file): <line>` and each unrepairable ID as
+  `- Guard (unresolved): <line>`.
 
 - **Anchor** is one of five forms (meaning and sides in `comment-style.md` section 2):
   `<repo>/<path>:<n>`, `:<a>-<b>` (new side), `:-<n>`, `:-<a>-<b>` (old side), or
@@ -139,7 +150,9 @@ this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
   or when the nit itself ends in a posted-state tail; otherwise the nit text is kept verbatim. The trailing
   `(path:line)` is free text and is not validated: older files wrote it loosely, and checking it
   would add warnings to files that rendered clean. A posted nit ends with the posted-state tail
-  described above.
+  described above. The nit cap's summary line `- [nit] N more not shown: <titles>`
+  (`noise-controls.md`) is shown but is not a finding: it is not counted and carries no ID. A near
+  miss of it (`0 more`, no colon, `More`) warns and counts as a nit.
 
 ## Severity, blocking, verdict
 
@@ -164,7 +177,10 @@ contradiction; fix the md rather than ignore it.
 ## Slug and re-review
 
 Slug is `mr-<id>-<short-title>`, e.g. `mr-123-retry-backoff`; for a branch with no id use
-`branch-<name>`. It is derived, never copied verbatim: lowercase, only `[a-z0-9-]` (every other
+`branch-<name>` (remote branches and `current branch`; detached HEAD: `head-<sha7>`). `current
+changes` uses `changes-<name>` of the checked-out branch (detached HEAD: `changes-<sha7>`); a
+pasted patch uses `patch-<sha7>`, the first 7 hex of the sha256 of the patch text, so only a
+re-run of the same patch rewrites it. It is derived, never copied verbatim: lowercase, only `[a-z0-9-]` (every other
 character, including `/` and `.`, becomes `-`; collapse repeats), at most ~60 chars, so the file
 cannot leave `reviews/`. A `full` or `since-last` review writes `reviews/{slug}.md`. A `fresh`
 review writes `reviews/{slug}-fresh-<sha7>.md`, where `<sha7>` = the first 7 characters of the head

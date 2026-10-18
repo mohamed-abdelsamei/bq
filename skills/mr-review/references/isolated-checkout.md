@@ -65,17 +65,20 @@ git -C "<wt>" log --oneline "refs/bq-review/<key>/base..HEAD"
 ### Since baseline (since-last / since <sha>)
 
 `<since>` is the baseline: the canonical `Head SHA` with backticks stripped, or the given SHA; it
-must match `[0-9a-f]{7,40}` (else [canonical Head SHA malformed]). No canonical file →
-[no canonical review]; one without a Head SHA → [canonical review has no Head SHA]. `$sha` is the fetched head. Run
-these after the fetch, in order; the first that fails means "run `full`" with the reason in
-brackets.
+must match `[0-9a-f]{7,40}` (else [canonical Head SHA malformed]). In since-last only: no canonical
+file → [no canonical review]; one without a Head SHA → [canonical review has no Head SHA]. A
+`since <sha>` with no canonical file goes on with no triage (`/bq:review-mr` **Since**). `$sha` is
+the fetched head. Run these after the fetch, in order; the first that fails means "run `full`"
+with the reason in brackets.
 
 ```
 since=$(git -C "<main>" rev-parse --verify --quiet "<since>^{commit}")  # expands a sha7
 git -C "<main>" merge-base --is-ancestor "$since" "$sha"               # non-zero: not an ancestor
 a=$(git -C "<main>" merge-base --all "$since" "refs/bq-review/<key>/base") || a=FAIL
 b=$(git -C "<main>" merge-base --all "$sha" "refs/bq-review/<key>/base") || b=FAIL
-[ "$a" != FAIL ] && [ "$b" != FAIL ] && [ "$(sort <<<"$a")" = "$(sort <<<"$b")" ]  # else: target merged
+[ "$a" != FAIL ] && [ "$b" != FAIL ]                                    # else: merge-base failed
+[ "$a" != "$since" ]                                                    # else: baseline on target
+[ "$(sort <<<"$a")" = "$(sort <<<"$b")" ]                               # else: target merged
 ```
 
 `^{commit}` makes rev-parse fail unless the SHA names a commit actually present (not just any
@@ -85,17 +88,18 @@ object or a well-formed string).
   short SHA)]. Don't try to fetch it: every ancestor of the fetched head is already local, so a
   missing baseline means the delta would be meaningless; servers also refuse an unreachable SHA
   ("not our ref").
-- **is-ancestor non-zero** → [baseline <sha7> is not an ancestor of the head]. A shallow clone can
-  fail this too; fall back the same way.
+- **is-ancestor non-zero** → [baseline <sha7> is not an ancestor of the head (rewritten history,
+  e.g. a force-push)]. A shallow clone can fail this too; fall back the same way.
 - **merge-base fails** (either is `FAIL`) → [merge-base with the target failed]. Never treat two
   empty results as equal.
-- **`$since` is on the target** (`$a` = `$since`, before the fork point) → [baseline is on the
-  target, not the branch].
+- **`$since` is on the target** (`$a` = `$since`: the fork point or an older target commit) →
+  [baseline is on the target, not the branch]. Without this, a fork-point baseline would pass as a
+  since review of the whole branch.
 - **`$a` ≠ `$b`** otherwise → [target merged into branch]. The branch's fork point with the target moved
   between `$since` and `$sha`, so `$since..$sha` would include target commits. This catches a
-  merge of the target in either parent order, and a `since <sha>` that sits on the target before
-  the fork point. It doesn't fire for a merge of a side branch outside the target, a target merge
-  already before `$since`, or a target that moved on without being merged.
+  merge of the target in either parent order. It doesn't fire for a merge of a side branch outside
+  the target, a target merge already before `$since`, or a target that moved on without being
+  merged.
 - **`$since` = `$sha`** (the expanded SHA) → no new commits; say so and stop.
 
 Otherwise specialists review the delta; the full MR diff above stays as context, and Close's In

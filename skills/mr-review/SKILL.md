@@ -112,7 +112,8 @@ Lines and files are counted after the skip list.
   breaks, which is critical) is **important** (a requirement gap); scope beyond the ticket is
   **minor**, or **important** if it's risky; a primary ticket whose status is closed, done, won't-do
   or an equivalent terminal status is a `suspected` **process** finding.
-- Anchor ticket findings on primary keys only, never related ones; quote the cited AC in **Why**.
+- Anchor ticket findings on primary keys only, never related ones; quote the cited AC in **Why**
+  only (`references/comment-style.md` §1).
 
 **Process & convention** (repo rules are often the real blockers)
 - Honor the repo's own contract — read `AGENTS.md` / `CONTRIBUTING` / `CLAUDE.md` and any skill they
@@ -230,7 +231,7 @@ Use this structure unless the user asked for another:
 (same card; name the repo rule. Omit if the repo has no such rules or all are met.)
 
 ## Prior findings triaged
-- Confirmed / Refuted (with reason) / Already fixed — one line each. Omit if there were none.
+- Fixed / Still open / Residual (by ID); Refuted (with reason) — one line each. Omit if none.
 
 ## Validation
 - Commands run, with pass/fail. CI status on the reviewed SHA. Checks skipped, with why.
