@@ -30,9 +30,8 @@ then review as today.
 - **full** — today's review plus the canonical review as context when it exists; rewrites it.
 - **fresh** — blind; rules in **Fresh** below. Writes `reviews/{slug}-fresh-<sha7>.md`, never the
   canonical file.
-- **since-last / since <sha>** — the delta since the last canonical review. Not implemented yet:
-  say "since-last unavailable: not yet implemented; ran full" at start and in Validation, then run
-  `full`.
+- **since-last / since <sha>** — only the commits since a baseline, with prior findings triaged;
+  rules in **Since** below. Rewrites the canonical file.
 
 **The canonical review** is found by MR id, not title, so a retitle (GitLab dropping `Draft:`)
 keeps its history: `~/.ai/<project>/reviews/mr-<id>-*.md` (a branch: exactly `branch-<name>.md`),
@@ -46,10 +45,10 @@ before using it. A `full` review rewrites that file.
 **head SHA**, the stated intent (MR title + description, linked requirement/issue), the target
 branch, the MR's **existing threads and bot comments** (not in fresh: fetched only at Close), and
 the **CI status on the head SHA** (in fresh, pass/fail only) so the skill's triage step has data;
-say "none found" if so. In `full`, also pass the canonical review when it exists: its path, Head
-SHA and open finding IDs (open = any prior card or `Not re-raised` line not triaged Fixed; `full` may triage one
-`Fixed: <ID> — <evidence>`, keeping its Marker/Posted, when the head code shows it resolved). In
-`fresh`, don't open `reviews/` yourself; the briefs change per **Fresh** below.
+say "none found" if so. In `full` and the since modes, also pass the canonical review when it
+exists: its path, Head SHA and open finding IDs (open = any prior card or `Not re-raised` line not
+triaged Fixed; a prior finding the head code shows resolved may be triaged `Fixed`, per **Close**).
+In `fresh`, don't open `reviews/` yourself; the briefs change per **Fresh** below.
 
 **Isolate the checkout — the user may be coding in this repo right now.** For a hosted MR/PR or a
 remote branch, follow the mr-review skill's `references/isolated-checkout.md`: fetch the head and
@@ -122,6 +121,35 @@ what the briefs carry, so:
   byte-identical. Validation records `Lessons withheld (fresh): N` and `blindness:
   instruction-enforced`.
 
+## Since
+
+Baseline `<since>`: the canonical file's `Head SHA` with backticks stripped (since-last; a fresh
+file never sets it) or the given SHA. After the fetch, run the **Since baseline** checks in the
+mr-review skill's `references/isolated-checkout.md`; they expand it to `$since`. If one fails, run
+`full` (header `Mode: full`, no `Since`; prior findings triaged the full way), saying "since-last
+unavailable: <reason>; ran full" at start and in Validation, with the bracketed reason from the
+**Since baseline** checks. `$since` = head: say "no new commits since <sha7>;
+canonical file unchanged" and stop.
+
+- **Briefs:** review the delta `git -C "<wt>" diff "$since..HEAD"`; the full MR diff is context.
+  Triage each prior open finding by ID under `## Prior findings triaged` as `Fixed`, `Still open`
+  or `Residual (narrowed to <sev>)`: cards as ID, Anchor and title; `Not re-raised` lines as ID,
+  title (and Anchor when it has one). `since <sha>` with no canonical file: no triage, note "no
+  prior findings to triage", and say `coverage: <since7>..<head7> only; earlier commits not
+  reviewed` in the start line and Validation.
+- **Verify:** `Fixed` is a drop and `Residual` a downgrade, so both go through Verify: re-read the
+  quoted evidence with `git -C "<wt>" show "$sha":"<path>"`. If the quote doesn't hold, or
+  specialists disagree without a verified Fixed quote, the finding stays Still open. Only Still
+  open carries skip Verify.
+- **Close:** Still open and Residual cards (Residual at the narrowed severity) stay cards with ID,
+  Marker, Posted and `**Carried:** from <sha7>` (the prior Head SHA), so the verdict covers the
+  whole MR. A Still open or untriaged `Not re-raised` finding stays a `Not re-raised:` line with
+  its Marker/Posted, and becomes a card again only if a specialist raises it again with evidence.
+  Untriaged counts as Still open; Validation lists `untriaged (kept open): F…`. With no canonical
+  file, IDs start at F1 and this file becomes canonical. Write `**Mode:** since-last`, `**Since:**
+  <since sha7>` and the new `Head SHA`. In diff for every card uses the full MR diff below
+  (`<base>` = the fetched target, never `<since>`).
+
 ## Close
 
 Consolidate their returns into one report (dedupe overlapping findings), **code, business and
@@ -155,10 +183,14 @@ prior open one when it's the same issue at the same or a moved anchor; when unsu
 match keeps its `ID`, `Marker` and `Posted` and gets `**Carried:** from <sha7>` (the prior Head
 SHA). Each prior open finding not raised again goes under `## Prior findings triaged` as
 `Not re-raised: <ID> — <title> (Marker <h12>, Posted <ref> @ <sha7>)`, keeping whichever of those
-it had. New IDs start at the prior `## Validation` line `- Last ID: F<n>` plus 1 (no such line: the
-highest ID in the file plus 1) and are never reused; every rewrite carries the updated
-`- Last ID:` line. In `fresh`, write the fresh file per **Fresh**. Tell the
-user the review worktree `<wt>` is kept for re-reviews and that `/bq:review-mr cleanup` removes it.
+it had. A prior finding the head code shows resolved becomes `Fixed: <ID> — <evidence> (Marker
+<h12>, Posted <ref> @ <sha7>)` with the same tail; a Fixed line with a Posted value is carried
+forward on every rewrite, an unposted one is written once and dropped on the next rewrite. New IDs
+start at the prior `## Validation` line `- Last ID: F<n>` plus 1 (no such line: the highest ID in
+the file plus 1) and are never reused; every rewrite carries the updated `- Last ID:` line. In the
+since modes, the ID, matching and Last ID rules above apply; the rest is per **Since**. In
+`fresh`, write the fresh file per **Fresh**. Tell the user the review worktree `<wt>` is kept for
+re-reviews and that `/bq:review-mr cleanup` removes it.
 
 <!-- claude-only -->Then derive the html: run
 `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/render_review.py" "<the md path>"` (pass the absolute md path, expanding `~` first, and quote it; if the path isn't
