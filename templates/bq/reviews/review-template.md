@@ -5,12 +5,15 @@ _MR/PR reviews follow the mr-review skill's `references/report-format.md` instea
 - **Date:** {YYYY-MM-DD}
 - **Reviewer:** reviewer | tester | Maestro
 - **Verdict:** Ship | Fix first | Reconsider | Blocked
+- **Ticket:** {KEY-1 (fetched)} _(optional)_
 
 ## Findings
 
 ### Critical
 
-- _Issue, impact, and concrete fix._
+- F1 _Issue, impact, and concrete fix._ _(ID optional)_
+
+_MR-only fields (Mode, Since, Carried, In diff, Marker, Posted): see `skills/mr-review/references/report-format.md`._
 
 ### Important
 

@@ -22,8 +22,13 @@ BLOCKING = ("critical", "important")
 AXES = ("code", "business", "process")
 CONFIDENCE = ("confirmed", "suspected")
 VERDICTS = ("Approve", "Approve with changes", "Request changes")
-HEADER_KEYS = ("MR", "Title", "Head SHA", "Target", "Date", "Reviewers", "Verdict")
-META_ORDER = ("MR", "Head SHA", "Target", "Date", "Reviewers", "Title")  # Title last: it can be long
+HEADER_KEYS = ("MR", "Title", "Head SHA", "Target", "Date", "Reviewers", "Verdict")  # required
+OPTIONAL_HEADER_KEYS = ("Mode", "Since", "Ticket")  # absent is fine; shown in the masthead when present
+MODES = ("fresh", "full", "since-last")
+SHA_RE = re.compile(r"[0-9a-f]{7,40}")
+META_ORDER = ("MR", "Head SHA", "Target", "Date", "Reviewers", "Mode", "Since", "Ticket",
+              "Title")  # Title last: it can be long
+IN_DIFF = ("yes", "no")
 SECTIONS = (  # (heading, axis for findings sections or None)
     ("Code findings", "code"),
     ("Business findings", "business"),
@@ -248,6 +253,8 @@ CLOSE_FENCE = re.compile(r"^ {0,3}(`{3,})\s*$")
 KV = re.compile(r"^\*\*([^:*]+):\*\*\s*(.*)$")
 CARD = re.compile(r"^### \[(critical|important|minor|nit)\] (\S.*?)\s*$")
 NIT = re.compile(r"^- \[nit\] (\S.*)$", re.I)
+NIT_ID = re.compile(r"^(F\d+) (\S.*)$")  # a nit's ID prefix, read only in a file with card IDs
+CARD_ID = re.compile(r"F[1-9]\d*")
 NIT_START = re.compile(r"^- \[nit\]", re.I)
 SEV_HEAD = re.compile(r"^### \[(critical|important)\]", re.I)
 LIST_ITEM = re.compile(r"^\s*(?:([-*+])|\d+[.)])\s+(.*)$")
@@ -379,7 +386,7 @@ def split_document(lines, warn):
             if was is None and fence is None and line.startswith("### "):
                 in_card = True
             m = KV.match(line) if was is None and fence is None and not in_card else None
-            if m and m.group(1).strip() in HEADER_KEYS:
+            if m and m.group(1).strip() in HEADER_KEYS + OPTIONAL_HEADER_KEYS:
                 k = m.group(1).strip()
                 if k in header:
                     pre_dup.append(line)
@@ -428,6 +435,8 @@ def parse_card(heading, body):
     if not "".join(fields.get("What", [])).strip():
         return None, "missing What"
     return {"severity": m.group(1), "title": m.group(2), "axis": axis, "confidence": conf,
+            "id": " ".join(fields.get("ID", [])).strip() or None,
+            "in_diff": " ".join(fields["In diff"]).strip() if "In diff" in fields else None,
             "fields": fields, "order": order}, None
 
 
@@ -457,7 +466,7 @@ def parse_findings(lines, section_axis, warn):
             finish()
             if not line.startswith("- [nit] "):
                 warn("nit line %r accepted case-insensitively; write it as '- [nit] ...'" % line[:60])
-            nits.append({"text": NIT.match(line).group(1), "axis": section_axis})
+            nits.append({"text": NIT.match(line).group(1), "id": None, "axis": section_axis})
         elif was is None and fence is None and NIT_START.match(line):
             finish()
             unparsed.append((line, "malformed nit line (expected `- [nit] text`)"))
@@ -544,7 +553,7 @@ def render_card(card, sha):
     f = card["fields"]
     rows = []
     for k in card["order"]:
-        if k in ("Axis", "Confidence", "Anchor"):
+        if k in ("Axis", "Confidence", "Anchor", "ID", "In diff"):  # shown in the card meta
             continue
         if k == "Suggested change":
             if "".join(f[k]).strip():
@@ -560,12 +569,14 @@ def render_card(card, sha):
     anchor = " ".join(f.get("Anchor", [])).strip().strip("`")
     conf = card["confidence"]
     return (
-        '<article class="finding tone-%s"><header class="f-head"><h3>%s</h3><p class="f-meta">%s%s<span class="tag %s">%s</span>%s</p></header>'
+        '<article class="finding tone-%s"><header class="f-head"><h3>%s</h3><p class="f-meta">%s%s%s<span class="tag %s">%s</span>%s%s</p></header>'
         '<dl class="rows">%s</dl>'
         '<p class="f-foot">Axis: %s &middot; Head SHA: <code>%s</code></p></article>'
-        % (sev, inline(card["title"]), sevlabel(sev),
+        % (sev, inline(card["title"]), '<span class="tag">%s</span>' % e(card["id"]) if card["id"] else "",
+           sevlabel(sev),
            '<span class="tag blocking">Blocking</span>' if sev in BLOCKING else '<span class="tag">Non-blocking</span>',
            conf, ("&#10003; " if conf == "confirmed" else "? ") + conf.capitalize(),
+           '<span class="tag">In diff: %s</span>' % e(card["in_diff"]) if card["in_diff"] is not None else "",
            '<code class="anchor">%s</code>' % e(anchor) if anchor else "",
            "".join(rows), card["axis"], e(sha)))
 
@@ -641,6 +652,10 @@ def render(text, name):
     if seq != sorted(seq, key=known.index):
         problem("sections are out of order")
     structured = bool(by_name) or any(k in header for k in HEADER_KEYS)
+    if "Mode" in header and header["Mode"] not in MODES:
+        problem("header Mode %r is not one of: %s" % (header["Mode"], ", ".join(MODES)))
+    if "Since" in header and not SHA_RE.fullmatch(header["Since"]):
+        problem("header Since %r is not a 7-40 character lowercase hex SHA" % header["Since"])
 
     cards, nits = [], []
     for heading, axis in SECTIONS[:3]:
@@ -651,6 +666,24 @@ def render(text, name):
         nits += n
         unparsed += u
     parsed = len(cards)
+    if any(c["id"] for c in cards):  # a file without card IDs keeps nit text verbatim (`F5 reloads ...`)
+        for n in nits:
+            idm = NIT_ID.match(n["text"])
+            if idm:
+                n["id"], n["text"] = idm.group(1), idm.group(2)
+    for c in cards:
+        if c["in_diff"] is not None and c["in_diff"] not in IN_DIFF:
+            problem("card %r has In diff %r (expected yes or no)" % (c["title"], c["in_diff"]))
+        if c["id"] and not CARD_ID.fullmatch(c["id"]):
+            problem("card %r has ID %r (expected F<n>, e.g. F1)" % (c["title"], c["id"]))
+    seen = {}  # ID number (or raw text) -> [first form, uses]; dicts keep insertion order: deterministic
+    for x in cards + nits:
+        if x["id"]:
+            key = int(x["id"][1:]) if re.fullmatch(r"F\d+", x["id"]) else x["id"]
+            seen.setdefault(key, [x["id"], 0])[1] += 1
+    for fid, uses in seen.values():
+        if uses > 1:
+            problem("duplicate ID %s (used %d times)" % (fid, uses))
 
     counts = {(s, a): 0 for s in SEVERITIES for a in AXES}
     for c in cards:
@@ -734,6 +767,8 @@ def render(text, name):
         v = header[k]
         if k == "Head SHA":
             v = "<code>%s</code>" % e(v[:12])  # the full SHA is in the card footers and the page footer
+        elif k == "Since":
+            v = "<code>%s</code>" % e(v)
         else:
             v = e(v)
         wide = k == "Title"
@@ -759,7 +794,8 @@ def render(text, name):
         if gnits:
             out.append('<ul class="nits">%s</ul>' % "".join(
                 '<li>%s<span>%s</span><span class="unparsed-reason">%s</span></li>'
-                % (sevlabel("nit"), inline(n["text"]), e(n["axis"])) for n in gnits))
+                % (sevlabel("nit"), ("<code>%s</code> " % e(n["id"]) if n["id"] else "") + inline(n["text"]),
+                   e(n["axis"])) for n in gnits))
         out.append("</section>")
     if (not ordered and not nits and structured and total == 0
             and all(h_ in by_name for h_, _ in SECTIONS[:3])):

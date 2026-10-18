@@ -388,6 +388,182 @@ class DefectTests(unittest.TestCase):
             self.assertEqual(outs[0], outs[1])
 
 
+# The report-format.md sample as it was before the v2 fields (Mode, ID, In diff, ...) existed, and the
+# sha256 of its html from the renderer of that time. An old-format md must keep rendering byte-identically;
+# change OLD_SAMPLE_SHA256 only for a deliberate change to the html output.
+OLD_SAMPLE = """# Review: Add retry backoff to sync client
+**MR:** !123
+**Title:** Add retry backoff to sync client
+**Head SHA:** 4f2a9c1
+**Target:** main
+**Date:** 2026-10-04
+**Reviewers:** Cass (code), Sol (business)
+**Verdict:** Request changes
+
+## Code findings
+### [important] Retry loop never stops on 4xx
+**Axis:** code
+**Anchor:** acme-sync/sync/client/retry.py:42
+**Confidence:** confirmed
+**What:** A permanent 400 is retried forever, hammering the API.
+**Why:** `while True: resp = send(req)  # no status check`
+**Fix:** Stop on non-retryable status codes and cap attempts.
+**Suggested change:**
+Proposed patch (not posted)
+```diff
+-while True:
++for _ in range(MAX_ATTEMPTS):
+```
+- [nit] Rename `d` to `delay`. (`acme-sync/sync/client/retry.py:50`)
+
+## Business findings
+### [minor] No user-visible failure state
+**Axis:** business
+**Confidence:** suspected
+**What:** Is the user told when retries are exhausted?
+**Why:** AC-3 requires an error toast; the diff adds none.
+**Fix:** Surface the final failure, or confirm AC-3 is out of scope.
+
+## Process & convention findings
+None.
+
+## Prior findings triaged
+- Refuted: bot "SQL injection" at db.py:9 — the query is parameterised.
+
+## Validation
+- `pytest tests/sync` — pass. CI green on 4f2a9c1.
+
+## Verdict
+Strengths: backoff is capped and jittered; the new tests cover the 5xx path.
+Request changes
+Most important fix first: stop retrying non-retryable 4xx responses.
+"""
+# To regenerate a pin, run the *previous* renderer (e.g. `git show <old rev>:scripts/render_review.py`)
+# on the old fixture. Never paste the current output's hash: that would pin whatever it renders now.
+OLD_SAMPLE_SHA256 = "7678682635b9ec5dd900d30df9fdd611bfd8b30412e7f2593bd90cd4cce12e06"
+# The same rule: the html of OLD_F5_NITS from the renderer before v2 (nit text kept verbatim).
+OLD_F5_NITS = review(code=CARD_MD + "- [nit] F5 reloads the page twice.\n- [nit] F5 again here.\n",
+                     verdict="Request changes")
+OLD_F5_NITS_SHA256 = "1bdd850e45051193a5012a605d14a026d7fb19fa6a1669fbea60114d853aba6a"
+
+V2_CARD = """### [critical] Bad thing
+**ID:** F3
+**Axis:** code
+**Anchor:** repo/a.py:1
+**Confidence:** confirmed
+**What:** broken
+**Why:** because
+**Fix:** fix it
+**Carried:** from 1a2b3c4
+**In diff:** yes
+**Marker:** 0123456789ab
+**Posted:** github review comment 987 @ 1a2b3c4
+"""
+
+
+def v2_review(card=V2_CARD, nits="- [nit] F4 Rename `d` to `delay`. (`repo/a.py:2`)\n", header=None):
+    hdr = "**Mode:** since-last\n**Since:** 1a2b3c4\n**Ticket:** ABC-12 (fetched)\n" if header is None else header
+    return review(code=card + nits, verdict="Request changes").replace(
+        "**Verdict:** Request changes\n\n", "**Verdict:** Request changes\n" + hdr + "\n", 1)
+
+
+class V2FieldTests(unittest.TestCase):
+    def test_old_format_renders_unchanged(self):
+        import hashlib
+        doc, warns = render(OLD_SAMPLE)
+        self.assertEqual(warns, [])
+        self.assertEqual(hashlib.sha256(doc.encode("utf-8")).hexdigest(), OLD_SAMPLE_SHA256)
+
+    def test_new_format_renders_clean_with_all_fields_shown(self):
+        doc, warns = render(v2_review())
+        self.assertEqual(warns, [])
+        self.assertNotIn('role="alert"', doc)
+        for k, v in (("Mode", "since-last"), ("Since", "<code>1a2b3c4</code>"), ("Ticket", "ABC-12 (fetched)")):
+            self.assertIn("<dt>%s</dt><dd>%s</dd>" % (k, v), doc)
+        meta = doc.split('<p class="f-meta">')[1].split("</p>")[0]
+        self.assertIn('<span class="tag">F3</span>', meta)
+        self.assertIn('<span class="tag">In diff: yes</span>', meta)
+        rows = doc.split('<dl class="rows">')[1].split("</dl>")[0]
+        self.assertNotIn("<dt>ID</dt>", rows)
+        self.assertNotIn("<dt>In diff</dt>", rows)
+        for k, v in (("Carried", "from 1a2b3c4"), ("Marker", "0123456789ab"),
+                     ("Posted", "github review comment 987 @ 1a2b3c4")):
+            self.assertIn("<dt>%s</dt><dd><p>%s</p></dd>" % (k, v), rows)
+        nit = doc.split('<ul class="nits">')[1].split("</ul>")[0]
+        self.assertIn("<code>F4</code> Rename <code>d</code> to", nit)
+        self.assertEqual(render(v2_review())[0], doc)
+
+    def test_header_keys_are_optional_and_partial_sets_are_fine(self):
+        for hdr in ("", "**Mode:** fresh\n", "**Mode:** full\n", "**Since:** " + "a" * 40 + "\n",
+                    "**Ticket:** KEY-1 (not fetched: no Jira skill/tool available)\n"):
+            doc, warns = render(v2_review(header=hdr))
+            self.assertEqual(warns, [], hdr)
+            self.assertNotIn('role="alert"', doc)
+
+    def test_bad_mode_since_in_diff_warn_with_banner(self):
+        cases = (
+            (v2_review(header="**Mode:** Fresh\n"), "Mode"),
+            (v2_review(header="**Mode:** since <sha>\n"), "Mode"),
+            (v2_review(header="**Since:** 1A2B3C4\n"), "Since"),
+            (v2_review(header="**Since:** abc12\n"), "Since"),
+            (v2_review(card=V2_CARD.replace("**In diff:** yes", "**In diff:** maybe")), "In diff"),
+        )
+        for md, key in cases:
+            doc, warns = render(md)
+            self.assertTrue(any(key in w for w in warns), (key, warns))
+            self.assertIn("Review file structure problems", doc)
+        doc, _ = render(cases[-1][0])
+        self.assertIn('<span class="tag">In diff: maybe</span>', doc)  # still shown, escaped
+
+    def test_duplicate_ids_warn_across_cards_and_nits(self):
+        biz = V2_CARD.replace("[critical]", "[minor]").replace("**Axis:** code", "**Axis:** business")
+        md = v2_review(nits="- [nit] F3 Same id as the card.\n").replace(
+            "## Business findings\nNone.", "## Business findings\n" + biz)
+        doc, warns = render(md)
+        dup = [w for w in warns if "duplicate ID" in w]
+        self.assertEqual(len(dup), 1, warns)
+        self.assertIn("F3", dup[0])
+        self.assertIn("duplicate ID", doc)
+        self.assertIn("Review file structure problems", doc)
+        self.assertEqual(doc.count("<article"), 2)  # both cards still render
+
+    def test_bad_card_ids_warn(self):
+        for bad in ("banana", "F1\nF2", "F03", "F0", "f1"):
+            md = v2_review(card=V2_CARD.replace("**ID:** F3", "**ID:** " + bad))
+            doc, warns = render(md)
+            self.assertTrue(any("ID" in w and "F<n>" in w for w in warns), (bad, warns))
+            self.assertIn("Review file structure problems", doc)
+
+    def test_ids_compare_by_number(self):
+        md = v2_review(nits="- [nit] F03 Same number as the card.\n")
+        warns = render(md)[1]
+        self.assertEqual(len([w for w in warns if "duplicate ID" in w]), 1, warns)
+        biz = V2_CARD.replace("[critical]", "[minor]").replace("**Axis:** code", "**Axis:** business") \
+            .replace("**ID:** F3", "**ID:** F03")
+        md = v2_review(nits="").replace("## Business findings\nNone.", "## Business findings\n" + biz)
+        self.assertEqual(len([w for w in render(md)[1] if "duplicate ID" in w]), 1)
+
+    def test_nit_prefix_is_not_an_id_in_a_file_without_card_ids(self):
+        import hashlib
+        doc, warns = render(OLD_F5_NITS)
+        self.assertEqual(warns, [])
+        self.assertNotIn('role="alert"', doc)
+        self.assertIn("<span>F5 reloads the page twice.</span>", doc)
+        self.assertEqual(hashlib.sha256(doc.encode("utf-8")).hexdigest(), OLD_F5_NITS_SHA256)
+
+    def test_no_ids_means_no_new_warnings(self):
+        doc, warns = render(review(code=CARD_MD + "- [nit] F is not an id here\n", verdict="Request changes"))
+        self.assertEqual(warns, [])
+        self.assertIn("<span>F is not an id here</span>", doc)
+
+    def test_v2_fields_are_escaped(self):
+        card = V2_CARD.replace("F3", "<b>F3</b>").replace("yes", "<i>yes</i>").replace(
+            "0123456789ab", "<script>x</script>")
+        md = v2_review(card=card, header="**Mode:** <img>\n**Ticket:** <a href=x>K-1</a>\n")
+        body = render(md)[0].split("</style>\n</head>")[1]
+        self.assertNotRegex(body, r"<script|<img|<a |<b>|<i>")
+
+
 class CssTests(unittest.TestCase):
     TEXT_VARS = {"text", "muted", "accent", "ok", "sev-critical", "sev-important", "sev-minor", "sev-nit"}
     SURFACES = ("bg", "surface", "surface-2")
