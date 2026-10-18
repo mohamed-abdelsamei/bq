@@ -564,6 +564,206 @@ class V2FieldTests(unittest.TestCase):
         self.assertNotRegex(body, r"<script|<img|<a |<b>|<i>")
 
 
+def anchor_review(anchor):
+    return review(code=CARD_MD.replace("**Confidence:**", "**Anchor:** %s\n**Confidence:**" % anchor, 1),
+                  verdict="Request changes")
+
+
+class AnchorTests(unittest.TestCase):
+    GOOD = {
+        "repo/a.py:7": ("repo/a.py", "new", 7, 7),
+        "repo/a.py:3-9": ("repo/a.py", "new", 3, 9),
+        "repo/a.py:-7": ("repo/a.py", "old", 7, 7),
+        "repo/a.py:-3-9": ("repo/a.py", "old", 3, 9),
+        "repo/a.py (deleted)": ("repo/a.py", "file", None, None),
+        "repo/src/v2-api/x-1.py:10-12": ("repo/src/v2-api/x-1.py", "new", 10, 12),
+        "repo/src/v2-api/x-1.py:-10-12": ("repo/src/v2-api/x-1.py", "old", 10, 12),
+        "repo/a:b.py:4": ("repo/a:b.py", "new", 4, 4),
+        "repo/my dir/a b.py:4-4": ("repo/my dir/a b.py", "new", 4, 4),
+        "`repo/a.py:5`": ("repo/a.py", "new", 5, 5),
+    }
+    BAD = ("repo/a.py:", "repo/a.py:abc", "repo/a.py:3-", "repo/a.py:-", "repo/a.py", "repo/a.py:0",
+           "repo/a.py:3--5", "repo/a.py:-3-+5", "repo/a.py:3, repo/b.py:5", ":3", "repo/a.py:1.5",
+           "repo/a.py:L3", " (deleted)", "repo/a.py:3, repo/b.py (deleted)", "/abs/a.py:3",
+           "/abs/a.py (deleted)", "repo/a`b.py:3", "repo/a`b.py (deleted)")
+
+    def test_parse_good_forms(self):
+        for text, want in self.GOOD.items():
+            a = rr.parse_anchor(text)
+            self.assertIsNotNone(a, text)
+            self.assertEqual((a["path"], a["side"], a["start"], a["end"]), want, text)
+
+    def test_parse_malformed(self):
+        for text in self.BAD:
+            self.assertIsNone(rr.parse_anchor(text), text)
+
+    def test_good_anchors_render_clean(self):
+        for text in self.GOOD:
+            doc, warns = render(anchor_review(text))
+            self.assertEqual(warns, [], text)
+            self.assertNotIn('role="alert"', doc)
+            self.assertIn('<code class="anchor">%s</code>' % rr.e(text.strip("`")), doc)
+
+    def test_malformed_anchor_warns_with_banner(self):
+        for text in self.BAD:
+            doc, warns = render(anchor_review(text))
+            self.assertTrue(any("Anchor" in w and "malformed" in w for w in warns), (text, warns))
+            self.assertIn("Review file structure problems", doc)
+            self.assertEqual(doc.count("<article"), 1)  # the card still renders
+
+    def test_reversed_range_warns(self):
+        for text in ("repo/a.py:9-3", "repo/a.py:-9-3"):
+            doc, warns = render(anchor_review(text))
+            self.assertTrue(any("Anchor" in w and "reversed" in w for w in warns), (text, warns))
+            self.assertIn("Review file structure problems", doc)
+        self.assertIsNotNone(rr.parse_anchor("repo/a.py:9-3"))  # parsed, then flagged
+
+    def test_anchor_is_optional(self):
+        doc, warns = render(review(code=CARD_MD, verdict="Request changes"))
+        self.assertEqual(warns, [])
+        self.assertNotIn("anchor", doc.split("</style>")[1])
+
+    def test_nit_anchor_is_not_validated(self):
+        md = review(code=CARD_MD + "- [nit] Odd. (`repo/a.py:9-3`)\n- [nit] Odd. (`repo/a.py:`)\n",
+                    verdict="Request changes")
+        self.assertEqual(render(md)[1], [])
+
+
+DIFF = """diff --git a/src/v2-api/x-1.py b/src/v2-api/x-1.py
+index 1..2 100644
+--- a/src/v2-api/x-1.py
++++ b/src/v2-api/x-1.py
+@@ -10,3 +10,4 @@ def f():
+@@ -20 +21,0 @@
+@@ -30,0 +31,2 @@
+diff --git a/old name.py b/new name.py
+--- a/old name.py\t
++++ b/new name.py\t
+@@ -5,2 +5,2 @@
+diff --git a/gone.py b/gone.py
+deleted file mode 100644
+--- a/gone.py
++++ /dev/null
+@@ -1,3 +0,0 @@
+diff --git "a/q\\"t.py" "b/q\\"t.py"
+--- "a/q\\"t.py"
++++ "b/q\\"t.py"
+@@ -1 +1 @@
+"""
+
+
+class InDiffTests(unittest.TestCase):
+    def check(self, anchor, want):
+        self.assertEqual(rr.anchor_in_diff(DIFF, anchor), want, anchor)
+
+    def test_new_side(self):
+        for a in ("r/src/v2-api/x-1.py:10", "r/src/v2-api/x-1.py:10-13", "r/src/v2-api/x-1.py:31-32",
+                  "src/v2-api/x-1.py:13"):
+            self.check(a, "yes")
+        for a in ("r/src/v2-api/x-1.py:9", "r/src/v2-api/x-1.py:14", "r/src/v2-api/x-1.py:13-31",
+                  "r/src/v2-api/x-1.py:21", "r/src/v2-api/x-1.py:30-31"):
+            self.check(a, "no")
+        self.check("r/other.py:10", "nofile")
+
+    def test_old_side(self):
+        for a in ("r/src/v2-api/x-1.py:-10-12", "r/src/v2-api/x-1.py:-20", "r/gone.py:-1-3"):
+            self.check(a, "yes")
+        for a in ("r/src/v2-api/x-1.py:-13", "r/src/v2-api/x-1.py:-30", "r/src/v2-api/x-1.py:-12-20",
+                  "r/gone.py:-4"):
+            self.check(a, "no")
+
+    def test_renames_use_the_new_path_on_both_sides(self):
+        self.check("r/new name.py:5-6", "yes")
+        self.check("r/new name.py:-6", "yes")   # old side of a renamed file: mapped to its --- path
+        self.check("r/old name.py:-6", "nofile")  # the old name is never the anchor path
+        self.check("r/old name.py:5", "nofile")
+        self.check('r/q"t.py:1', "yes")
+
+    def test_deleted_file_uses_its_old_path(self):
+        self.check("r/gone.py:-2", "yes")
+
+    def test_header_state_is_per_file(self):
+        diff = ("diff --git a/q.sql b/q.sql\n--- a/q.sql\n+++ b/q.sql\n@@ -2 +1,0 @@\n"
+                "--- a comment\n@@ -4 +3 @@\n-x\n+y\n"
+                "diff --git a/p.txt b/p.txt\n--- a/p.txt\n+++ b/p.txt\n@@ -9,0 +10 @@\n"
+                "+++ c\n@@ -17 +18 @@\n-o\n+n\n"
+                "diff --git a/img.png b/img.png\nBinary files a/img.png and b/img.png differ\n"
+                "diff --git a/m.sh b/m.sh\nold mode 100644\nnew mode 100755\n"
+                "diff --git a/r1.py b/r2.py\nsimilarity index 100%\nrename from r1.py\nrename to r2.py\n")
+        for a, want in (("r/q.sql:-4", "yes"), ("r/q.sql:3", "yes"), ("r/p.txt:18", "yes"),
+                        ("r/p.txt:-17", "yes"), ("r/img.png:1", "nofile"), ("r/m.sh:1", "nofile"),
+                        ("r/r2.py:1", "nofile"), ("r/r2.py:-1", "nofile")):
+            self.assertEqual(rr.anchor_in_diff(diff, a), want, a)
+
+    def test_quoted_non_ascii_paths(self):
+        diff = ('diff --git "a/\u4e2d\\"q.py" "b/\u4e2d\\"q.py"\n--- "a/\u4e2d\\"q.py"\n'
+                '+++ "b/\u4e2d\\"q.py"\n@@ -1 +1 @@\n'
+                'diff --git "a/\\303\\274.py" "b/\\303\\274.py"\n--- "a/\\303\\274.py"\n'
+                '+++ "b/\\303\\274.py"\n@@ -1 +1,2 @@\n')
+        self.assertEqual(rr.anchor_in_diff(diff, 'r/\u4e2d"q.py:1'), "yes")
+        self.assertEqual(rr.anchor_in_diff(diff, "r/\u00fc.py:2"), "yes")
+
+    def test_repo_prefix_matches_only_the_exact_path(self):
+        diff = "diff --git a/x.py b/x.py\n--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n"
+        self.assertEqual(rr.anchor_in_diff(diff, "src/x.py:1"), "yes")  # no --repo: first segment dropped
+        self.assertEqual(rr.anchor_in_diff(diff, "src/x.py:1", repo="acme"), "nofile")
+        self.assertEqual(rr.anchor_in_diff(diff, "acme/x.py:1", repo="acme"), "yes")
+        self.assertEqual(rr.anchor_in_diff(diff, "x.py:1", repo="acme"), "yes")
+        self.assertEqual(rr.anchor_in_diff(diff, "other/x.py:1", repo="acme"), "nofile")
+        self.assertEqual(rr.anchor_in_diff(diff, "x.py:5", repo="acme"), "no")  # file found, line not
+
+    def test_file_level_reversed_and_malformed(self):
+        self.check("r/gone.py (deleted)", "no")
+        self.check("r/src/v2-api/x-1.py:12-10", None)
+        self.check("r/src/v2-api/x-1.py:", None)
+
+
+class InDiffCliTests(unittest.TestCase):
+    def run_cli(self, md, diff, *extra):
+        with tempfile.TemporaryDirectory() as d:
+            src, dp = Path(d) / "review.md", Path(d) / "pr.diff"
+            src.write_text(md, encoding="utf-8")
+            dp.write_text(diff, encoding="utf-8")
+            r = subprocess.run([sys.executable, str(SCRIPTS / "render_review.py"), "--in-diff", str(dp)]
+                               + list(extra) + [str(src)], capture_output=True, text=True,
+                               env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
+            return r, sorted(p.name for p in Path(d).iterdir())
+
+    def test_prints_one_line_per_anchored_card_and_writes_nothing(self):
+        cards = (V2_CARD.replace("repo/a.py:1", "acme/a.py:2-3")
+                 + CARD_MD.replace("Bad thing", "No id\there").replace(
+                     "**Confidence:**", "**Anchor:** acme/a.py:9-3\n**Confidence:**")
+                 + CARD_MD.replace("Bad thing", "Plain"))  # no Anchor: no line
+        biz = V2_CARD.replace("[critical]", "[minor]").replace("**Axis:** code", "**Axis:** business") \
+            .replace("F3", "F7").replace("repo/a.py:1", "acme/a.py (deleted)")
+        md = v2_review(card=cards, nits="").replace("## Business findings\nNone.", "## Business findings\n" + biz)
+        diff = "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -2 +2,2 @@\n"
+        r, files = self.run_cli(md, diff, "--repo", "acme")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout, "F3\tacme/a.py:2-3\tyes\nNo id here\tacme/a.py:9-3\tmalformed\n"
+                                   "F7\tacme/a.py (deleted)\tno\n")
+        self.assertEqual(files, ["pr.diff", "review.md"])  # no html written
+
+    def test_nofile_for_wrong_repo_and_old_name_on_rename(self):
+        cards = (V2_CARD.replace("repo/a.py:1", "acme/a.py:2")
+                 + V2_CARD.replace("F3", "F4").replace("repo/a.py:1", "acme/old.py:-1"))
+        diff = ("diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -2 +2 @@\n"
+                "diff --git a/old.py b/new.py\n--- a/old.py\n+++ b/new.py\n@@ -1 +1 @@\n")
+        r, _ = self.run_cli(v2_review(card=cards, nits=""), diff, "--repo", "wrong")
+        self.assertEqual(r.stdout, "F3\tacme/a.py:2\tnofile\nF4\tacme/old.py:-1\tnofile\n")
+        r, _ = self.run_cli(v2_review(card=cards, nits=""), diff, "--repo", "acme")
+        self.assertEqual(r.stdout, "F3\tacme/a.py:2\tyes\nF4\tacme/old.py:-1\tnofile\n")
+
+    def test_unreadable_diff_fails(self):
+        with tempfile.TemporaryDirectory() as d:
+            src = Path(d) / "review.md"
+            src.write_text(v2_review(), encoding="utf-8")
+            r = subprocess.run([sys.executable, str(SCRIPTS / "render_review.py"), "--in-diff",
+                                str(Path(d) / "missing.diff"), str(src)], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 1)
+            self.assertEqual(r.stdout, "")
+
+
 class CssTests(unittest.TestCase):
     TEXT_VARS = {"text", "muted", "accent", "ok", "sev-critical", "sev-important", "sev-minor", "sev-nit"}
     SURFACES = ("bg", "surface", "surface-2")

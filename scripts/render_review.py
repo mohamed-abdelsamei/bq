@@ -2,6 +2,10 @@
 """Render a /bq:review-mr report (markdown) to one self-contained HTML file. Stdlib only.
 
 Usage: python3 scripts/render_review.py <review.md> [-o out.html]
+       python3 scripts/render_review.py --in-diff <diff-file> [--repo <name>] <review.md>
+
+--in-diff prints `<ID or title>\t<anchor>\tyes|no|nofile|malformed` for each card with an Anchor, computed
+from a `git diff -U0` file (git diff output with `diff --git` headers), and writes nothing.
 
 The md is the source of truth (format: skills/mr-review/references/report-format.md); the html is
 derived and regenerable. Same input gives byte-identical output (no timestamps). Parsing is strict:
@@ -12,6 +16,7 @@ the exit code is non-zero only when the input file cannot be read (or the output
 Every md-derived string is escaped with html.escape(quote=True). There is no raw HTML and no links.
 """
 import argparse
+import codecs
 import html
 import re
 import sys
@@ -259,6 +264,15 @@ NIT_START = re.compile(r"^- \[nit\]", re.I)
 SEV_HEAD = re.compile(r"^### \[(critical|important)\]", re.I)
 LIST_ITEM = re.compile(r"^\s*(?:([-*+])|\d+[.)])\s+(.*)$")
 BOLD = re.compile(r"\*\*(.+?)\*\*")
+# Anchor forms (comment-style.md section 2): path:n, path:a-b (new side), path:-n, path:-a-b (old side),
+# path (deleted). The line spec is matched at the END of the value, so the path may hold spaces, `-`,
+# digits and `:` (it splits at the last `:`). A path whose own text ends in `:<n>` is unrepresentable,
+# a path holding `:<n>` before a space, comma or semicolon is refused as two anchors in one field, and
+# a path starting with `/` or holding a backtick is refused.
+ANCHOR_LINES = re.compile(r"^(\S.*):(-?)([1-9]\d*)(?:-([1-9]\d*))?$")
+ANCHOR_DELETED = re.compile(r"^(\S.*) \(deleted\)$")
+ANCHOR_TWO = re.compile(r":-?\d+(?:-\d+)?[\s,;]")
+HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 
 
 def e(s):
@@ -489,6 +503,92 @@ def parse_findings(lines, section_axis, warn):
     return cards, nits, unparsed
 
 
+def parse_anchor(text):
+    """-> {"path", "side": new|old|file, "start", "end"} or None when malformed. A reversed range
+    (b < a) still parses; the caller flags it."""
+    t = text.strip().strip("`").strip()
+    m = ANCHOR_DELETED.match(t) or ANCHOR_LINES.match(t)
+    if not m or m.group(1).startswith("/") or "`" in m.group(1) or ANCHOR_TWO.search(m.group(1) + " "):
+        return None
+    if m.re is ANCHOR_DELETED:
+        return {"path": m.group(1), "side": "file", "start": None, "end": None}
+    a = int(m.group(3))
+    return {"path": m.group(1), "side": "old" if m.group(2) else "new", "start": a,
+            "end": int(m.group(4)) if m.group(4) else a}
+
+
+def _diff_path(raw):
+    """A `--- a/x` / `+++ b/x` header path -> repo-relative path, or None for /dev/null."""
+    raw = raw.rstrip("\t")  # git appends a tab when the path has a space
+    if raw.startswith('"') and raw.endswith('"'):  # C-quoted: escapes and octal UTF-8 bytes
+        raw = codecs.escape_decode(raw[1:-1].encode("utf-8"))[0].decode("utf-8", "replace")
+    if raw == "/dev/null":
+        return None
+    return raw[2:] if raw[:2] in ("a/", "b/") else raw
+
+
+def anchor_in_diff(diff_text, anchor, repo=None):
+    """-> "yes", "no", "nofile" (the path matches no file with hunks in the diff), or None (malformed or
+    reversed anchor), from `git diff -U0` text. The input must be `git diff` output with `diff --git`
+    headers; other diff formats read as nofile.
+
+    A file is keyed by its head-side path (`+++`), or its `---` path when deleted; an anchor names that
+    path on both sides, so an old-side anchor on a renamed file uses the new name. New-side anchors check
+    the `+c,d` ranges, old-side ones `-a,b`; yes only if every line lies inside one hunk (a count of 0
+    covers no lines, a missing count is 1). File level is no. `---`/`+++` are read only in a file header
+    (after `diff --git`, before the first `@@`). With `repo`, a leading `<repo>/` is stripped and only
+    that exact path matches; without it, the path matches as written or minus its first segment."""
+    a = parse_anchor(anchor)
+    if a is None or (a["start"] is not None and a["end"] < a["start"]):
+        return None
+    if a["side"] == "file":
+        return "no"
+    if repo:
+        want = {a["path"][len(repo) + 1:] if a["path"].startswith(repo + "/") else a["path"]}
+    else:
+        want = {a["path"], a["path"].split("/", 1)[-1]}
+    old = new = None
+    header = found = False
+    for line in split_lines(diff_text):
+        if line.startswith("diff --git "):
+            old = new = None
+            header = True
+        elif header and line.startswith("--- "):
+            old = _diff_path(line[4:])
+        elif header and line.startswith("+++ "):
+            new = _diff_path(line[4:])
+        else:
+            m = HUNK.match(line)
+            if not m:
+                continue
+            header = False
+            if (new or old) not in want:
+                continue
+            found = True
+            start, count = (m.group(1), m.group(2)) if a["side"] == "old" else (m.group(3), m.group(4))
+            start, count = int(start), 1 if count is None else int(count)
+            if count and start <= a["start"] and a["end"] <= start + count - 1:
+                return "yes"
+    return "no" if found else "nofile"
+
+
+def in_diff_report(text, diff_text, repo=None):
+    """-> one `<ID or title>\t<anchor>\tyes|no|nofile|malformed` line per card with an Anchor, in file order."""
+    _, _, sections, _ = split_document(split_lines(text), lambda _m: None)
+    axis_of = {h.lower(): a for h, a in SECTIONS[:3]}
+    out = []
+    for heading, slines in sections:
+        axis = axis_of.get(heading.strip().lower())
+        if axis is None:
+            continue
+        for c in parse_findings(slines, axis, lambda _m: None)[0]:
+            raw = " ".join(c["fields"].get("Anchor", [])).strip()
+            if raw:
+                v = anchor_in_diff(diff_text, raw, repo) or "malformed"
+                out.append("\t".join(x.replace("\t", " ") for x in (c["id"] or c["title"], raw.strip("`"), v)))
+    return out
+
+
 def norm_verdict(s):
     s = re.sub(r"[*_`]", "", s).strip().rstrip(".").strip().lower()
     for v in VERDICTS:
@@ -674,6 +774,14 @@ def render(text, name):
     for c in cards:
         if c["in_diff"] is not None and c["in_diff"] not in IN_DIFF:
             problem("card %r has In diff %r (expected yes or no)" % (c["title"], c["in_diff"]))
+        raw = " ".join(c["fields"].get("Anchor", [])).strip()
+        if raw:
+            a = parse_anchor(raw)
+            if a is None:
+                problem("card %r has a malformed Anchor %r (expected path:n, path:a-b, path:-n, path:-a-b "
+                        "or path (deleted))" % (c["title"], raw))
+            elif a["start"] is not None and a["end"] < a["start"]:
+                problem("card %r has a reversed Anchor range %r (b < a)" % (c["title"], raw))
         if c["id"] and not CARD_ID.fullmatch(c["id"]):
             problem("card %r has ID %r (expected F<n>, e.g. F1)" % (c["title"], c["id"]))
     seen = {}  # ID number (or raw text) -> [first form, uses]; dicts keep insertion order: deterministic
@@ -838,13 +946,21 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Render a bq MR review md to a self-contained html file.")
     ap.add_argument("review", help="path to the review .md")
     ap.add_argument("-o", "--output", help="output path (default: input with .html)")
+    ap.add_argument("--in-diff", metavar="DIFF", help="print each anchored card's In diff value against "
+                    "this `git diff -U0` file; writes and renders nothing")
+    ap.add_argument("--repo", help="with --in-diff: the <repo> prefix of anchors")
     args = ap.parse_args(argv)
     src = Path(args.review)
     try:
         text = src.read_bytes().decode("utf-8", errors="replace")
+        diff_text = Path(args.in_diff).read_bytes().decode("utf-8", errors="replace") if args.in_diff else None
     except OSError as ex:
-        print("render_review: cannot read %s (%s)" % (src, type(ex).__name__), file=sys.stderr)
+        print("render_review: cannot read %s (%s)" % (ex.filename or src, type(ex).__name__), file=sys.stderr)
         return 1
+    if diff_text is not None:
+        for line in in_diff_report(text, diff_text, args.repo):
+            print(line)
+        return 0
     doc, warnings = render(text, src.name)
     for w in warnings:
         print("render_review: warning: " + w, file=sys.stderr)

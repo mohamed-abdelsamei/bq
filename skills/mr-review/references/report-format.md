@@ -30,7 +30,7 @@ every rewrite so new IDs start above it (a fresh file keeps its own).
 ### [severity] Title
 **ID:** F<n>
 **Axis:** code | business | process
-**Anchor:** <repo>/<path>:<line>
+**Anchor:** <repo>/<path>:<n> | :<a>-<b> | :-<n> | :-<a>-<b> | <repo>/<path> (deleted)
 **Confidence:** confirmed | suspected
 **What:** the risk and when it bites.
 **Why:** `quoted evidence`
@@ -50,17 +50,26 @@ this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
   renderer warns when an ID repeats across the cards and nits of one file. Files without IDs still
   render.
 - **Carried** marks a finding kept from an earlier review at `<sha7>`, with its ID, Marker and Posted.
-- **In diff** says whether the anchor line is in a diff hunk at the head SHA. `no` means the finding
-  cannot be posted inline. It is shown as a tag; any value other than `yes` or `no` gets a warning.
+- **In diff** says whether every anchored line lies inside one diff hunk on the anchor's side. The
+  Maestro writes it at Close, never a specialist. `no` means the finding cannot be posted inline. It
+  is shown as a tag; any value other than `yes` or `no` gets a warning.
 - **Marker** is the 12-hex posting marker; **Posted** is added once the finding is posted.
 
-- **Anchor** is the new side at the head SHA; `path (deleted)` for removed code; optional for
-  business findings.
+- **Anchor** is one of five forms (meaning and sides in `comment-style.md` section 2):
+  `<repo>/<path>:<n>`, `:<a>-<b>` (new side), `:-<n>`, `:-<a>-<b>` (old side), or
+  `<repo>/<path> (deleted)` (file level). Optional; business findings may omit it. The renderer
+  warns when an Anchor is malformed or its range is reversed (b < a). It splits at the **last** `:`
+  and reads the line spec from the end, so a path may contain spaces, `-`, digits and `:`. Limits: a
+  path ending in `:<digits>` cannot be anchored, line numbers start at 1, a path holding `:<n>`
+  before a space, comma or semicolon is refused as two anchors in one field (one Anchor per card),
+  and a path starting with `/` or containing a backtick is refused.
 - **Suggested change** is a fenced `diff` block under the label **Proposed patch (not posted)**.
   Confirmed findings only; the gates are in `comment-style.md`.
 - A nit may be one line: `- [nit] Title — note. (`path:line`)`. It may start with its ID:
   `- [nit] F7 Title — note. (`path:line`)`. The renderer reads that prefix as an ID only when the
-  file has at least one card `**ID:**`; otherwise the nit text is kept verbatim.
+  file has at least one card `**ID:**`; otherwise the nit text is kept verbatim. The trailing
+  `(path:line)` is free text and is not validated: older files wrote it loosely, and checking it
+  would add warnings to files that rendered clean.
 
 ## Severity, blocking, verdict
 
@@ -118,16 +127,18 @@ Lead with impact; one issue per finding; quote evidence; neutral voice; a questi
 ### [important] Retry loop never stops on 4xx
 **ID:** F1
 **Axis:** code
-**Anchor:** acme-sync/sync/client/retry.py:42
+**Anchor:** acme-sync/sync/client/retry.py:42-43
 **Confidence:** confirmed
 **What:** A permanent 400 is retried forever, hammering the API.
-**Why:** `while True: resp = send(req)  # no status check`
+**Why:** `while True:` then `resp = send(req)`, with no status check.
 **Fix:** Stop on non-retryable status codes and cap attempts.
 **Suggested change:**
 Proposed patch (not posted)
 ```diff
 -while True:
+-    resp = send(req)
 +for _ in range(MAX_ATTEMPTS):
++    resp = send(req)
 ```
 **In diff:** yes
 - [nit] F3 Rename `d` to `delay`. (`acme-sync/sync/client/retry.py:50`)

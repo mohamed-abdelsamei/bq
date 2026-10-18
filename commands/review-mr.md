@@ -70,7 +70,8 @@ statement), the intent, the target branch, the existing threads/bot comments and
 path (neither in fresh), the CI status (fresh: pass/fail only), the lessons block, **"read the mr-review
 skill's `references/comment-style.md`"**, and three rules stated in the brief itself: **never emit
 suggestion fences** (plain diff text only); **return `Suggested change:` only when its gates hold**
-(confirmed, mechanical, local, non-security, anchor inside the diff, not a pasted patch);
+(confirmed, mechanical, local, non-security, anchor on an added line inside the diff (the Maestro
+confirms In diff), not a pasted patch);
 **work only in `<wt>`** — every command as `git -C "<wt>"` or with `<wt>` as its working directory,
 never `cd`, never anything in the user's checkout; and
 **read-only — don't edit, commit, or post anything.** Every fresh brief also states, verbatim:
@@ -132,6 +133,20 @@ quoted replaced lines. If the command didn't run or the lines don't match, drop 
 the finding, and log the drop in the Validation section. The head SHA must match `[0-9a-f]{7,40}`
 and the path must be repo-relative: refuse any path from diff text containing `..` or shell
 metacharacters (`` ` $ ; | & < > ( ) `` quotes, newlines) and never pass it to a shell.
+
+- **In diff:** once the md is written (below), save `git -C "<wt>" -c core.quotePath=true diff
+  --no-color --no-ext-diff --no-relative --src-prefix=a/ --dst-prefix=b/ -U0 <base>...HEAD`
+  (`<base>` = the fetched target ref) to a scratch file<!-- claude-only -->, run `python3
+  "${CLAUDE_PLUGIN_ROOT}/scripts/render_review.py" --in-diff "<diff file>" --repo "<project>" "<the
+  md path>"` and copy each `yes`/`no` into that card's `**In diff:**`. If the script is
+  unavailable, apply<!-- copilot: , and apply --><!-- /claude-only --> the rule by hand from its
+  hunk headers `@@ -a,b +c,d @@`: new-side anchors check `+c,d`, old-side `-a,b`, on the head-side
+  path; `yes` only if every line lies inside one hunk (count 0 = no lines, missing = 1); file level
+  is `no`. A `malformed` Anchor, or `nofile` (its path is not in the diff), gets no In diff. Drop
+  any Suggested change on a card with In diff `no`, `malformed`, `nofile` or an old-side Anchor,
+  and log the drop in Validation; if every card reads `nofile`, note there that the repo name or
+  path probably doesn't match. With no worktree (local changes, a pasted patch), omit In diff.
+  Specialists never write In diff.
 
 Write the review per the mr-review skill's `references/report-format.md` (slug rule there: derived,
 `[a-z0-9-]` only, never copied verbatim). In `full`, write the canonical review (found per
