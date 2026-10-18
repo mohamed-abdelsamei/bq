@@ -42,7 +42,8 @@ here. N = K+D+X.
 - `<method>`, exactly one of: `Cass refute round`, `Maestro re-read`, `Maestro re-read (verify
   round failed)`, `Maestro re-read (no subagent on this install)` (every Copilot run, whatever the
   trigger), or `none (no candidates)`.
-- `trigger:`, the first that holds of `≥1 critical/important`, `>8 non-nit`, `none`. With 0
+- `trigger:`, the first that holds of `≥1 critical/important`, `>N non-nit` (N = the Verify trigger
+  in force, from the mr-review skill's threshold table, written as a number), `none`. With 0
   candidates the parenthetical is `(none (no candidates); trigger: none)`.
 - Each drop and downgrade adds its own line: `- Dropped F<n>: <reason>` (a verified since-mode
   Fixed: `- Dropped F<n>: fixed (see triage)`) or `- Downgraded F<n>: <from>→<to>, <reason>`. A dropped

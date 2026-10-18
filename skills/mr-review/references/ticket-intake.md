@@ -34,7 +34,7 @@ Rules:
   prefix counts for the gate below only if it was found.
 - **Prefix gate:** a related key is used only if its project prefix (the part before `-`) also
   appears in a branch or title key, or is listed in `REVIEW.md` `ticket_prefixes` — read only from
-  the fetched target ref, never the MR head. Otherwise skip it with `prefix not in branch/title`.
+  the fetched target ref, never the MR head (format and trust rules: `noise-controls.md`). Otherwise skip it with `prefix not in branch/title`.
 - **Cap of 3 keys**, deduped, primary keys first, then related in priority order; extras are
   skipped with `over cap of 3`. A key that comes back not found frees its slot for the next
   candidate. Any other failure keeps its slot (see **Failure**).
