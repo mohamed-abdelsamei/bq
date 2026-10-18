@@ -619,6 +619,78 @@ class V2FieldTests(unittest.TestCase):
         self.assertNotRegex(body, r"<script|<img|<a |<b>|<i>")
 
 
+VERIFY_OK = "- Verify: 4 found, 2 kept, 1 downgraded, 1 dropped (Cass refute round; trigger: ≥1 important)\n"
+
+
+class VerifyLineTests(unittest.TestCase):
+    def verify_warns(self, extra):
+        doc, warns = render(review(extra=extra))
+        return doc, [w for w in warns if "Verify" in w]
+
+    def test_good_sum_renders_clean(self):
+        for line in (VERIFY_OK,
+                     "- Verify: 0 found, 0 kept, 0 downgraded, 0 dropped (Maestro re-read; trigger: none)\n",
+                     "- Verify: 2 found, 2 kept, 0 downgraded, 0 dropped (Maestro re-read (no subagent on this "
+                     "install); trigger: >8 non-nit)\n"):
+            doc, warns = render(review(extra=line))
+            self.assertEqual(warns, [], line)
+            self.assertNotIn('role="alert"', doc)
+
+    def test_bad_sum_warns_with_banner(self):
+        doc, warns = self.verify_warns(VERIFY_OK.replace("4 found", "5 found"))
+        self.assertEqual(len(warns), 1, warns)
+        self.assertIn("5 found", warns[0])
+        self.assertIn("2+1+1", warns[0])
+        self.assertIn("Review file structure problems", doc)
+
+    def test_duplicate_line_warns_with_banner(self):
+        doc, warns = self.verify_warns(VERIFY_OK + VERIFY_OK)
+        self.assertEqual(len(warns), 1, warns)
+        self.assertIn("2 times", warns[0])
+        self.assertIn("Review file structure problems", doc)
+
+    def test_malformed_line_warns(self):
+        for bad in ("- Verify: 4 found, 2 kept, 1 downgraded (Maestro re-read)\n",
+                    "- Verify: 4 found, 2 kept, 1 downgraded, 1 dropped\n",
+                    "- Verify: four found, 2 kept, 1 downgraded, 1 dropped (Maestro re-read)\n"):
+            doc, warns = self.verify_warns(bad)
+            self.assertEqual(len(warns), 1, (bad, warns))
+            self.assertIn("malformed", warns[0])
+            self.assertIn("Review file structure problems", doc)
+
+    def test_bold_and_lowercase_forms_are_checked(self):
+        bold = VERIFY_OK.replace("- Verify:", "- **Verify:**")
+        lower = VERIFY_OK.replace("- Verify:", "- verify:")
+        for line in (bold, lower, "* " + VERIFY_OK[2:]):
+            self.assertEqual(render(review(extra=line))[1], [], line)
+        for line in (bold.replace("4 found", "5 found"), lower.replace("4 found", "5 found")):
+            doc, warns = self.verify_warns(line)
+            self.assertEqual(len(warns), 1, (line, warns))
+            self.assertIn("2+1+1", warns[0])
+        doc, warns = self.verify_warns(VERIFY_OK + bold)
+        self.assertEqual(len(warns), 1, warns)
+        self.assertIn("2 times", warns[0])
+        for bad in ("- **Verify:** four found\n", VERIFY_OK.replace("- Verify:", "- **Verify**:")):
+            doc, warns = self.verify_warns(bad)
+            self.assertEqual(len(warns), 1, (bad, warns))
+            self.assertIn("malformed", warns[0])
+        self.assertIn("Review file structure problems", doc)
+
+    def test_missing_line_and_other_verify_text_are_fine(self):
+        for extra in ("", "- Verify Suggested change F1: dropped, lines differ\n", "- verified CI\n",
+                      "- Suggested change dropped F1: lines differ\n"):
+            self.assertEqual(render(review(extra=extra))[1], [], extra)
+
+    def test_only_the_validation_section_is_read(self):
+        md = review(extra="").replace("## Prior findings triaged\nNone.",
+                                      "## Prior findings triaged\n" + VERIFY_OK.replace("4 found", "9 found"))
+        self.assertEqual(render(md)[1], [])
+
+    def test_sample_carries_a_valid_verify_line(self):
+        self.assertEqual(len(re.findall(r"^- Verify: ", sample(), re.M)), 1)
+        self.assertEqual(render(sample())[1], [])
+
+
 def anchor_review(anchor):
     return review(code=CARD_MD.replace("**Confidence:**", "**Anchor:** %s\n**Confidence:**" % anchor, 1),
                   verdict="Request changes")

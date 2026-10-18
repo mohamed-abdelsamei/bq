@@ -81,6 +81,8 @@ posted, approved or merged otherwise.
   that line plus the b-a lines above it); a single line takes a bare `suggestion`. If the
   replacement itself contains triple backticks, wrap it in a longer outer fence (four or more).
 - **Line outside the diff:** post a plain comment with a normal code block, not a suggestion.
+- **Suspected is never inline.** A `suspected` finding is never posted as an inline comment. If the
+  user names one for posting, it goes in the summary comment, phrased as a question.
 - Rendering of suggestions created through the GitLab API is unverified; say so if it matters.
 - **No ticket text.** A posted comment states the expected behaviour in code terms and never
   references, quotes or paraphrases the ticket (no key, no AC text). Only the local md may quote it,

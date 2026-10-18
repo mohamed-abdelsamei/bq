@@ -263,6 +263,16 @@ CARD = re.compile(r"^### \[(critical|important|minor|nit)\] (\S.*?)\s*$")
 NIT = re.compile(r"^- \[nit\] (\S.*)$", re.I)
 NIT_ID = re.compile(r"^(F\d+) (\S.*)$")  # a nit's ID prefix, read only in a file with card IDs
 CARD_ID = re.compile(r"F[1-9]\d*")
+# The Verify count line in ## Validation (R11). A line is a Verify line when it is a bullet whose text
+# starts `Verify:`, `**Verify:**` or `**Verify**:`, any case, colon right after the word (so `- Verify
+# Suggested change ...` and `- verified CI` are not), outside a fence. It must then match VERIFY_LINE
+# (`Verify:` or `**Verify:**`, any case; `**Verify**:` is reported malformed): four non-negative
+# integers in this order and wording, then a non-empty parenthetical (method and trigger, free text:
+# not validated). Warned: a Verify line that doesn't match, N != K+D+X, or more than one Verify line.
+# No Verify line: no warning (older files).
+VERIFY_START = re.compile(r"^\s*[-*]\s+(?:\*\*)?verify(?:\*\*)?:", re.I)
+VERIFY_LINE = re.compile(r"^\s*[-*]\s+(?:\*\*Verify:\*\*|Verify:) (\d+) found, (\d+) kept, (\d+) downgraded, (\d+) dropped "
+                         r"\((.+)\)\s*$", re.I)
 NIT_START = re.compile(r"^- \[nit\]", re.I)
 SEV_HEAD = re.compile(r"^### \[(critical|important)\]", re.I)
 LIST_ITEM = re.compile(r"^\s*(?:([-*+])|\d+[.)])\s+(.*)$")
@@ -762,6 +772,23 @@ def render(text, name):
     if "Ticket" in header and not TICKET_STATE_RE.search(header["Ticket"]):
         warn("header Ticket %r gives no key a state; write KEY (fetched) or KEY (not fetched: <reason>)"
              % header["Ticket"])  # soft: stderr only, no banner
+
+    fence, vlines = None, []
+    for ln in by_name.get("Validation", []):
+        inside, fence = fence, fence_step(ln, fence)
+        if inside is None and fence is None and VERIFY_START.match(ln):
+            vlines.append(ln.strip())
+    if len(vlines) > 1:
+        problem("Verify line appears %d times in Validation (expected exactly one)" % len(vlines))
+    for vl in vlines:
+        vm = VERIFY_LINE.match(vl)
+        if not vm:
+            problem("malformed Verify line %r (expected '- Verify: N found, K kept, D downgraded, X dropped "
+                    "(<method>; trigger: <threshold>)')" % vl[:80])
+            continue
+        n, k, d, x = (int(g) for g in vm.groups()[:4])
+        if n != k + d + x:
+            problem("Verify line says %d found but %d+%d+%d = %d (kept+downgraded+dropped)" % (n, k, d, x, k + d + x))
 
     cards, nits = [], []
     for heading, axis in SECTIONS[:3]:

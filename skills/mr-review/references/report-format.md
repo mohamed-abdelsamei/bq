@@ -30,6 +30,32 @@ In order: `## Code findings`, `## Business findings`, `## Process & convention f
 `## Validation` carries a `- Last ID: F<n>` line, the highest ID this file has ever used, kept on
 every rewrite so new IDs start above it (a fresh file keeps its own).
 
+`## Validation` also carries exactly one Verify line, written at Close (`/bq:review-mr` **Verify**):
+
+```
+- Verify: N found, K kept, D downgraded, X dropped (<method>; trigger: <threshold that fired>)
+```
+
+This file is the one owner of the line's syntax and vocabulary; the command and the skill point
+here. N = K+D+X.
+
+- `<method>`, exactly one of: `Cass refute round`, `Maestro re-read`, `Maestro re-read (verify
+  round failed)`, `Maestro re-read (no subagent on this install)` (every Copilot run, whatever the
+  trigger), or `none (no candidates)`.
+- `trigger:`, the first that holds of `≥1 critical/important`, `>8 non-nit`, `none`. With 0
+  candidates the parenthetical is `(none (no candidates); trigger: none)`.
+- Each drop and downgrade adds its own line: `- Dropped F<n>: <reason>` (a verified since-mode
+  Fixed: `- Dropped F<n>: fixed (see triage)`) or `- Downgraded F<n>: <from>→<to>, <reason>`. A dropped
+  finding gets no card, but its ID still counts toward `Last ID`, so it is never reused. Other
+  Validation notes never start with `Verify:` (e.g. `- Suggested change dropped F<n>: …`).
+
+The renderer reads Verify lines only in `## Validation`, outside fences: a bullet whose text starts
+`Verify:`, `**Verify:**` or `**Verify**:`, in any case, colon right after the word (`- Verify
+Suggested change …` and `- verified CI` are not Verify lines). It warns (banner and stderr) when
+such a line doesn't match the form above (`Verify:` or `**Verify:**`, then four integers in that
+order and wording, then a non-empty parenthetical whose text is not checked), when N ≠ K+D+X, or
+when there is more than one. A file with no Verify line renders without a warning.
+
 ## Finding card
 
 ```
@@ -117,7 +143,8 @@ it reviewed in the header.
 ## Comment rules (brief)
 
 Lead with impact; one issue per finding; quote evidence; neutral voice; a question when
-`suspected`; no `/Users/`, `/home/`, `/tmp/` paths. Full rules and the suggestion gates:
+`suspected`; no `/Users/`, `/home/`, `/tmp/` paths. Suspected findings are never posted inline
+(`comment-style.md` section 4). Full rules and the suggestion gates:
 `comment-style.md`. Nothing is posted without an explicit user go-ahead. Ticket text in posted
 comments: `comment-style.md` section 4.
 
@@ -173,6 +200,9 @@ None.
 ## Validation
 - `pytest tests/sync` — pass. CI green on 4f2a9c1.
 - Ticket: used SYNC-41 (branch, fetched via the session's Jira tool)
+- Verify: 3 found, 2 kept, 0 downgraded, 1 dropped (Cass refute round; trigger: ≥1 critical/important)
+- Dropped F4: `delay = min(delay * 2, MAX_DELAY)` at retry.py:47 caps the backoff delay, so the reported delay overflow cannot happen.
+- Last ID: F4
 
 ## Verdict
 Strengths: backoff is capped and jittered; the new tests cover the 5xx path.

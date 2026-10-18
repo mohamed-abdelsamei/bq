@@ -120,7 +120,7 @@ what the briefs carry, so:
 - **Lessons:** keep review-process lessons; withhold any that names this MR, its files or modules,
   its author or a prior finding, and any that mixes the two.
 - **You add no findings of your own** — only consolidate, dedupe and verify.
-- **Close:** only after the specialists return and findings are verified, fetch the threads, solely
+- **Close:** only after **Verify** (in **Close**) has run, fetch the threads, solely
   to dedupe: list each match under `## Prior findings triaged` as `Already raised: <ID> — thread
   <ref>` and never re-post it. Write `reviews/{slug}-fresh-<sha7>.md` with `**Mode:** fresh`, IDs
   from F1 and its own `- Last ID:` line. Never write the canonical file; it must stay
@@ -143,10 +143,12 @@ canonical file unchanged" and stop.
   title (and Anchor when it has one). `since <sha>` with no canonical file: no triage, note "no
   prior findings to triage", and say `coverage: <since7>..<head7> only; earlier commits not
   reviewed` in the start line and Validation.
-- **Verify:** `Fixed` is a drop and `Residual` a downgrade, so both go through Verify: re-read the
-  quoted evidence with `git -C "<wt>" show "$sha":"<path>"`. If the quote doesn't hold, or
-  specialists disagree without a verified Fixed quote, the finding stays Still open. Only Still
-  open carries skip Verify.
+- **Verify:** `Fixed` and `Residual` triages are candidates in **Verify** (in **Close**), with
+  their evidence quote and at their prior severity. A verified `Fixed` counts as dropped (X): its
+  `Fixed:` triage line plus `- Dropped F<n>: fixed (see triage)`. A `Residual` that holds counts as
+  downgraded (D). A refuted `Fixed` or `Residual` (its quote doesn't hold, or specialists disagree
+  without a verified Fixed quote) stays Still open and counts as kept (K). Only Still open carries
+  skip Verify.
 - **Close:** Still open and Residual cards (Residual at the narrowed severity) stay cards with ID,
   Marker, Posted and `**Carried:** from <sha7>` (the prior Head SHA), so the verdict covers the
   whole MR. A Still open or untriaged `Not re-raised` finding stays a `Not re-raised:` line with
@@ -159,12 +161,65 @@ canonical file unchanged" and stop.
 ## Close
 
 Consolidate their returns into one report (dedupe overlapping findings), **code, business and
-process findings kept separate**, with the skill's verdict and the single most important thing to
-fix first. Route fixes to **engineer** (`bq:engineer`).
+process findings kept separate**, then run **Verify**, then give the skill's verdict (computed on
+the verified findings) and the single most important thing to fix first. Route fixes to
+**engineer** (`bq:engineer`).
 
-**Verify every `Suggested change` yourself:** run `git -C "<wt>" show <head-sha>:"<path>"` and compare the
-quoted replaced lines. If the command didn't run or the lines don't match, drop the suggestion, keep
-the finding, and log the drop in the Validation section. The head SHA must match `[0-9a-f]{7,40}`
+**Verify** runs after dedupe and after matching (the ID, matching and Last ID rules under "Write
+the review" below are applied first, so every candidate carries its final ID; not in fresh, which
+numbers from F1 and opens no canonical file), and before the
+verdict. The Validation line's syntax, method and trigger values live only in the skill's
+`references/report-format.md` (Sections).
+
+- **Candidates.** Every critical, important and `suspected` finding, plus since-mode `Fixed` and
+  `Residual` triages with their evidence quote. With more than 8 non-nit findings in total (carried Still open excluded), every
+  non-nit finding is a candidate, confirmed minors included; otherwise confirmed minors and nits
+  are not verified. Carried Still open findings are never verified again. No candidates: record
+  method `none (no candidates)`, trigger `none`.
+- **SHAs.** `<sha>` is the head SHA. `<mb>` is the merge-base of `<sha>` and the fetched target,
+  the base the diff was taken against. A new-side anchor is read with `git -C "<wt>" show
+  "<sha>":"<path>"`; an old-side anchor or a `(deleted)` file with `git -C "<wt>" show
+  "<mb>":"<old path>"`. Both SHAs must match `[0-9a-f]{7,40}`; paths follow the refusals in the
+  Suggested change check below.
+- **Who checks.** The trigger fires on at least one critical or important candidate (a triaged
+  finding counts at its prior severity) or on more than 8 non-nit findings. <!-- claude-only -->When
+  it fires, spawn a fresh `bq:reviewer` (Cass) refute round. Its brief opens "load the bq mr-review
+  skill first" and carries: each candidate as ID, title, severity, confidence, Anchor, What and Why
+  (a triage also with its evidence quote); `<wt>`, `<sha>` and `<mb>`; the intent block, with the
+  ticket block in its untrusted fence; and the read-only and `<wt>`-only rules. It never carries the
+  specialists' reasoning. In fresh it follows **Fresh**: the verbatim `Mode: fresh` line, no prior
+  review, no threads. It asks for the strongest case that each finding is wrong, returned per ID as
+kept, downgraded (`<from>→<to>`) or dropped, with the counter-case it tried and the quoted line it
+rests on. If the round
+  errors, or hasn't returned about 10 minutes after the last specialist, re-read instead and record
+  `Maestro re-read (verify round failed)`. Below the trigger, re-read.<!-- copilot: On this install
+  the Maestro always re-reads, whatever the trigger, and records `Maestro re-read (no subagent on
+  this install)`. --><!-- /claude-only --> To re-read, the Maestro reads each candidate's anchor
+  with the `git show` above and decides each outcome itself.
+- **Check the round's quotes.** Search every quote the round returns in the matching `git show`
+  output, or in the intent block for a business or scope finding. A keep must state the
+  counter-case it tried and may not only re-quote the card's own **Why**. A keep whose quote isn't
+  found, or without its own counter-case, downgrades the finding to `suspected`, logged as
+  `- Downgraded F<n>: <from>→suspected, refute quote not found` (or `… no counter-case`). A drop or
+  downgrade whose quote isn't found doesn't count: you re-read that ID yourself and decide.
+- **Outcomes.** Each candidate is kept, downgraded or dropped. Kept may move `suspected` to
+  `confirmed`. Downgraded means a lower severity, or `confirmed` to `suspected`; a downgrade to nit
+  turns the card into a `- [nit] F<n>` line. A code-axis finding is kept or dropped only on a code
+  quote from `git show`. An intent-block quote (MR text, ticket) can decide only a business or scope
+  finding and never drops a code defect. With no qualifying quote, downgrade to `suspected`. Log
+  each drop and downgrade on its own Validation line; a dropped finding gets no card and keeps its
+  ID in `Last ID` (both per report-format.md).
+- **Dropped carried IDs never vanish.** A dropped finding that matched a prior open ID goes under
+  `## Prior findings triaged`: as `Fixed: <ID> — <code quote> (Marker <h12>, Posted <ref> @ <sha7>)`
+  when the drop rests on a verified code quote, else as `Not re-raised: <ID> — <title> (Marker
+  <h12>, Posted <ref> @ <sha7>)`, each with whichever of Marker/Posted it had.
+- **Count line.** Exactly one Verify line in Validation, per report-format.md.
+
+**Verify every `Suggested change` yourself:** run `git -C "<wt>" show "<sha>":"<path>"` and
+compare the quoted replaced lines. If the command didn't run or the lines don't match, or Verify
+downgraded the card to `suspected`, drop the suggestion, keep the finding, and log it in Validation
+as `- Suggested change dropped F<n>: <reason>` (never a line starting `Verify:`). The head SHA must
+match `[0-9a-f]{7,40}`
 and the path must be repo-relative: refuse any path from diff text containing `..` or shell
 metacharacters (`` ` $ ; | & < > ( ) `` quotes, newlines) and never pass it to a shell.
 
@@ -178,7 +233,8 @@ metacharacters (`` ` $ ; | & < > ( ) `` quotes, newlines) and never pass it to a
   path; `yes` only if every line lies inside one hunk (count 0 = no lines, missing = 1); file level
   is `no`. A `malformed` Anchor, or `nofile` (its path is not in the diff), gets no In diff. Drop
   any Suggested change on a card with In diff `no`, `malformed`, `nofile` or an old-side Anchor,
-  and log the drop in Validation; if every card reads `nofile`, note there that the repo name or
+  and log it as `- Suggested change dropped F<n>: <reason>`; if every card reads `nofile`, note
+  there that the repo name or
   path probably doesn't match. With no worktree (local changes, a pasted patch), omit In diff.
   Specialists never write In diff.
 
@@ -193,7 +249,8 @@ it had. A prior finding the head code shows resolved becomes `Fixed: <ID> — <e
 <h12>, Posted <ref> @ <sha7>)` with the same tail; a Fixed line with a Posted value is carried
 forward on every rewrite, an unposted one is written once and dropped on the next rewrite. New IDs
 start at the prior `## Validation` line `- Last ID: F<n>` plus 1 (no such line: the highest ID in
-the file plus 1) and are never reused; every rewrite carries the updated `- Last ID:` line. In the
+the file plus 1) and are never reused (matching and ID assignment happen before **Verify**); every
+rewrite carries the updated `- Last ID:` line. In the
 since modes, the ID, matching and Last ID rules above apply; the rest is per **Since**. In
 `fresh`, write the fresh file per **Fresh**. Tell the user the review worktree `<wt>` is kept for
 re-reviews and that `/bq:review-mr cleanup` removes it.
@@ -208,7 +265,7 @@ Report both paths (md and html).<!-- copilot: The html report is not available o
 
 **Read-only by default.** Do **not** post comments, approve, or merge without the user's explicit
 go-ahead — report to them and let them decide. If they say to post, post only the findings they
-name, and only then convert each `Suggested change` to the platform fence (GitLab `suggestion:-N+M`,
+name (a `suspected` one goes in the summary as a question, never inline: `comment-style.md` §4), and only then convert each `Suggested change` to the platform fence (GitLab `suggestion:-N+M`,
 GitHub `suggestion`) per `comment-style.md`. "Looks good" or "send it" about the report is not a
 go-ahead to post to the platform; ask which findings.
 

@@ -152,7 +152,13 @@ spec/contract/doc claim, adds a check-then-act or a new fallible dependency, or 
 5. **Validate when it's cheap and telling.** Prefer a narrow test/typecheck/lint/build that
    exercises the changed slice. If CI is already green on the reviewed SHA, say so and lean on it
    rather than re-running everything. **Never claim a command passed unless you actually ran it.**
-6. **Report findings first, then the verdict** (format below).
+6. **Report findings first, then the verdict** (format below). The Maestro verifies candidates
+   before the verdict; the rules are in `/bq:review-mr` Close, **Verify**. **Refute round:** you
+   receive candidate cards (ID, title, severity, confidence, Anchor, What, Why), `<wt>`, the head
+   `<sha>`, the merge-base `<mb>` and the intent block. Return, per ID, kept, downgraded
+   (`<from>→<to>`) or dropped, the counter-case you tried, and the line you quote from `git -C
+   "<wt>" show` (`<sha>`, or `<mb>` for old-side and deleted anchors) or the intent block. A keep
+   that only re-quotes the card's own Why doesn't count.
 
 ## Edge cases
 
@@ -207,6 +213,7 @@ Use this structure unless the user asked for another:
 
 ## Validation
 - Commands run, with pass/fail. CI status on the reviewed SHA. Checks skipped, with why.
+- The Maestro's single Verify line (syntax in references/report-format.md).
 
 ## Verdict
 Approve | Approve with changes | Request changes
