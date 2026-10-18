@@ -21,6 +21,8 @@ Optional keys follow, each only when it applies, and each is shown in the masthe
 
 In order: `## Code findings`, `## Business findings`, `## Process & convention findings`,
 `## Prior findings triaged`, `## Validation`, `## Verdict`. Write "None." for an empty section.
+`## Validation` carries a `- Last ID: F<n>` line, the highest ID this file has ever used, kept on
+every rewrite so new IDs start above it (a fresh file keeps its own).
 
 ## Finding card
 

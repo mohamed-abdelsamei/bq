@@ -114,14 +114,19 @@ spec/contract/doc claim, adds a check-then-act or a new fallible dependency, or 
    - **Branch** — the same isolated fetch and worktree; review `git diff <base>...HEAD` against the
      **fetched** target, never the user's possibly stale local copy, and never touch their checkout.
    - **Local** — review `git diff` (include staged changes if relevant).
+   - **Mode** — your brief names it; `/bq:review-mr` owns what each mode means. Under
+     `Mode: fresh`, follow that line: skip step 3, fetch no threads, bot comments or CI
+     annotations, and don't read `~/.ai/<project>/reviews/`.
    - Capture the target branch, changed files, commits, title/description, and the linked issue or
      requirement. If the target can't be resolved to concrete changes, **stop and say exactly what's missing.**
 2. **Anchor to intent.** Read the linked requirement, acceptance criteria, design notes, and — when
-   present — `~/.ai/<project>/charter.md` and relevant `decisions/`. If intent is missing, review
+   present — `~/.ai/<project>/charter.md` and relevant `decisions/` (in fresh: use only the intent
+   pasted in your brief). If intent is missing, review
    code risk and mark business validation as *limited*.
-3. **Triage the existing conversation — don't start from zero, and don't parrot it.** Fetch the MR's
-   existing threads: prior human reviews, and automated scanners (security bots, linters, CI
-   annotations). Then add signal the bots can't:
+3. **Triage the existing conversation — don't start from zero, and don't parrot it.** Skip this
+   step if your brief says `Mode: fresh`; the Maestro dedupes against the threads at Close.
+   Otherwise fetch the MR's existing threads: prior human reviews, and automated scanners (security
+   bots, linters, CI annotations). Then add signal the bots can't:
    - **Independently verify** each open finding against the code. Automated security findings carry
      false positives — confirm or **refute** each with evidence, and say which. Refuting a wrong
      finding with a concrete reason is as valuable as raising a real one; it unblocks the author.
@@ -205,7 +210,8 @@ Approve with changes with a critical/important finding; Request changes with non
 
 Read `references/comment-style.md` before writing any finding (voice, evidence, anchors, post-time
 syntax). `Suggested change:` only on `confirmed`, mechanical, local, non-security findings, checked
-against `git show <head-sha>:<path>` (gates in that file). The Maestro writes `reviews/{slug}.md` per
+against `git show <head-sha>:<path>` (gates in that file). The Maestro writes `reviews/{slug}.md`
+(fresh: `{slug}-fresh-<sha7>.md`, never the canonical file) per
 `references/report-format.md`; the html is derived by `scripts/render_review.py` when available,
 never hand-written.
 
