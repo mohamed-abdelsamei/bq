@@ -11,10 +11,13 @@ apply in full.
 - **Quote evidence** (`code`, a test result, a spec line) rather than paraphrasing it. **Why**
   quotes at most one line of evidence, in inline code, with no line-leading markdown (`#`, a code
   fence, `-`, `>`), so it cannot break the report structure.
+- **Ticket-free title, What and Fix.** They are posted verbatim (section 4), so state the expected
+  behaviour in code terms: no ticket key, no AC text, no paraphrase of it. Only **Why** may quote
+  the ticket (`report-format.md`).
 - **Neutral voice about the code.** "The loop never exits on 4xx", not "you forgot to...". No "you".
 - **Confidence sets the mood.** `confirmed` = reproduced, a command was run, or read directly in the
-  cited code: assert it. `suspected` = anything else: phrase it as a question ("Is the toast required
-  by AC-3? The diff adds none.").
+  cited code: assert it. `suspected` = anything else: phrase it as a question ("Should an exhausted
+  retry show an error state? `sync()` returns `None` and nothing is surfaced.").
 - **`[nit]`** is labelled, one line, and never blocking. No concrete risk means nit at most.
 - **Strengths:** 0-2, each earned and specific (what is good and why it matters). No filler praise
   ("nice work", "LGTM overall"). Write them as at most one `Strengths: a; b` line at the top of the
@@ -24,11 +27,28 @@ apply in full.
 
 ## 2. Anchors
 
-- Format `<repo>/<path>:<line>`: the **new side** at the head SHA.
+Five forms. Line numbers are 1-based, and a range stays on one side (`a` <= `b`):
+
+| Form | Means |
+|---|---|
+| `<repo>/<path>:<n>` | line n on the **new side** (the head SHA) |
+| `<repo>/<path>:<a>-<b>` | lines a..b on the new side |
+| `<repo>/<path>:-<n>` | line n on the **old side** (the base): a removed line |
+| `<repo>/<path>:-<a>-<b>` | lines a..b on the old side |
+| `<repo>/<path> (deleted)` | the whole file, removed (file level, never inline) |
+
+- Use the new side unless the finding is about a removed line. One Anchor per card.
+- The path is always the **head-side** path: for a renamed file, the new name on both sides (what
+  GitHub expects with `side: LEFT`). A deleted file uses its old path.
+- In diff is computed from `git diff -U0` hunks (Close), so it is conservative: a context line, or a
+  range bridging two hunks, reads `no`. A hunk count of 0 covers no lines; a missing count means 1.
+  By hand, read the hunk headers `@@ -a,b +c,d @@` of the head-side path: a new-side Anchor checks
+  `+c,d`, an old-side one `-a,b`; a file-level Anchor is `no`.
 - Path hygiene: repo-relative only. Never `/Users/`, `/home/`, `/tmp/` or any absolute local path,
   in any field.
-- Removed code: `<repo>/<path> (deleted)`.
 - Optional for business findings (a missing behavior has no line).
+- <!-- claude-only -->The renderer warns on a malformed Anchor or a reversed range; the<!-- copilot: The --><!-- /claude-only --> path-parsing limits are in
+  `report-format.md`.
 
 ## 3. The `Suggested change:` field
 
@@ -37,7 +57,7 @@ Specialists return the replacement as plain text or a diff inside the `Suggested
 
 In the md the diff sits in a fenced `diff` block; use a longer outer fence (four or more
 backticks) when the content itself contains triple backticks. At post time the post body is the `+`
-lines without their markers, and N/M in `suggestion:-N+M` are derived from the `-` span.
+lines without their markers, and the span comes from the `-` lines (section 4).
 
 Offer one only when **all** gates hold:
 
@@ -45,7 +65,7 @@ Offer one only when **all** gates hold:
 2. Mechanical and local: one file, <= ~10 lines, no design fork (a reasonable reviewer would not
    choose differently).
 3. Not security-boundary code (auth, crypto, input validation, permissions).
-4. Anchor is an added or context line **inside the diff**.
+4. The Anchor has `In diff: yes` and is on the new side.
 5. The diff did not come from a pasted patch (no repo to verify against).
 
 Specialists quote the lines to be replaced verbatim. The Maestro then checks them against
@@ -54,15 +74,25 @@ called "verified"). Otherwise drop it and keep the finding.
 
 ## 4. Post-time syntax (Maestro only)
 
-Used only when the user explicitly says to post, and only for the findings they name. Nothing is
-posted, approved or merged otherwise.
+Used only at posting, under the consent steps in `posting.md`, which also owns the payloads.
 
-- **GitLab:** a fence labelled `suggestion:-N+M` replaces the commented line plus N lines above and
-  M lines below. Bare `suggestion` replaces the commented line only. If the replacement itself
-  contains triple backticks, wrap it in a longer outer fence (four or more).
-- **GitHub:** a plain `suggestion` fence in a comment anchored to a diff line.
+- **Span rule.** A suggestion has at least one `-` line, and the Anchor range `a-b` equals the `-`
+  span of the suggestion diff: the `-` lines are exactly new-side lines a..b (a single-line Anchor
+  `n` means one `-` line). If they differ, fix the Anchor or drop the suggestion.
+- **GitHub:** a plain `suggestion` fence in a comment on `start_line: a`..`line: b`, both on the
+  new side; a single line sends `line` only.
+- **GitLab:** comment on the last line `b` with a fence labelled `suggestion:-(b-a)+0` (it replaces
+  that line plus the b-a lines above it); a single line takes a bare `suggestion`. If the
+  replacement itself contains triple backticks, wrap it in a longer outer fence (four or more).
 - **Line outside the diff:** post a plain comment with a normal code block, not a suggestion.
-- Rendering of suggestions created through the GitLab API is unverified; say so if it matters.
+- **Suspected is never inline.** A `suspected` finding is never posted as an inline comment. If the
+  user names one for posting, it goes in the summary comment, phrased as a question.
+- Rendering of suggestions created through the GitLab API is checked after publishing
+  (`posting.md`, GitLab).
+- **No ticket text.** A posted comment states the expected behaviour in code terms and never
+  references, quotes or paraphrases the ticket (no key, no AC text). Only the local md may quote it,
+  and only in **Why**: at post time a Why that quotes the ticket is replaced with code evidence or
+  left out. The title, What and Fix are posted as written (ticket-free per section 1).
 
 ## 5. Examples
 

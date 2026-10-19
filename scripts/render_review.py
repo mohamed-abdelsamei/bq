@@ -2,16 +2,29 @@
 """Render a /bq:review-mr report (markdown) to one self-contained HTML file. Stdlib only.
 
 Usage: python3 scripts/render_review.py <review.md> [-o out.html]
+       python3 scripts/render_review.py --in-diff <diff-file> [--repo <name>] <review.md>
+       python3 scripts/render_review.py --previous <old.md> <review.md>
+       python3 scripts/render_review.py --marker <key> <source> <ID>
+
+--in-diff prints `<ID or title>\t<anchor>\tyes|no|nofile|malformed` for each card with an Anchor, computed
+from a `git diff -U0` file (git diff output with `diff --git` headers), and writes nothing.
+--previous prints one line per posted-state problem of a canonical rewrite against the file it replaces
+(nothing when clean) and writes nothing; it exits 1 when a line is actionable (anything but the
+informational `old file:` and `unrepairable:` lines), else 3 when an `unrepairable:` line is printed
+(ask the user), else 0; 2 is a usage error. --marker prints the 12-hex posting marker.
 
 The md is the source of truth (format: skills/mr-review/references/report-format.md); the html is
 derived and regenerable. Same input gives byte-identical output (no timestamps). Parsing is strict:
 a `###` card that does not parse is shown escaped under a visible "N of M cards parsed" banner, never
 dropped, and counts come only from parsed cards. Odd input shows visible banners in the html and warnings on stderr (exit 0);
-the exit code is non-zero only when the input file cannot be read (or the output cannot be written).
+the exit code is non-zero only when the input file cannot be read (or the output cannot be written), or
+when --previous prints an actionable (1) or unrepairable (3) line.
 
 Every md-derived string is escaped with html.escape(quote=True). There is no raw HTML and no links.
 """
 import argparse
+import codecs
+import hashlib
 import html
 import re
 import sys
@@ -22,8 +35,16 @@ BLOCKING = ("critical", "important")
 AXES = ("code", "business", "process")
 CONFIDENCE = ("confirmed", "suspected")
 VERDICTS = ("Approve", "Approve with changes", "Request changes")
-HEADER_KEYS = ("MR", "Title", "Head SHA", "Target", "Date", "Reviewers", "Verdict")
-META_ORDER = ("MR", "Head SHA", "Target", "Date", "Reviewers", "Title")  # Title last: it can be long
+HEADER_KEYS = ("MR", "Title", "Head SHA", "Target", "Date", "Reviewers", "Verdict")  # required
+OPTIONAL_HEADER_KEYS = ("Mode", "Since", "Ticket")  # absent is fine; shown in the masthead when present
+MODES = ("fresh", "full", "since-last")
+SHA_RE = re.compile(r"[0-9a-f]{7,40}")
+# Lenient: a Ticket header needs a state on at least one key: a "(...)" group holding "fetched" or
+# "not fetched", after an optional source ("(branch, fetched via x)"). Odd cases stay unwarned.
+TICKET_STATE_RE = re.compile(r"\([^)]*\b(?:not )?fetched\b", re.I)
+META_ORDER = ("MR", "Head SHA", "Target", "Date", "Reviewers", "Mode", "Since", "Ticket",
+              "Title")  # Title last: it can be long
+IN_DIFF = ("yes", "no")
 SECTIONS = (  # (heading, axis for findings sections or None)
     ("Code findings", "code"),
     ("Business findings", "business"),
@@ -248,10 +269,52 @@ CLOSE_FENCE = re.compile(r"^ {0,3}(`{3,})\s*$")
 KV = re.compile(r"^\*\*([^:*]+):\*\*\s*(.*)$")
 CARD = re.compile(r"^### \[(critical|important|minor|nit)\] (\S.*?)\s*$")
 NIT = re.compile(r"^- \[nit\] (\S.*)$", re.I)
+NIT_ID = re.compile(r"^(F\d+) (\S.*)$")  # a nit's ID prefix, read only in a file with card IDs
+CARD_ID = re.compile(r"F[1-9]\d*")
+# The Verify count line in ## Validation (R11). A line is a Verify line when it is a bullet whose text
+# starts `Verify:`, `**Verify:**` or `**Verify**:`, any case, colon right after the word (so `- Verify
+# Suggested change ...` and `- verified CI` are not), outside a fence. It must then match VERIFY_LINE
+# (`Verify:` or `**Verify:**`, any case; `**Verify**:` is reported malformed): four non-negative
+# integers in this order and wording, then a non-empty parenthetical (method and trigger, free text:
+# not validated). Warned: a Verify line that doesn't match, N != K+D+X, or more than one Verify line.
+# No Verify line: no warning (older files).
+VERIFY_START = re.compile(r"^\s*[-*]\s+(?:\*\*)?verify(?:\*\*)?:", re.I)
+VERIFY_LINE = re.compile(r"^\s*[-*]\s+(?:\*\*Verify:\*\*|Verify:) (\d+) found, (\d+) kept, (\d+) downgraded, (\d+) dropped "
+                         r"\((.+)\)\s*$", re.I)
 NIT_START = re.compile(r"^- \[nit\]", re.I)
 SEV_HEAD = re.compile(r"^### \[(critical|important)\]", re.I)
 LIST_ITEM = re.compile(r"^\s*(?:([-*+])|\d+[.)])\s+(.*)$")
 BOLD = re.compile(r"\*\*(.+?)\*\*")
+# Anchor forms (comment-style.md section 2): path:n, path:a-b (new side), path:-n, path:-a-b (old side),
+# path (deleted). The line spec is matched at the END of the value, so the path may hold spaces, `-`,
+# digits and `:` (it splits at the last `:`). A path whose own text ends in `:<n>` is unrepresentable,
+# a path holding `:<n>` before a space, comma or semicolon is refused as two anchors in one field, and
+# a path starting with `/` or holding a backtick is refused.
+ANCHOR_LINES = re.compile(r"^(\S.*):(-?)([1-9]\d*)(?:-([1-9]\d*))?$")
+ANCHOR_DELETED = re.compile(r"^(\S.*) \(deleted\)$")
+ANCHOR_TWO = re.compile(r":-?\d+(?:-\d+)?[\s,;]")
+HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+# Posted state (R21, R25). A Marker is exactly 12 lowercase hex; Posted is `<platform ref> @ <sha7>`, the ref
+# free text (the forms posting.md writes, or an older id or URL), so any ref without parentheses passes.
+# Triage lines and nits carry both as a trailing `(Marker <h12>, Posted <ref> @ <sha7>)`, either part
+# optional; a final `(...)` that starts `Marker ` or `Posted ` (then an optional `.` or `;`) is read as that
+# tail and checked. A nit or triage line with a `(` opening on Marker/Posted (any case) but no such tail is a near miss
+# and warns, as does a Not re-raised/Fixed line with an F-ID in any other form (e.g. a bold label).
+MARKER_RE = re.compile(r"[0-9a-f]{12}")
+POSTED_RE = re.compile(r"\S.*? @ [0-9a-f]{7,40}")
+TAIL = re.compile(r"\(((?:Marker|Posted) [^()]*)\)\s*[.;]?\s*$")
+STATE_WORD = re.compile(r"\(\W*(?:marker|posted)\b", re.I)  # a near-miss tail; a title saying "posted" is fine
+CODE_SPAN = re.compile(r"`[^`\n]+`")  # cut before the near-miss match only, so `get(marker)` is code, not a tail
+SPAN_TAIL = re.compile(r"\((?:marker|posted)\s", re.I)  # a span holding a tail-like "(Marker " is not cut
+COLLAPSED_NIT = re.compile(r"^[1-9]\d* more not shown:")  # the nit cap's summary line: shown, never counted
+COLLAPSED_LOOSE = re.compile(r"^\S+\s+more\s+not\s+shown\b", re.I)  # a near miss of it: warned, counted
+DROPPED = re.compile(r"^\s*[-*]\s+Dropped (F\d+):")  # a Verify drop in Validation: its ID counts toward Last ID
+TAIL_BODY = re.compile(r"(?:Marker (?P<m>[^,\s]+)(?:, Posted (?P<p>.+))?|Posted (?P<p2>.+))")
+TRIAGE = re.compile(r"^\s*[-*]\s+(?:Not re-raised|Fixed):\s+(F\d+)\b(.*)$")
+TRIAGE_LOOSE = re.compile(r"^\s*[-*]\s+\W*(?:not re-raised|fixed)\b.*\bF\d+\b", re.I)
+LAST_ID = re.compile(r"^\s*[-*]\s+Last ID:\s*F(\d+)\s*$")
+MARKER_SOURCE = re.compile(r"canonical|fresh-[0-9a-f]{7}")
+MARKER_KEY = re.compile(r"[a-z0-9-]{1,64}")  # the isolated-checkout <key>: mr-<id> or branch-<slug>
 
 
 def e(s):
@@ -379,7 +442,7 @@ def split_document(lines, warn):
             if was is None and fence is None and line.startswith("### "):
                 in_card = True
             m = KV.match(line) if was is None and fence is None and not in_card else None
-            if m and m.group(1).strip() in HEADER_KEYS:
+            if m and m.group(1).strip() in HEADER_KEYS + OPTIONAL_HEADER_KEYS:
                 k = m.group(1).strip()
                 if k in header:
                     pre_dup.append(line)
@@ -428,6 +491,8 @@ def parse_card(heading, body):
     if not "".join(fields.get("What", [])).strip():
         return None, "missing What"
     return {"severity": m.group(1), "title": m.group(2), "axis": axis, "confidence": conf,
+            "id": " ".join(fields.get("ID", [])).strip() or None,
+            "in_diff": " ".join(fields["In diff"]).strip() if "In diff" in fields else None,
             "fields": fields, "order": order}, None
 
 
@@ -457,7 +522,12 @@ def parse_findings(lines, section_axis, warn):
             finish()
             if not line.startswith("- [nit] "):
                 warn("nit line %r accepted case-insensitively; write it as '- [nit] ...'" % line[:60])
-            nits.append({"text": NIT.match(line).group(1), "axis": section_axis})
+            text_ = NIT.match(line).group(1)
+            collapsed = bool(COLLAPSED_NIT.match(text_))
+            if not collapsed and COLLAPSED_LOOSE.match(text_):
+                warn("nit %r looks like the nit cap's summary line but is not '- [nit] N more not shown: "
+                     "<titles>' (N from 1); counted as a nit" % line[:60])
+            nits.append({"text": text_, "id": None, "axis": section_axis, "collapsed": collapsed})
         elif was is None and fence is None and NIT_START.match(line):
             finish()
             unparsed.append((line, "malformed nit line (expected `- [nit] text`)"))
@@ -478,6 +548,276 @@ def parse_findings(lines, section_axis, warn):
             if c["severity"] != "nit" and not "".join(c["fields"].get(k, [])).strip():
                 warn("card %r has no %s" % (c["title"], k))
     return cards, nits, unparsed
+
+
+def parse_anchor(text):
+    """-> {"path", "side": new|old|file, "start", "end"} or None when malformed. A reversed range
+    (b < a) still parses; the caller flags it."""
+    t = text.strip().strip("`").strip()
+    m = ANCHOR_DELETED.match(t) or ANCHOR_LINES.match(t)
+    if not m or m.group(1).startswith("/") or "`" in m.group(1) or ANCHOR_TWO.search(m.group(1) + " "):
+        return None
+    if m.re is ANCHOR_DELETED:
+        return {"path": m.group(1), "side": "file", "start": None, "end": None}
+    a = int(m.group(3))
+    return {"path": m.group(1), "side": "old" if m.group(2) else "new", "start": a,
+            "end": int(m.group(4)) if m.group(4) else a}
+
+
+def _diff_path(raw):
+    """A `--- a/x` / `+++ b/x` header path -> repo-relative path, or None for /dev/null."""
+    raw = raw.rstrip("\t")  # git appends a tab when the path has a space
+    if raw.startswith('"') and raw.endswith('"'):  # C-quoted: escapes and octal UTF-8 bytes
+        raw = codecs.escape_decode(raw[1:-1].encode("utf-8"))[0].decode("utf-8", "replace")
+    if raw == "/dev/null":
+        return None
+    return raw[2:] if raw[:2] in ("a/", "b/") else raw
+
+
+def anchor_in_diff(diff_text, anchor, repo=None):
+    """-> "yes", "no", "nofile" (the path matches no file with hunks in the diff), or None (malformed or
+    reversed anchor), from `git diff -U0` text. The input must be `git diff` output with `diff --git`
+    headers; other diff formats read as nofile.
+
+    A file is keyed by its head-side path (`+++`), or its `---` path when deleted; an anchor names that
+    path on both sides, so an old-side anchor on a renamed file uses the new name. New-side anchors check
+    the `+c,d` ranges, old-side ones `-a,b`; yes only if every line lies inside one hunk (a count of 0
+    covers no lines, a missing count is 1). File level is no. `---`/`+++` are read only in a file header
+    (after `diff --git`, before the first `@@`). With `repo`, a leading `<repo>/` is stripped and only
+    that exact path matches; without it, the path matches as written or minus its first segment."""
+    a = parse_anchor(anchor)
+    if a is None or (a["start"] is not None and a["end"] < a["start"]):
+        return None
+    if a["side"] == "file":
+        return "no"
+    if repo:
+        want = {a["path"][len(repo) + 1:] if a["path"].startswith(repo + "/") else a["path"]}
+    else:
+        want = {a["path"], a["path"].split("/", 1)[-1]}
+    old = new = None
+    header = found = False
+    for line in split_lines(diff_text):
+        if line.startswith("diff --git "):
+            old = new = None
+            header = True
+        elif header and line.startswith("--- "):
+            old = _diff_path(line[4:])
+        elif header and line.startswith("+++ "):
+            new = _diff_path(line[4:])
+        else:
+            m = HUNK.match(line)
+            if not m:
+                continue
+            header = False
+            if (new or old) not in want:
+                continue
+            found = True
+            start, count = (m.group(1), m.group(2)) if a["side"] == "old" else (m.group(3), m.group(4))
+            start, count = int(start), 1 if count is None else int(count)
+            if count and start <= a["start"] and a["end"] <= start + count - 1:
+                return "yes"
+    return "no" if found else "nofile"
+
+
+def in_diff_report(text, diff_text, repo=None):
+    """-> one `<ID or title>\t<anchor>\tyes|no|nofile|malformed` line per card with an Anchor, in file order."""
+    _, _, sections, _ = split_document(split_lines(text), lambda _m: None)
+    axis_of = {h.lower(): a for h, a in SECTIONS[:3]}
+    out = []
+    for heading, slines in sections:
+        axis = axis_of.get(heading.strip().lower())
+        if axis is None:
+            continue
+        for c in parse_findings(slines, axis, lambda _m: None)[0]:
+            raw = " ".join(c["fields"].get("Anchor", [])).strip()
+            if raw:
+                v = anchor_in_diff(diff_text, raw, repo) or "malformed"
+                out.append("\t".join(x.replace("\t", " ") for x in (c["id"] or c["title"], raw.strip("`"), v)))
+    return out
+
+
+def marker(key, source, fid):
+    """The posting marker h12 = sha256("<key>|<source>|<ID>")[:12] (D7), computed once at first post."""
+    if not MARKER_KEY.fullmatch(key) or not MARKER_SOURCE.fullmatch(source) or not CARD_ID.fullmatch(fid):
+        raise ValueError("expected a key of [a-z0-9-] (mr-<id> or branch-<name>), source canonical or fresh-<sha7>, and an ID F<n>")
+    return hashlib.sha256(("%s|%s|%s" % (key, source, fid)).encode("utf-8")).hexdigest()[:12]
+
+
+def parse_tail(text):
+    """-> (marker or None, posted or None, problem or None) from a trailing `(Marker .., Posted ..)`."""
+    m = TAIL.search(text)
+    if not m:
+        return None, None, None
+    b = TAIL_BODY.fullmatch(m.group(1).strip())
+    if not b:
+        return None, None, "malformed (Marker <h12>, Posted <ref> @ <sha7>) tail %r" % m.group(0)[:80]
+    return b.group("m"), b.group("p") or b.group("p2"), None
+
+
+def state_problems(what, mk, posted):
+    out = []
+    if mk is not None and not MARKER_RE.fullmatch(mk):
+        out.append("%s has a malformed Marker %r (expected 12 lowercase hex)" % (what, mk))
+    if posted is not None and not POSTED_RE.fullmatch(posted):
+        out.append("%s has a malformed Posted %r (expected '<platform ref> @ <sha7>')" % (what, posted))
+    return out
+
+
+def _field(card, k):
+    return " ".join(card["fields"][k]).strip() if k in card["fields"] else None
+
+
+def scan_state(by_name, cards, nits):
+    """Shared by render() and posted_state(), so both read the same IDs. `by_name` maps a lower-case section
+    name to its lines. Sets each nit's "id" (and strips it from "text") when its text starts `F<n> ` and the
+    nit carries a posted-state tail or the file has a card ID, a Last ID line or a triage ID. -> (triage
+    [(ID, rest of line)], Last ID or None, [malformed triage lines])."""
+    triage, loose, last = [], [], None
+    for name in ("prior findings triaged", "validation"):
+        fence = None
+        for ln in by_name.get(name, []):
+            inside, fence = fence, fence_step(ln, fence)
+            if inside is not None or fence is not None:
+                continue
+            if name == "validation":
+                lm = LAST_ID.match(ln)
+                if lm and last is None:
+                    last = int(lm.group(1))
+                continue
+            t = TRIAGE.match(ln)
+            if t:
+                triage.append((t.group(1), t.group(2)))
+            elif TRIAGE_LOOSE.match(ln):
+                loose.append(ln.strip())
+    gate = any(c["id"] for c in cards) or last is not None or bool(triage)
+    for n in nits:
+        idm = NIT_ID.match(n["text"])
+        if idm and (gate or TAIL.search(idm.group(2))):
+            n["id"], n["text"] = idm.group(1), idm.group(2)
+    return triage, last, loose
+
+
+def _cut_code(text):
+    """`text` minus inline code spans, except a span right after `(` or one holding `(Marker `/`(Posted `,
+    which could be a tail wrapped in backticks."""
+    return CODE_SPAN.sub(lambda m: m.group(0) if text[m.start() - 1:m.start()] == "(" or SPAN_TAIL.search(m.group(0))
+                         else "", text)
+
+
+def tail_problems(nits, triage, loose):
+    """-> the posted-state problems of nit and triage lines (scan_state output): malformed triage lines,
+    malformed or near-miss tails and bad Marker/Posted values. Shared by render() and previous_report()."""
+    out = ["triage line %r is not in the form '- Not re-raised: F<n> ...' or '- Fixed: F<n> ...'" % ln[:60]
+           for ln in loose]
+    tails = [("nit %r" % n["text"][:40], n["text"]) for n in nits]
+    tails += [("triage line %s" % fid, rest) for fid, rest in triage]
+    for what, text_ in tails:
+        mk, posted, bad = parse_tail(text_)
+        if bad:
+            out.append("%s has a %s" % (what, bad))
+        elif mk is None and posted is None and STATE_WORD.search(_cut_code(text_)):
+            out.append("%s has a Marker/Posted near-miss: a '(' naming Marker/Posted but no "
+                       "'(Marker <h12>, Posted <ref> @ <sha7>)' tail at its end" % what)
+        out += state_problems(what, mk, posted)
+    return out
+
+
+def posted_state(text):
+    """-> ({ID number: (ID, Marker, Posted)} over cards, nits and Not re-raised/Fixed triage lines, Last ID or
+    None, [(ID number or None, tail problem, the line's posted-state text)]). Sections are matched by name, any case; nit IDs are read as in render() (scan_state)."""
+    _, _, sections, _ = split_document(split_lines(text), lambda _m: None)
+    axis_of = {h.lower(): a for h, a in SECTIONS[:3]}
+    by_name, cards, nits = {}, [], []
+    for heading, slines in sections:
+        name = heading.strip().lower()
+        by_name.setdefault(name, []).extend(slines)
+        if name in axis_of:
+            c, n, _ = parse_findings(slines, axis_of[name], lambda _m: None)
+            cards += c
+            nits += n
+    triage, last, loose = scan_state(by_name, cards, nits)
+    items = [(fid,) + parse_tail(rest)[:2] for fid, rest in triage]
+    items += [(c["id"], _field(c, "Marker"), _field(c, "Posted")) for c in cards if c["id"]]
+    items += [(n["id"],) + parse_tail(n["text"])[:2] for n in nits if n["id"]]
+    ids = {}
+    for fid, mk, posted in items:
+        if not CARD_ID.fullmatch(fid):
+            continue
+        prev = ids.get(int(fid[1:]), (fid, None, None))
+        ids[int(fid[1:])] = (fid, prev[1] if prev[1] is not None else mk, prev[2] if prev[2] is not None else posted)
+    # tail problems one line at a time, in tail_problems() order, each with its ID number and its tail text
+    problems = []
+    for ln in loose:
+        m = re.search(r"\bF([1-9]\d*)\b", ln)
+        problems += [(int(m.group(1)) if m else None, msg, _tail_key(ln)) for msg in tail_problems([], [], [ln])]
+    for n in nits:
+        num = int(n["id"][1:]) if n["id"] and CARD_ID.fullmatch(n["id"]) else None
+        problems += [(num, msg, _tail_key(n["text"])) for msg in tail_problems([n], [], [])]
+    for fid, rest in triage:
+        num = int(fid[1:]) if CARD_ID.fullmatch(fid) else None
+        problems += [(num, msg, _tail_key(rest)) for msg in tail_problems([], [(fid, rest)], [])]
+    return ids, last, problems
+
+
+def _tail_key(text):
+    """The posted-state part of a line: its last `(...)` naming Marker/Posted, else the whole line."""
+    groups = [g for g in re.findall(r"\([^()]*\)", text) if re.search(r"marker|posted", g, re.I)]
+    return (groups[-1] if groups else text).strip()
+
+
+UNREPAIRABLE = ("unrepairable: %s has a malformed or unreadable Marker/Posted in the old file; mark it "
+                "do-not-post and ask the user")
+
+
+def previous_report(old_text, new_text):
+    """-> problems of a canonical rewrite against the file it replaces (R25): a prior ID with a Marker or
+    Posted value that is gone or whose value changed, a lower Last ID or max ID, and an ID that the old file
+    had already used up (at or below its Last ID/max but absent from it) appearing again, plus every malformed
+    or near-miss posted-state line in either file (prefixed "old file: "/"new file: "). An old ID with a
+    malformed or unreadable Marker/Posted is unrepairable: it gets an `unrepairable:` line, its values are not
+    compared on its malformed half, a new-file line carrying its old tail verbatim is folded into that line,
+    and dropping it is still reported. Unposted IDs (no Marker, no Posted) may disappear."""
+    old, old_last, old_bad = posted_state(old_text)
+    new, new_last, new_bad = posted_state(new_text)
+    bad_ids = {num for num, _, _ in old_bad if num is not None}
+    bad_ids |= {num for num, (_, mk, posted) in old.items() if state_problems("", mk, posted)}
+    old_keys = {(num, key) for num, _, key in old_bad}
+    present = set(new) | {num for num, _, _ in new_bad if num is not None}  # a loose new line still names its ID
+    # near misses in either file, so a render warning that went unread can't hide a posted ID
+    out = ["old file: " + m for _, m, _ in old_bad]
+    out += ["new file: " + m for num, m, key in new_bad if not (num in bad_ids and (num, key) in old_keys)]
+    for num in sorted(bad_ids):
+        fid = old[num][0] if num in old else "F%d" % num
+        out.append(UNREPAIRABLE % fid)
+        if num not in present:
+            out.append("prior ID %s is missing from the new file (dropped); keep it, with its Marker/Posted "
+                       "text carried verbatim" % fid)
+    for num, (fid, mk, posted) in old.items():
+        if mk is None and posted is None:
+            continue
+        if num not in new:
+            if num not in bad_ids:  # an unrepairable drop is reported above
+                out.append("prior ID %s has a Marker or Posted value but is missing from the new file (dropped); "
+                           "keep it as a card, nit or Not re-raised/Fixed line with its values" % fid)
+            continue
+        for label, was, now in (("Marker", mk, new[num][1]), ("Posted", posted, new[num][2])):
+            if num in bad_ids and state_problems("", *((was, None) if label == "Marker" else (None, was))):
+                continue  # only the malformed half of an unrepairable ID goes uncompared
+            if was is not None and was != now:
+                out.append("prior ID %s %s changed from %r to %r; carry it verbatim" % (fid, label, was, now))
+    old_top = max(max(old, default=0), old_last or 0)  # the highest ID ever used, as far as each file shows
+    new_top = max(max(new, default=0), new_last or 0)
+    if old_last is not None and new_last is None:
+        out.append("Last ID line missing (the old file has - Last ID: F%d)" % old_last)
+    elif old_last is not None and new_last < old_last:
+        out.append("Last ID F%d is lower than the old Last ID F%d" % (new_last, old_last))
+    elif new_top < old_top:
+        out.append("max ID F%d is lower than the old max ID F%d" % (new_top, old_top))
+    for num, (fid, _, _) in sorted(new.items()):
+        if num <= old_top and num not in old and num not in bad_ids:
+            out.append("ID %s reuses a number the old file had already used up (at or below F%d, not in it); "
+                       "give the finding a new ID above it" % (fid, old_top))
+    return out
 
 
 def norm_verdict(s):
@@ -544,7 +884,7 @@ def render_card(card, sha):
     f = card["fields"]
     rows = []
     for k in card["order"]:
-        if k in ("Axis", "Confidence", "Anchor"):
+        if k in ("Axis", "Confidence", "Anchor", "ID", "In diff"):  # shown in the card meta
             continue
         if k == "Suggested change":
             if "".join(f[k]).strip():
@@ -560,12 +900,14 @@ def render_card(card, sha):
     anchor = " ".join(f.get("Anchor", [])).strip().strip("`")
     conf = card["confidence"]
     return (
-        '<article class="finding tone-%s"><header class="f-head"><h3>%s</h3><p class="f-meta">%s%s<span class="tag %s">%s</span>%s</p></header>'
+        '<article class="finding tone-%s"><header class="f-head"><h3>%s</h3><p class="f-meta">%s%s%s<span class="tag %s">%s</span>%s%s</p></header>'
         '<dl class="rows">%s</dl>'
         '<p class="f-foot">Axis: %s &middot; Head SHA: <code>%s</code></p></article>'
-        % (sev, inline(card["title"]), sevlabel(sev),
+        % (sev, inline(card["title"]), '<span class="tag">%s</span>' % e(card["id"]) if card["id"] else "",
+           sevlabel(sev),
            '<span class="tag blocking">Blocking</span>' if sev in BLOCKING else '<span class="tag">Non-blocking</span>',
            conf, ("&#10003; " if conf == "confirmed" else "? ") + conf.capitalize(),
+           '<span class="tag">In diff: %s</span>' % e(card["in_diff"]) if card["in_diff"] is not None else "",
            '<code class="anchor">%s</code>' % e(anchor) if anchor else "",
            "".join(rows), card["axis"], e(sha)))
 
@@ -641,6 +983,30 @@ def render(text, name):
     if seq != sorted(seq, key=known.index):
         problem("sections are out of order")
     structured = bool(by_name) or any(k in header for k in HEADER_KEYS)
+    if "Mode" in header and header["Mode"] not in MODES:
+        problem("header Mode %r is not one of: %s" % (header["Mode"], ", ".join(MODES)))
+    if "Since" in header and not SHA_RE.fullmatch(header["Since"].strip("`")):  # backticks allowed, as on Head SHA
+        problem("header Since %r is not a 7-40 character lowercase hex SHA" % header["Since"])
+    if "Ticket" in header and not TICKET_STATE_RE.search(header["Ticket"]):
+        warn("header Ticket %r gives no key a state; write KEY (fetched) or KEY (not fetched: <reason>)"
+             % header["Ticket"])  # soft: stderr only, no banner
+
+    fence, vlines = None, []
+    for ln in by_name.get("Validation", []):
+        inside, fence = fence, fence_step(ln, fence)
+        if inside is None and fence is None and VERIFY_START.match(ln):
+            vlines.append(ln.strip())
+    if len(vlines) > 1:
+        problem("Verify line appears %d times in Validation (expected exactly one)" % len(vlines))
+    for vl in vlines:
+        vm = VERIFY_LINE.match(vl)
+        if not vm:
+            problem("malformed Verify line %r (expected '- Verify: N found, K kept, D downgraded, X dropped "
+                    "(<method>; trigger: <threshold>)')" % vl[:80])
+            continue
+        n, k, d, x = (int(g) for g in vm.groups()[:4])
+        if n != k + d + x:
+            problem("Verify line says %d found but %d+%d+%d = %d (kept+downgraded+dropped)" % (n, k, d, x, k + d + x))
 
     cards, nits = [], []
     for heading, axis in SECTIONS[:3]:
@@ -651,12 +1017,46 @@ def render(text, name):
         nits += n
         unparsed += u
     parsed = len(cards)
+    # nit IDs: see scan_state. A file without card IDs, Last ID, triage IDs or tails keeps nit text verbatim.
+    triage, last_id, loose = scan_state({k.lower(): v for k, v in by_name.items()}, cards, nits)
+    used = [int(x["id"][1:]) for x in cards + nits if x["id"] and CARD_ID.fullmatch(x["id"])]
+    used += [int(fid[1:]) for fid, _ in triage if CARD_ID.fullmatch(fid)]
+    used += [int(m.group(1)[1:]) for ln in by_name.get("Validation", []) for m in [DROPPED.match(ln)]
+             if m and CARD_ID.fullmatch(m.group(1))]
+    if last_id is not None and used and max(used) > last_id:
+        problem("Last ID F%d is lower than the highest ID used in the file, F%d; raise it so no ID is reused"
+                % (last_id, max(used)))
+    for c in cards:
+        if c["in_diff"] is not None and c["in_diff"] not in IN_DIFF:
+            problem("card %r has In diff %r (expected yes or no)" % (c["title"], c["in_diff"]))
+        raw = " ".join(c["fields"].get("Anchor", [])).strip()
+        if raw:
+            a = parse_anchor(raw)
+            if a is None:
+                problem("card %r has a malformed Anchor %r (expected path:n, path:a-b, path:-n, path:-a-b "
+                        "or path (deleted))" % (c["title"], raw))
+            elif a["start"] is not None and a["end"] < a["start"]:
+                problem("card %r has a reversed Anchor range %r (b < a)" % (c["title"], raw))
+        if c["id"] and not CARD_ID.fullmatch(c["id"]):
+            problem("card %r has ID %r (expected F<n>, e.g. F1)" % (c["title"], c["id"]))
+        for msg in state_problems("card %r" % c["title"], _field(c, "Marker"), _field(c, "Posted")):
+            problem(msg)
+    for msg in tail_problems(nits, triage, loose):
+        problem(msg)
+    seen = {}  # ID number (or raw text) -> [first form, uses]; dicts keep insertion order: deterministic
+    for x in cards + nits:
+        if x["id"]:
+            key = int(x["id"][1:]) if re.fullmatch(r"F\d+", x["id"]) else x["id"]
+            seen.setdefault(key, [x["id"], 0])[1] += 1
+    for fid, uses in seen.values():
+        if uses > 1:
+            problem("duplicate ID %s (used %d times)" % (fid, uses))
 
     counts = {(s, a): 0 for s in SEVERITIES for a in AXES}
     for c in cards:
         counts[(c["severity"], c["axis"])] += 1
     for n in nits:
-        counts[("nit", n["axis"])] += 1
+        counts[("nit", n["axis"])] += not n["collapsed"]
     blocking = sum(counts[(s, a)] for s in BLOCKING for a in AXES)
     hidden_blocking = max(0, total_blocking - sum(1 for c in cards if c["severity"] in BLOCKING))
 
@@ -734,6 +1134,8 @@ def render(text, name):
         v = header[k]
         if k == "Head SHA":
             v = "<code>%s</code>" % e(v[:12])  # the full SHA is in the card footers and the page footer
+        elif k == "Since":
+            v = "<code>%s</code>" % e(v.strip("`"))
         else:
             v = e(v)
         wide = k == "Title"
@@ -754,12 +1156,13 @@ def render(text, name):
         if not group and not gnits:
             continue
         out.append('<section class="axis-group"><h2>%s<span class="group-count">%d</span></h2>' % (
-            e(heading), len(group) + len(gnits)))
+            e(heading), len(group) + sum(not n["collapsed"] for n in gnits)))
         out += [render_card(c, sha) for c in group]
         if gnits:
             out.append('<ul class="nits">%s</ul>' % "".join(
                 '<li>%s<span>%s</span><span class="unparsed-reason">%s</span></li>'
-                % (sevlabel("nit"), inline(n["text"]), e(n["axis"])) for n in gnits))
+                % (sevlabel("nit"), ("<code>%s</code> " % e(n["id"]) if n["id"] else "") + inline(n["text"]),
+                   e(n["axis"])) for n in gnits))
         out.append("</section>")
     if (not ordered and not nits and structured and total == 0
             and all(h_ in by_name for h_, _ in SECTIONS[:3])):
@@ -800,15 +1203,46 @@ def render(text, name):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Render a bq MR review md to a self-contained html file.")
-    ap.add_argument("review", help="path to the review .md")
+    ap.add_argument("review", nargs="?", help="path to the review .md")
     ap.add_argument("-o", "--output", help="output path (default: input with .html)")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--in-diff", metavar="DIFF", help="print each anchored card's In diff value against "
+                    "this `git diff -U0` file; writes and renders nothing")
+    ap.add_argument("--repo", help="with --in-diff: the <repo> prefix of anchors")
+    mode.add_argument("--previous", metavar="OLD", help="print what the review md dropped or changed against "
+                    "OLD, the canonical file it rewrites (R25); writes and renders nothing")
+    mode.add_argument("--marker", nargs=3, metavar=("KEY", "SOURCE", "ID"), help="print the posting marker "
+                    "sha256(KEY|SOURCE|ID)[:12]; SOURCE is canonical or fresh-<sha7>")
     args = ap.parse_args(argv)
+    if args.marker:
+        if args.review or args.output or args.repo:
+            ap.error("--marker takes no review path, -o or --repo")
+        try:
+            print(marker(*args.marker))
+        except ValueError as ex:
+            ap.error(str(ex))
+        return 0
+    if not args.review:
+        ap.error("the review .md path is required")
     src = Path(args.review)
     try:
         text = src.read_bytes().decode("utf-8", errors="replace")
+        diff_text = Path(args.in_diff).read_bytes().decode("utf-8", errors="replace") if args.in_diff else None
+        old_text = Path(args.previous).read_bytes().decode("utf-8", errors="replace") if args.previous else None
     except OSError as ex:
-        print("render_review: cannot read %s (%s)" % (src, type(ex).__name__), file=sys.stderr)
+        print("render_review: cannot read %s (%s)" % (ex.filename or src, type(ex).__name__), file=sys.stderr)
         return 1
+    if old_text is not None:
+        lines = previous_report(old_text, text)
+        for line in lines:
+            print(line)
+        if any(not ln.startswith(("old file: ", "unrepairable: ")) for ln in lines):
+            return 1
+        return 3 if any(ln.startswith("unrepairable: ") for ln in lines) else 0  # 2 is argparse's usage error
+    if diff_text is not None:
+        for line in in_diff_report(text, diff_text, args.repo):
+            print(line)
+        return 0
     doc, warnings = render(text, src.name)
     for w in warnings:
         print("render_review: warning: " + w, file=sys.stderr)

@@ -175,7 +175,7 @@ manifest sit next to the skills folder). Reload VS Code
 | Ship the whole backlog autonomously (plan → build → commit per task) | `/bq:ship [feature]` |
 | Review code, or stress-test a decision | `/bq:review <target>` |
 | Open a merge/pull request from a shipped branch | `/bq:mr [branch]` |
-| Review a merge/pull request — code **and** business | `/bq:review-mr <MR ref>` |
+| Review a merge/pull request — code **and** business; read-only unless you name findings to post ([modes](docs/USAGE.md#reviewing-a-merge-request)) | `/bq:review-mr [mode] <MR ref>` |
 | Ask about any decision, term, or topic | `/bq:ask <question>` |
 | Be interrogated on your own reasoning | `/bq:grill <idea>` |
 | Drop an abandoned plan: archive its requirement, decision & tasks | `/bq:drop <feature>` |

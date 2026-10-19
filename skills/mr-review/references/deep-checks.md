@@ -1,8 +1,8 @@
 # MR review — deep checks
 
 The full method behind the one-line checks in `../SKILL.md`. Read the section that matches the diff:
-a removal or rename, a check-then-act, a new fallible dependency, a spec/contract/doc claim, or a
-re-review.
+a removal or rename, a check-then-act, a new fallible dependency, a spec/contract/doc claim, a
+security boundary (Drift: the load-bearing invariant), or a re-review.
 
 ## Removal completeness and the orphan sweep
 
@@ -74,3 +74,28 @@ both deliberately:
   re-raising the whole issue. Narrow the severity to the residual instead of re-blocking at full
   weight, and verify the fix's own **new** comment, doc, or changelog line is itself accurate —
   fixes introduce fresh drift.
+- **Triage every prior open finding by ID** (since-last / since <sha>) under `## Prior findings
+  triaged`, one of:
+  - `Fixed: F3 — <evidence>`: quote the head line that resolves it (the Maestro re-reads it; the
+    report line keeps Marker and Posted).
+  - `Still open: F4`: unchanged; a card stays a card, a `Not re-raised` line stays a line.
+  - `Residual (narrowed to minor): F2 — <the gap left>`: credit the fix, quote the line showing
+    the gap, keep the card at the narrowed severity, and let its What name only the residual.
+
+  Fixed and Residual are verified like any drop or downgrade; without a quote that holds, the
+  finding stays Still open. A Still open or Residual card stays a full card with the same ID,
+  Marker and Posted, so the verdict covers the whole MR:
+
+  ```
+  ### [minor] Retry cap applies to reads but not to the webhook path
+  **ID:** F2
+  **Axis:** code
+  **Anchor:** api/src/webhook.ts:88
+  **Confidence:** confirmed
+  **What:** The fix capped retries in `fetchWithRetry`, but the webhook sender still loops forever.
+  **Why:** `while (!ok) { ok = await send(evt) }`
+  **Fix:** Route the webhook through `fetchWithRetry` or apply the same cap.
+  **Carried:** from 4f2a9c1
+  **Marker:** 9b1c0e7a2d4f
+  **Posted:** !123#note_881 @ 4f2a9c1
+  ```

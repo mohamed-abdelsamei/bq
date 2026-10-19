@@ -662,7 +662,8 @@ class CheckpointFailures(MemBase):
         self.put("p1/b.md", "b")
         r = self.cli("checkpoint", ok=False)
         self.assertIn("bq memory: git add failed", r.stderr)
-        self.assertIn("git add failed (128): Another git process", self.last_error())
+        self.assertIn("git add failed (128): fatal: Unable to create", self.last_error())
+        self.assertIn("index.lock", self.last_error())
         (self.hist / "index.lock").rmdir()
 
     def test_last_error_record_shape(self):

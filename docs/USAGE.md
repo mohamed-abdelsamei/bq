@@ -82,7 +82,7 @@ Match the command to what you're actually trying to do:
 | Fix a bug | `/bq:debug <bug>` | reproduce → root cause → smallest fix → regression test |
 | Understand how something works | `/bq:research <question>` | A sourced, confidence-rated findings doc |
 | Review code or a decision | `/bq:review <target>` | Findings + a clear verdict |
-| Open / review an MR | `/bq:mr` / `/bq:review-mr <ref>` | A drafted request / a two-axis review, saved to `reviews/` |
+| Open / review an MR | `/bq:mr` / `/bq:review-mr [mode] <ref>` | A drafted request / a two-axis review, saved to `reviews/` ([modes](#reviewing-a-merge-request)) |
 | Understand a past decision | `/bq:ask <question>` | A plain-language answer from the record |
 | Pressure-test your own thinking | `/bq:grill <idea>` | Cass interrogates you, one sharp question at a time |
 | Capture a lesson | `/bq:retro <what happened>` | A reusable lesson that changes future behavior |
@@ -115,6 +115,74 @@ routing is its job.
 Not every job needs the full arc. A one-line fix can go straight to `/bq:build` or `/bq:debug`.
 A quick "how does X work?" is just `/bq:research` or even a direct question. **Scale the machinery
 to the stakes** — that's the whole point of the loop model.
+
+## Reviewing a merge request
+
+`/bq:review-mr <ref>` reviews an MR/PR (`!123`, `#456`, a URL or a branch) on two axes: Cass takes
+the code, Sol the design and scope, Vera the user's view. The Maestro merges their findings, checks
+them, gives a verdict (Approve / Approve with changes / Request changes) and saves the review to
+`~/.ai/<project>/reviews/`. It works in its own worktree next to the repo, so your branch, working
+tree and `origin/*` refs aren't touched, and on Claude Code you can keep working while it runs.
+
+**Modes.** Put the mode first or last. With no mode you get `full`.
+
+| Mode | What it does | Example |
+|---|---|---|
+| `full` | The whole MR, using the last review of it as context; rewrites that review | `/bq:review-mr !123` |
+| `fresh` | A blind second opinion: no earlier reviews, threads or bot comments go to the team. Writes its own `…-fresh-<sha7>.md` and leaves the main review alone | `/bq:review-mr fresh !123` |
+| `since-last` | Only the commits since the last review, with each earlier finding triaged as Fixed, Still open or Residual. After a force-push or a target merge it runs `full` and tells you why | `/bq:review-mr since-last !123` |
+| `since <sha>` | The same, from a baseline commit you name (7–40 hex) | `/bq:review-mr since 4f2a9c1 !123` |
+| local target | `current branch`, `current changes` or a pasted patch. Read-only on your checkout, the mode is ignored, and there's nothing to post | `/bq:review-mr current changes` |
+| `cleanup [<ref>]` | Lists the review worktrees with each MR's state and removes only the ones you name | `/bq:review-mr cleanup` |
+
+The worktree is kept between runs so re-reviews are quick. Run `cleanup` once the MR is merged.
+
+**Ticket intent.** If the branch name or title has a Jira-style key (`feat/ABC-12-login`), the
+Maestro fetches it with whatever Jira skill or tool your session already has (bq ships none), and
+its acceptance criteria become what the business axis checks against. Keys in the description or
+commits are context only. It never asks for, reads or stores credentials and never calls the Jira
+API itself. With no tool, or a branch or title ticket it can't see, the review still runs, and the
+business check is marked *limited*. Rules: [`ticket-intake.md`](../skills/mr-review/references/ticket-intake.md).
+
+**Verify.** Before the verdict, the Maestro re-checks every critical, important or `suspected`
+finding against the code at the head commit. On Claude Code, when a critical or important finding
+is in play (or more than 8 non-nit findings, by default), a fresh Cass argues that each one is
+wrong. Each finding is kept, downgraded or dropped on a quoted line of code, and Validation records the count. On Copilot the Maestro does the re-read
+itself. Rules: [`verify.md`](../skills/mr-review/references/verify.md).
+
+**Noise controls and `REVIEW.md`.** Lockfiles, vendored and build output, minified and generated
+files get no line-by-line review, but are still checked for secrets and dependency risk. Issues your
+CI's linters already catch aren't reported. By default nits are capped at 5, and a diff over 400
+lines or 20 files is split into up to 4 risk areas, with one Cass pass each (defaults and bounds:
+the mr-review skill's **Thresholds** table). To tune this per repo, commit a
+`REVIEW.md` with any of these headings:
+
+```markdown
+## Do not report
+- missing docstrings on private helpers
+## Always check
+- every new endpoint has an authz test
+## Skip paths
+- fixtures/**/*.json
+## Settings
+nit_cap: 3
+ticket_prefixes: ABC
+```
+
+It's read from the target branch, never from the MR, so an MR can't loosen its own review. It can
+narrow or extend what gets reported, but it can't relax security checks, Verify, the verdict,
+read-only mode or posting consent. Keys and bounds:
+[`noise-controls.md`](../skills/mr-review/references/noise-controls.md).
+
+**Posting.** The review is read-only by default and never approves or merges. To post, name the
+findings by ID ("post F2 and F5"). "Post it" on its own gets a question back. The Maestro re-checks
+the head commit, skips anything already on the MR, writes the exact request bodies to files and
+shows them to you verbatim. Nothing is sent until you say "post". Confirmed findings on changed lines
+go inline, everything else in one summary comment. It posts as a plain comment (Request changes
+only if you ask for it) to GitHub via `gh` or GitLab via `glab`, then writes the comment links back
+into the review so a later run never reposts. Posting hasn't been exercised live yet, so after
+publishing bq matches every comment by its marker, and on GitLab also checks that each note kept
+its marker and each suggestion block renders, reporting any that didn't. Steps: [`posting.md`](../skills/mr-review/references/posting.md).
 
 ## Working with the team
 

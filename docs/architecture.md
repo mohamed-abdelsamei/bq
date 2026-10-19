@@ -183,6 +183,24 @@ removes it), and diffs against the fetched target rather than the local, possibl
 (`skills/mr-review/references/isolated-checkout.md`). On Claude Code the specialists run in the
 background, so the session stays free while the review runs.
 
+The flow lives in `commands/review-mr.md`; the method in the mr-review skill, whose references
+each load at one step:
+
+- **Casting:** fetch and worktree (`isolated-checkout.md`, which also owns the since-mode baseline
+  checks and `cleanup`), then noise controls and the target-side `REVIEW.md` (`noise-controls.md`),
+  then ticket intake through the session's own Jira tool (`ticket-intake.md`), then lessons. The
+  reviewer, architect and tester get one brief each and run in parallel. Each reads
+  `comment-style.md`, and `deep-checks.md` when the diff calls for it.
+- **Close:** dedupe, match to prior finding IDs, nit cap, new IDs, then Verify (`verify.md`: a Cass
+  refute round or a Maestro re-read; always the re-read on Copilot), the suggested-change check, the
+  verdict, the md (`report-format.md`), In diff, the rewrite guard, the html.
+- **Posting** (`posting.md`) runs only when the user names finding IDs, and sends nothing until
+  they've seen the exact payload and said "post".
+
+The mode decides what the briefs carry and which file is written. `full` and the since modes
+rewrite the canonical `{slug}.md`. `fresh` keeps prior reviews and threads out of every brief and
+writes `{slug}-fresh-<sha7>.md`. Usage and examples: [USAGE](USAGE.md#reviewing-a-merge-request).
+
 `/bq:review-mr` records its review as `~/.ai/<project>/reviews/{slug}.md`, in the card format defined
 by the mr-review skill's `references/report-format.md` (tone rules in `references/comment-style.md`).
 Each finding carries a severity (critical, important, minor, nit; "blocking" is derived from it), a
