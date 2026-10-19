@@ -133,7 +133,10 @@ def _spawn(cmd, timeout, cwd=None, stdin=None):
 class GitError(MemError):
     def __init__(self, args, rc, err):
         self.stderr = err.decode("utf-8", "replace").strip()
-        super().__init__(f"git {args[0]} failed ({rc}): {self.stderr.splitlines()[-1] if self.stderr else ''}")
+        lines = self.stderr.splitlines()
+        # git's own "fatal:"/"error:" line names the cause; trailing advice lines don't
+        cause = next((ln for ln in lines if ln.startswith(("fatal:", "error:"))), lines[-1] if lines else "")
+        super().__init__(f"git {args[0]} failed ({rc}): {cause}")
 
 
 class Repo:
