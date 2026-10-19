@@ -295,7 +295,7 @@ ANCHOR_DELETED = re.compile(r"^(\S.*) \(deleted\)$")
 ANCHOR_TWO = re.compile(r":-?\d+(?:-\d+)?[\s,;]")
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 # Posted state (R21, R25). A Marker is exactly 12 lowercase hex; Posted is `<platform ref> @ <sha7>`, the ref
-# free text (a review-comment id or URL, a note or discussion id) so the posting spike can pin it later.
+# free text (the forms posting.md writes, or an older id or URL), so any ref without parentheses passes.
 # Triage lines and nits carry both as a trailing `(Marker <h12>, Posted <ref> @ <sha7>)`, either part
 # optional; a final `(...)` that starts `Marker ` or `Posted ` (then an optional `.` or `;`) is read as that
 # tail and checked. A nit or triage line with a `(` opening on Marker/Posted (any case) but no such tail is a near miss

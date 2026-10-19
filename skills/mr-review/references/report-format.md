@@ -101,8 +101,9 @@ this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
   To compute it, run `printf '%s' '<key>|<source>|<ID>' | shasum -a 256 | cut -c1-12`. --><!-- /claude-only -->
   The renderer warns when it isn't 12 lowercase hex.
 - **Posted** is added once the finding is posted: `<platform ref> @ <sha7>`, the SHA the comment was
-  posted against. The ref is loose on purpose until the posting spikes pin it down: a GitHub
-  review-comment id or URL, or a GitLab note or discussion id (e.g. `!123#note_881`). The renderer
+  posted against. The ref is what `posting.md` writes: on GitHub `#<n>#discussion_r<comment id>`
+  inline or `#<n>#pullrequestreview-<review id>` for the summary, on GitLab `!<iid>#note_<note id>`
+  (e.g. `!123#note_881`); older files may hold another form, which still renders. The renderer
   warns when the value doesn't end in ` @ <sha7>` (7-40 lowercase hex).
 - **Posted state off a card.** A nit or a `Not re-raised:` / `Fixed:` triage line keeps the same
   values as a trailing `(Marker <h12>, Posted <ref> @ <sha7>)`, with whichever of the two it has

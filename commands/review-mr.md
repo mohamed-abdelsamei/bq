@@ -247,10 +247,8 @@ hand-write HTML**. Read its stderr: surface any "not parsed" or
 verdict-contradiction banner to the user and fix the md, then re-run, rather than ignoring it.
 Report both paths (md and html).<!-- copilot: The html report is not available on this install; the md is the only output, so report its path. --><!-- /claude-only -->
 
-**13. Posting. Read-only by default.** Do **not** post comments, approve, or merge without the
-user's explicit go-ahead. If they say to post, post only the findings they name, per `comment-style.md` §4.
-"Looks good" or "send it" about the report is not a go-ahead to post to the platform; ask which
-findings.
+**13. Posting. Read-only by default:** never post, approve or merge on your own. Before any
+platform write, read the mr-review skill's `references/posting.md` and follow it step by step.
 
 ## Cleanup
 

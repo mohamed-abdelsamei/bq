@@ -74,8 +74,7 @@ called "verified"). Otherwise drop it and keep the finding.
 
 ## 4. Post-time syntax (Maestro only)
 
-Used only when the user explicitly says to post, and only for the findings they name. Nothing is
-posted, approved or merged otherwise.
+Used only at posting, under the consent steps in `posting.md`, which also owns the payloads.
 
 - **Span rule.** A suggestion has at least one `-` line, and the Anchor range `a-b` equals the `-`
   span of the suggestion diff: the `-` lines are exactly new-side lines a..b (a single-line Anchor
@@ -88,7 +87,8 @@ posted, approved or merged otherwise.
 - **Line outside the diff:** post a plain comment with a normal code block, not a suggestion.
 - **Suspected is never inline.** A `suspected` finding is never posted as an inline comment. If the
   user names one for posting, it goes in the summary comment, phrased as a question.
-- Rendering of suggestions created through the GitLab API is unverified; say so if it matters.
+- Rendering of suggestions created through the GitLab API is checked after publishing
+  (`posting.md`, GitLab).
 - **No ticket text.** A posted comment states the expected behaviour in code terms and never
   references, quotes or paraphrases the ticket (no key, no AC text). Only the local md may quote it,
   and only in **Why**: at post time a Why that quotes the ticket is replaced with code evidence or
