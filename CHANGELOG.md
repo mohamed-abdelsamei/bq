@@ -5,7 +5,37 @@ All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-10-19
+
 ### Added
+
+- **`/bq:review-mr` modes.** `[fresh|full|since-last|since <sha>] <ref>`, default `full`. `fresh` is
+  a blind second opinion written to its own `{slug}-fresh-<sha7>.md`; `since-last` / `since <sha>`
+  review only the new commits and triage prior findings as Fixed / Still open / Residual, falling
+  back to `full` when the baseline can't be used. Local targets (`current branch`, `current
+  changes`, a pasted patch) run as `full`.
+- **Verify before the verdict** (`skills/mr-review/references/verify.md`). Critical, important and
+  suspected findings are re-checked against the code (a Cass refute round on Claude Code, a Maestro
+  re-read on Copilot); each is kept, downgraded or dropped on a quoted line, and Validation records
+  the count.
+- **Richer anchors and stable IDs.** Old-side (`path:-n`) and range anchors, a computed `In diff`
+  tag (`render_review.py --in-diff`), and `F<n>` IDs that are never reused (`Last ID`).
+- **Posted state and a rewrite guard.** Cards carry `Marker` and `Posted`; `render_review.py
+  --previous <old>` refuses a rewrite that drops them (exit 0 clean, 1 actionable, 3 unrepairable).
+- **Posting playbook** (`skills/mr-review/references/posting.md`). You name finding IDs, preview the
+  exact payload and say "post"; one batched GitHub review or GitLab draft notes + `bulk_publish`,
+  an opaque `<!-- bq:<h12> -->` marker per comment so nothing posts twice, never an approval. Not
+  yet exercised against a live MR; it checks the result after the first publish.
+- **Noise controls and `REVIEW.md`** (`references/noise-controls.md`). A nit cap, a default skip
+  list, size thresholds, CI-owned lint left out, and per-repo rules read only from the target ref.
+- **Ticket intent** (`references/ticket-intake.md`). Jira keys in the branch, title or description
+  are fetched through the session's own Jira tool (never credentials) and anchor the business axis.
+
+### Fixed
+
+- A merged MR is diffed against its recorded base instead of producing an empty diff; an empty diff
+  now stops the review.
+- The memory history records git's `fatal:`/`error:` line instead of its trailing advice.
 
 - **The bq logo**, in `assets/logo/`: a red b and a teal q arguing nose to nose (SVG mark, light
   and dark icons, banner). The README opens with it, switching icons by color scheme.
