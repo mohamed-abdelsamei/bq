@@ -75,11 +75,9 @@ Lines and files are counted after the skip list.
 **Code**
 - **Correctness** against the stated intent — edge cases, boundaries, failure modes, off-by-ones.
 - **Security** — injection, auth/authz, secrets, unsafe deserialization, trust boundaries,
-  sensitive-data exposure, dependency risk, unsafe defaults. Where a boundary is touched, know the
-  load-bearing invariant by name and object when a convenience change relaxes it.
-- **Failure scope & blast radius** — when this fails, *what else* fails with it? A broken dependency
-  for feature X must not take down unrelated plane Y; watch for an error from an optional check that
-  escapes where only its result should gate.
+  sensitive-data exposure, dependency risk, unsafe defaults. Where a boundary is touched, guard its
+  load-bearing invariant (deep checks, **Drift**).
+- **Failure scope & blast radius** — when this fails, *what else* fails with it? (deep checks)
 - **Enablement & rollout transitions** — what happens the day a new flag flips on, or the migration
   runs, against **existing** data and identities? Existing sessions, credentials, cached state, and
   records predating the change. A gate that is correct for new users can lock out or silently break
@@ -87,19 +85,16 @@ Lines and files are counted after the skip list.
 - **Errors & observability** — failures surfaced not swallowed, errors actionable, no secrets in
   logs, enough logging/metrics to debug this in production.
 - **Performance & concurrency** — hot-path cost, N+1 queries, unbounded growth, blocking calls on
-  async paths, data races, lock/transaction scope. For any check-then-act, name the shared state and
-  the window — a guard is real only if the mutation side takes the *same* lock.
+  async paths, data races, lock/transaction scope, check-then-act windows (deep checks).
 - **Compatibility & migrations** — API/schema/config/contract changes, data migrations and their
   rollback, impact on existing callers and persisted data.
 - **Necessity & fit** — does this code need to exist, can it be smaller, does it follow local patterns?
 - **Removal completeness** — a delete, rename, or refactor-out leaves orphans: stale pointers,
-  comments, defaults, and caller-less exports, often in parallel copies. Verify dead-ness by usage
-  search before asserting it.
+  comments, defaults, and caller-less exports, often in parallel copies (deep checks).
 - **Tests** — meaningful coverage for the *changed* behavior, failure paths included, not just the
   happy path.
 - **Honesty & drift** — the diff does what the title and description claim; flag undisclosed changes
-  riding along, and diff every written claim (spec, contract, doc comment, changelog) against the
-  code.
+  riding along, and check written claims against the code (deep checks, **Drift**).
 
 **Business**
 - Walk the user-facing flow against the acceptance criteria.
@@ -126,7 +121,9 @@ Lines and files are counted after the skip list.
 ## Deep checks
 
 Read `references/deep-checks.md` when the diff removes or renames something, touches a
-spec/contract/doc claim, adds a check-then-act or a new fallible dependency, or is a re-review.
+spec/contract/doc claim or changes behaviour one describes, touches a security boundary, adds or
+changes a check-then-act, adds a new fallible dependency, or is a re-review. "(deep checks)" in
+this skill points there.
 
 ## Procedure
 
@@ -161,8 +158,7 @@ spec/contract/doc claim, adds a check-then-act or a new fallible dependency, or 
    - **Don't re-report** a finding an existing thread already covers unless you're adding evidence,
      confirming, or disputing it. Your job is the delta, not an echo.
    - Note which prior findings are already **fixed** in the current diff so stale threads don't block.
-   - On a re-review, credit what the fix achieved and narrow to the residual gap rather than
-     re-blocking at full weight.
+   - On a re-review, credit the fix and narrow to the residual (deep checks, **Drift**).
 4. **Review both axes.** Read the whole diff first, then **size effort to risk** — a security
    boundary or a migration earns deeper scrutiny than a rename. For a large or cross-cutting diff,
    summarize the changed areas first and review by risk area, not file order.
@@ -245,5 +241,5 @@ syntax). `Suggested change:` only when that file's gates hold. The Maestro write
 `reviews/` per `references/report-format.md`.
 
 Order findings by severity. If there are no findings, say so plainly and still note what you validated and
-the residual risk. For a contract/spec mismatch, phrase `Fix:` as a fork — correct the code *or*
-update-and-version the spec — since either side may be the intended source of truth.
+the residual risk. For a contract/spec mismatch, phrase `Fix:` as a fork — fix the code, or
+update and version the spec (deep checks, **Drift**).

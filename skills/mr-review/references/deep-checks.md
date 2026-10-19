@@ -1,8 +1,8 @@
 # MR review — deep checks
 
 The full method behind the one-line checks in `../SKILL.md`. Read the section that matches the diff:
-a removal or rename, a check-then-act, a new fallible dependency, a spec/contract/doc claim, or a
-re-review.
+a removal or rename, a check-then-act, a new fallible dependency, a spec/contract/doc claim, a
+security boundary (Drift: the load-bearing invariant), or a re-review.
 
 ## Removal completeness and the orphan sweep
 

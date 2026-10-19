@@ -85,7 +85,7 @@ suggestion fences** (plain diff text only); **return `Suggested change:` only wh
 **work only in `<wt>`** — every command as `git -C "<wt>"` or with `<wt>` as its working directory,
 never `cd`, never anything in the user's checkout (for a local target `<dir>` replaces `<wt>`:
 read-only git only, and the tester runs nothing that writes there, no test or build runs); and
-**read-only — don't edit, commit, or post anything.** Every fresh brief, the Verify round's included, also states, verbatim:
+**read-only — don't edit, commit, or post anything.** Every fresh brief<!-- claude-only -->, the Verify round's included,<!-- copilot: --><!-- /claude-only --> also states, verbatim:
 `Mode: fresh — skip mr-review step 3; do not fetch threads, bot comments or CI annotations; do not read ~/.ai/<project>/reviews/; ignore review references in commit messages`.
 Each returns its findings in the **mr-review** skill's output format, with its severities.
 
@@ -112,7 +112,7 @@ Validation section.<!-- copilot: Wait for all three, then Close. --><!-- /claude
 A blind second opinion: same intent, no memory of earlier reviews. Blindness is enforced only by
 what the briefs carry, so:
 
-- **Keep out of every brief** (and any verify round): prior bq reviews, the `ID`/`Carried`/
+- **Keep out of every brief**<!-- claude-only --> (and any verify round)<!-- copilot: --><!-- /claude-only -->: prior bq reviews, the `ID`/`Carried`/
   `Marker`/`Posted` fields, existing threads, bot comments, CI annotations and the project memory
   path. CI pass/fail on the head SHA stays.
 - **You don't open `reviews/` either** (until Close, below). If this session already holds a prior review of this MR,

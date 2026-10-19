@@ -47,7 +47,7 @@ Five forms. Line numbers are 1-based, and a range stays on one side (`a` <= `b`)
 - Path hygiene: repo-relative only. Never `/Users/`, `/home/`, `/tmp/` or any absolute local path,
   in any field.
 - Optional for business findings (a missing behavior has no line).
-- The renderer warns on a malformed Anchor or a reversed range; the path-parsing limits are in
+- <!-- claude-only -->The renderer warns on a malformed Anchor or a reversed range; the<!-- copilot: The --><!-- /claude-only --> path-parsing limits are in
   `report-format.md`.
 
 ## 3. The `Suggested change:` field

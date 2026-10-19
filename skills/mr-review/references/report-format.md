@@ -1,27 +1,27 @@
 # MR review — report format
 
 The layout the Maestro writes to `~/.ai/<project>/reviews/{slug}.md` (or the fresh file, see Slug
-and re-review) and the renderer parses. The md is authoritative; `scripts/render_review.py` derives
-`{slug}.html` from it when available. Never hand-write HTML. Parsing is strict: keep the syntax exactly as below.
+and re-review)<!-- claude-only --> and the renderer parses. The md is authoritative; `scripts/render_review.py` derives
+`{slug}.html` from it when available. Never hand-write HTML. Parsing is strict: keep the syntax exactly as below.<!-- copilot: . The md is the only output; never hand-write HTML. Keep the syntax exactly as below. --><!-- /claude-only -->
 
 ## Header
 
 `# Review: <title>` then one `**Key:** value` line each, in this order: `MR`, `Title`, `Head SHA`,
 `Target`, `Date`, `Reviewers`, `Verdict`. `Verdict` repeats the final call (vocabulary below). The
-head SHA is written once here; the renderer stamps it on every card.
+head SHA is written once here<!-- claude-only -->; the renderer stamps it on every card<!-- copilot: --><!-- /claude-only -->.
 
 Optional keys follow, each only when it applies, and each is shown in the masthead:
 
-- `Mode`: `fresh`, `full` or `since-last`. Any other value gets a warning.
+- `Mode`: `fresh`, `full` or `since-last`.<!-- claude-only --> Any other value gets a warning.<!-- copilot: --><!-- /claude-only -->
 - `Since`: the baseline SHA (`[0-9a-f]{7,40}`) a `since-last` review covered from; backticks around
-  it are stripped, as for the baseline read from `Head SHA`. Anything else gets a warning.
+  it are stripped, as for the baseline read from `Head SHA`.<!-- claude-only --> Anything else gets a warning.<!-- copilot: --><!-- /claude-only -->
 - `Ticket`: the primary keys only (branch or title, see `ticket-intake.md`), each with its state,
   comma-separated: `ABC-12 (fetched), ABC-13 (not fetched: no Jira skill/tool available)`. Related
   keys go only in the Validation `- Ticket:` line. An upper-case branch key or a title key that
   isn't found is written `KEY (not fetched: not found or not visible)`. Leave the line out when no
   ticket was detected, when only related keys were used, or when the only candidate was a lowercase
-  branch guess that wasn't found. The renderer warns (stderr only, no banner) when no `(...)` group
-  carries a `fetched` or `not fetched` state, so `(branch, fetched via <tool>)` counts too.
+  branch guess that wasn't found.<!-- claude-only --> The renderer warns (stderr only, no banner) when no `(...)` group
+  carries a `fetched` or `not fetched` state, so `(branch, fetched via <tool>)` counts too.<!-- copilot: --><!-- /claude-only -->
 
 ## Sections
 
@@ -29,8 +29,8 @@ In order: `## Code findings`, `## Business findings`, `## Process & convention f
 `## Prior findings triaged`, `## Validation`, `## Verdict`. Write "None." for an empty section.
 `## Validation` carries a `- Last ID: F<n>` line, the highest ID this file has ever used, kept on
 every rewrite so new IDs start above it (a fresh file keeps its own; with no such line, start
-above the highest ID in the file). The renderer warns when it is
-lower than an ID used in the file (card, nit, triage or `- Dropped F<n>:` line).
+above the highest ID in the file).<!-- claude-only --> The renderer warns when it is
+lower than an ID used in the file (card, nit, triage or `- Dropped F<n>:` line).<!-- copilot: --><!-- /claude-only -->
 
 `## Validation` also carries exactly one Verify line, written at Close (`verify.md`):
 
@@ -41,9 +41,9 @@ lower than an ID used in the file (card, nit, triage or `- Dropped F<n>:` line).
 This file is the one owner of the line's syntax and vocabulary; `verify.md`, the command and the
 skill point here. N = K+D+X.
 
-- `<method>`, exactly one of: `Cass refute round`, `Maestro re-read`, `Maestro re-read (verify
+- `<method>`, exactly one of: <!-- claude-only -->`Cass refute round`, `Maestro re-read`, `Maestro re-read (verify
   round failed)`, `Maestro re-read (no subagent on this install)` (every Copilot run, whatever the
-  trigger), or `none (no candidates)`.
+  trigger), or `none (no candidates)`.<!-- copilot: `Maestro re-read (no subagent on this install)` (every run on this install, whatever the trigger) or `none (no candidates)`. --><!-- /claude-only -->
 - `trigger:`, the first that holds of `≥1 critical/important`, `>N non-nit` (N = the Verify trigger
   in force, from the mr-review skill's threshold table, written as a number), `none`. With 0
   candidates the parenthetical is `(none (no candidates); trigger: none)`.
@@ -52,12 +52,12 @@ skill point here. N = K+D+X.
   finding gets no card, but its ID still counts toward `Last ID`, so it is never reused. Other
   Validation notes never start with `Verify:` (e.g. `- Suggested change dropped F<n>: …`).
 
-The renderer reads Verify lines only in `## Validation`, outside fences: a bullet whose text starts
+<!-- claude-only -->The renderer reads Verify lines only in `## Validation`, outside fences: a bullet whose text starts
 `Verify:`, `**Verify:**` or `**Verify**:`, in any case, colon right after the word (`- Verify
 Suggested change …` and `- verified CI` are not Verify lines). It warns (banner and stderr) when
 such a line doesn't match the form above (`Verify:` or `**Verify:**`, then four integers in that
 order and wording, then a non-empty parenthetical whose text is not checked), when N ≠ K+D+X, or
-when there is more than one. A file with no Verify line renders without a warning.
+when there is more than one. A file with no Verify line renders without a warning.<!-- copilot: --><!-- /claude-only -->
 
 ## Finding card
 
@@ -77,17 +77,17 @@ when there is more than one. A file with no Verify line renders without a warnin
 **Posted:** <platform ref> @ <sha7>
 ```
 
-The renderer does not enforce field order (it shows fields in the order written), but write them in
+<!-- claude-only -->The renderer does not enforce field order (it shows fields in the order written), but write<!-- copilot: Write --><!-- /claude-only --> them in
 this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
 
 - **ID** is the stable finding ID, `F<n>`, shown in the card meta. In `{slug}.md` a new ID is the
-  highest ID ever used plus 1, and IDs are never reused; a fresh file numbers on its own. The
+  highest ID ever used plus 1, and IDs are never reused; a fresh file numbers on its own.<!-- claude-only --> The
   renderer warns when an ID repeats across the cards and nits of one file. Files without IDs still
-  render.
+  render.<!-- copilot: --><!-- /claude-only -->
 - **Carried** marks a finding kept from an earlier review at `<sha7>`, with its ID, Marker and Posted.
 - **In diff** says whether every anchored line lies inside one diff hunk on the anchor's side. The
-  Maestro writes it at Close, never a specialist. `no` means the finding cannot be posted inline. It
-  is shown as a tag; any value other than `yes` or `no` gets a warning.
+  Maestro writes it at Close, never a specialist. `no` means the finding cannot be posted inline.<!-- claude-only --> It
+  is shown as a tag; any value other than `yes` or `no` gets a warning.<!-- copilot: --><!-- /claude-only -->
 - **Why** of a business finding that cites a ticket AC quotes it, prefixed with its primary key:
   ``**Why:** `ABC-12 AC-2: the user sees an error toast` ``. It is still one line of inline code
   (`comment-style.md` section 1); quote one AC line, or the part of it that matters. Write any
@@ -97,19 +97,19 @@ this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
   `branch-<name>`, `isolated-checkout.md`) and `<source>` is `canonical` or `fresh-<sha7>`. It is
   computed once, at first post, then carried verbatim and never recomputed. Leave `**Marker:**` out
   until the first post; never fill it at review time. <!-- claude-only -->To compute it, run
-  `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/render_review.py" --marker <key> <source> <ID>`.<!-- copilot:
+  `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/render_review.py" --marker <key> <source> <ID>`.
+  The renderer warns when it isn't 12 lowercase hex.<!-- copilot:
   To compute it, run `printf '%s' '<key>|<source>|<ID>' | shasum -a 256 | cut -c1-12`. --><!-- /claude-only -->
-  The renderer warns when it isn't 12 lowercase hex.
 - **Posted** is added once the finding is posted: `<platform ref> @ <sha7>`, the SHA the comment was
   posted against. The ref is what `posting.md` writes: on GitHub `#<n>#discussion_r<comment id>`
   inline or `#<n>#pullrequestreview-<review id>` for the summary, on GitLab `!<iid>#note_<note id>`
-  (e.g. `!123#note_881`); older files may hold another form, which still renders. The renderer
-  warns when the value doesn't end in ` @ <sha7>` (7-40 lowercase hex).
+  (e.g. `!123#note_881`); older files may hold another form<!-- claude-only -->, which still renders. The renderer
+  warns when the value doesn't end in ` @ <sha7>` (7-40 lowercase hex).<!-- copilot: . --><!-- /claude-only -->
 - **Posted state off a card.** A nit or a `Not re-raised:` / `Fixed:` triage line keeps the same
   values as a trailing `(Marker <h12>, Posted <ref> @ <sha7>)`, with whichever of the two it has
   (`(Marker <h12>)` and `(Posted <ref> @ <sha7>)` are fine). A final `(...)` starting `Marker ` or
-  `Posted `, optionally followed by `.` or `;`, is read as that tail, and the renderer checks it like
-  the card fields. The ref may not contain parentheses. The renderer also warns on a near miss: a
+  `Posted `, optionally followed by `.` or `;`, is read as that tail<!-- claude-only -->, and the renderer checks it like
+  the card fields<!-- copilot: --><!-- /claude-only -->. The ref may not contain parentheses. <!-- claude-only -->The renderer also warns on a near miss: a<!-- copilot: A near miss is a --><!-- /claude-only -->
   nit or triage line with a `(` opening on `Marker` or `Posted` in any case but no tail at its end
   (`(Marker: …)`, lowercase, text after the tail, swapped order), and a `Not re-raised`/`Fixed`
   line with an F-ID in any other form, such as a bold label `- **Not re-raised:** F2`.
@@ -138,23 +138,23 @@ ID as `- Guard (unresolved): <line>`.<!-- copilot: . Validation logs each unrepa
 
 - **Anchor** is one of five forms (meaning and sides in `comment-style.md` section 2):
   `<repo>/<path>:<n>`, `:<a>-<b>` (new side), `:-<n>`, `:-<a>-<b>` (old side), or
-  `<repo>/<path> (deleted)` (file level). Optional; business findings may omit it. The renderer
+  `<repo>/<path> (deleted)` (file level). Optional; business findings may omit it. <!-- claude-only -->The renderer
   warns when an Anchor is malformed or its range is reversed (b < a). It splits at the **last** `:`
-  and reads the line spec from the end, so a path may contain spaces, `-`, digits and `:`. Limits: a
+  and reads the line spec from the end<!-- copilot: A reversed range (b < a) is malformed. An Anchor is split at the **last** `:` and its line spec read from the end --><!-- /claude-only -->, so a path may contain spaces, `-`, digits and `:`. Limits: a
   path ending in `:<digits>` cannot be anchored, line numbers start at 1, a path holding `:<n>`
   before a space, comma or semicolon is refused as two anchors in one field (one Anchor per card),
   and a path starting with `/` or containing a backtick is refused.
 - **Suggested change** is a fenced `diff` block under the label **Proposed patch (not posted)**.
   Confirmed findings only; the gates are in `comment-style.md`.
 - A nit may be one line: `- [nit] Title — note. (`path:line`)`. It may start with its ID:
-  `- [nit] F7 Title — note. (`path:line`)`. The renderer reads that prefix as an ID only when the
+  `- [nit] F7 Title — note. (`path:line`)`. <!-- claude-only -->The renderer reads that prefix as an ID only when the
   file has at least one card `**ID:**`, a `- Last ID:` line or a `Not re-raised`/`Fixed` triage ID,
   or when the nit itself ends in a posted-state tail; otherwise the nit text is kept verbatim. The trailing
   `(path:line)` is free text and is not validated: older files wrote it loosely, and checking it
-  would add warnings to files that rendered clean. A posted nit ends with the posted-state tail
+  would add warnings to files that rendered clean.<!-- copilot: The trailing `(path:line)` is free text. --><!-- /claude-only --> A posted nit ends with the posted-state tail
   described above. The nit cap's summary line `- [nit] N more not shown: <titles>`
-  (`noise-controls.md`) is shown but is not a finding: it is not counted and carries no ID. A near
-  miss of it (`0 more`, no colon, `More`) warns and counts as a nit.
+  (`noise-controls.md`) is shown but is not a finding: it is not counted and carries no ID.<!-- claude-only --> A near
+  miss of it (`0 more`, no colon, `More`) warns and counts as a nit.<!-- copilot: --><!-- /claude-only -->
 
 ## Severity, blocking, verdict
 
@@ -173,8 +173,8 @@ Order findings by severity. Verdict is one of **Approve**, **Approve with change
 - Request changes with no critical/important finding: contradiction.
 
 `## Verdict` body: an optional single `Strengths: a; b` line first (0-2 earned strengths, one line,
-no `## Strengths` section), then the verdict word, ending with `Most important fix first: …`. The renderer shows a banner on a
-contradiction; fix the md rather than ignore it.
+no `## Strengths` section), then the verdict word, ending with `Most important fix first: …`.<!-- claude-only --> The renderer shows a banner on a
+contradiction; fix the md rather than ignore it.<!-- copilot: --><!-- /claude-only -->
 
 ## Slug and re-review
 
@@ -188,7 +188,7 @@ cannot leave `reviews/`. A `full` or `since-last` review writes `reviews/{slug}.
 review writes `reviews/{slug}-fresh-<sha7>.md`, where `<sha7>` = the first 7 characters of the head
 SHA. The suffix is added after the slug is derived, so repeated `-` still collapse in the slug
 itself. The head SHA must match `[0-9a-f]{7,40}`. Quote paths passed to a shell
-(`git show <sha>:"<path>"`, the render command). A path from diff text must be repo-relative:
+(`git show <sha>:"<path>"`<!-- claude-only -->, the render command<!-- copilot: --><!-- /claude-only -->). A path from diff text must be repo-relative:
 refuse any containing `..` or shell metacharacters (`` ` $ ; | & < > ( ) ``, quotes, newlines),
 and never pass a refused path to a shell. A re-review of the same MR overwrites the file and records the head SHA
 it reviewed in the header.
