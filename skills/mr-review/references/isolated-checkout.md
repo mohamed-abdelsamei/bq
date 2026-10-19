@@ -35,6 +35,30 @@ The empty `--refmap=` is load-bearing: without it git "opportunistically" update
 too, so the user's `git status` suddenly reports "behind". With it, only the two private refs move. If the platform reports a different head
 SHA than the one fetched, say so and review the fetched one.
 
+### Head already in the target
+
+If `git -C "<main>" merge-base --is-ancestor "$sha" "refs/bq-review/<key>/base"` succeeds, the
+MR's commits are already in the target (it was merged), so `base...HEAD` is empty and `<mb>` would
+be the head. Run this right after the fetch, before the diff and the **Since baseline** checks:
+
+1. Take the platform's recorded base `<b>`: GitHub `gh api repos/{o}/{r}/pulls/{n} --jq
+   .base.sha`; GitLab the MR's `diff_refs.base_sha` only when its `diff_refs.head_sha` is `$sha`,
+   else the `base_commit_sha` of the `/versions` entry whose `head_commit_sha` is `$sha` (neither
+   matches: stop). It must be a full SHA, `[0-9a-f]{40}`.
+2. `b=$(git -C "<main>" rev-parse --verify --quiet "<b>^{commit}")`; if that fails, fetch it by
+   SHA (`git -C "<main>" fetch --no-tags --refmap= "<remote>" "<b>"`) and resolve again. Use `$b`
+   from here on.
+3. `git -C "<main>" merge-base --is-ancestor "$sha" "$b"` must **fail** (the recorded base doesn't
+   already hold the head). GitHub's `base.sha` is the target tip, not always an ancestor of the
+   head; the `...` diff below takes the merge-base either way.
+4. `git -C "<main>" update-ref "refs/bq-review/<key>/base" "$b"`. Every later step (diff, `<mb>`,
+   size, since checks) then runs unchanged against the pre-merge base, so a branch commit as
+   baseline isn't on it and doesn't trip "baseline is on the target". Validation records
+   `- Target: head already in target; diffed against the recorded base <sha7>`.
+
+If any step fails, or the target is a remote branch with no MR (no recorded base), stop and tell
+the user the changes are already in the target and there is nothing to diff.
+
 ## Worktree
 
 - **Missing** → create and lock it (the lock stops `git worktree prune` from reaping it):
@@ -61,6 +85,8 @@ Always against the merge-base with the **fetched** target, never the local one:
 git -C "<wt>" diff "refs/bq-review/<key>/base...HEAD"
 git -C "<wt>" log --oneline "refs/bq-review/<key>/base..HEAD"
 ```
+
+An empty diff stops the review before casting (`/bq:review-mr`, Isolate the checkout).
 
 ### Since baseline (since-last / since <sha>)
 
@@ -129,6 +155,8 @@ git -C "<main>" worktree unlock "<wt>"
 git -C "<main>" worktree remove --force "<wt>"
 git -C "<main>" for-each-ref --format='%(refname)' "refs/bq-review/<key>/" |
   while read -r ref; do git -C "<main>" update-ref -d "$ref"; done
+rmdir "<main-parent>/.bq-review/<project>" "<main-parent>/.bq-review" 2>/dev/null || true
 ```
 
-Never remove a path outside `.bq-review/<project>/`, and never a worktree the user created.
+`rmdir` removes only empty folders, so it clears them after the last worktree and is a no-op
+otherwise; never `rm -r` them. Never remove a path outside `.bq-review/<project>/`, and never a worktree the user created.

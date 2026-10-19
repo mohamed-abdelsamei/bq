@@ -20,7 +20,7 @@ and trigger values are owned by `report-format.md` (Sections); write exactly one
 
 ## SHAs and reads
 
-`<sha>` is the head SHA. `<mb>` is the merge-base of `<sha>` and the fetched target, the base the
+`<sha>` is the head SHA. `<mb>` is `git merge-base "<sha>" "refs/bq-review/<key>/base"`, the base the
 diff was taken against. A new-side anchor is read with `git -C "<wt>" show "<sha>":"<path>"`; an
 old-side anchor or a `(deleted)` file with `git -C "<wt>" show "<mb>":"<old path>"`. Both SHAs must
 match `[0-9a-f]{7,40}`; paths follow the refusals in `report-format.md` (Slug and re-review).
