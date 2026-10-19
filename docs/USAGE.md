@@ -180,9 +180,10 @@ the head commit, skips anything already on the MR, writes the exact request bodi
 shows them to you verbatim. Nothing is sent until you say "post". Confirmed findings on changed lines
 go inline, everything else in one summary comment. It posts as a plain comment (Request changes
 only if you ask for it) to GitHub via `gh` or GitLab via `glab`, then writes the comment links back
-into the review so a later run never reposts. Posting hasn't been exercised live yet, so after
-publishing bq matches every comment by its marker, and on GitLab also checks that each note kept
-its marker and each suggestion block renders, reporting any that didn't. Steps: [`posting.md`](../skills/mr-review/references/posting.md).
+into the review so a later run never reposts. Comments carry no footer or hidden tag; bq matches
+them by file, line and title. Posting hasn't been exercised live yet, so after publishing bq
+matches every comment back, and on GitLab also checks that each suggestion block renders,
+reporting any that didn't. Steps: [`posting.md`](../skills/mr-review/references/posting.md).
 
 ## Working with the team
 
