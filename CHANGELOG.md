@@ -5,6 +5,16 @@ All notable changes to the `bq` plugin. Versions follow [SemVer](https://semver.
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-10-19
+
+### Changed
+
+- **Posted review comments are clean.** `/bq:review-mr` no longer adds the `Drafted with bq,
+  posted by <user>` footer or the hidden `<!-- bq:<h12> -->` marker to comments. Dedupe and
+  post-publish matching use the card's `Posted` ref, GitLab draft ids, and path, line and title;
+  `Marker` stays in the review md only. Payloads are checked for unfilled placeholders before the
+  preview.
+
 ## [0.9.0] — 2026-10-19
 
 ### Added
