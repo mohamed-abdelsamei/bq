@@ -92,7 +92,8 @@ this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
   ``**Why:** `ABC-12 AC-2: the user sees an error toast` ``. It is still one line of inline code
   (`comment-style.md` section 1); quote one AC line, or the part of it that matters. Write any
   backtick inside the quoted AC as `'` so the code span holds.
-- **Marker** is the posting marker (R21, D7): exactly 12 lowercase hex characters,
+- **Marker** is the finding's posting identity (R21, D7), kept in this md only and never put in a
+  posted comment: exactly 12 lowercase hex characters,
   `sha256("<key>|<source>|<ID>")[:12]`, where `<key>` is the review key (`mr-<id>` or
   `branch-<name>`, `isolated-checkout.md`) and `<source>` is `canonical` or `fresh-<sha7>`. It is
   computed once, at first post, then carried verbatim and never recomputed. Leave `**Marker:**` out
