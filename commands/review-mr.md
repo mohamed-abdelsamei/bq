@@ -139,8 +139,8 @@ what the briefs carry, so:
   <ref>`; its card stays, only posting is suppressed. Write `reviews/{slug}-fresh-<sha7>.md` with
   `**Mode:** fresh`, IDs from F1 and its own `- Last ID:` line. If that file already exists (a
   re-run at the same SHA), it is a rewrite: open it only now, copy it to scratch, match against it
-  and number new IDs from its `Last ID` (renumber the Verify log lines, Dropped, Downgraded and
-  Re-read, to match), and run the **Rewrite guard** against the copy. Matching against the old fresh file sets only IDs,
+  and number new IDs from its `Last ID` (renumber the Verify log lines, Dropped, Downgraded<!-- claude-only --> and
+  Re-read<!-- copilot: --><!-- /claude-only -->, to match), and run the **Rewrite guard** against the copy. Matching against the old fresh file sets only IDs,
   Marker/Posted and triage lines; severity, confidence and card text stay as Verify left them; an
   unmatched old finding becomes `Not re-raised`, never `Fixed` (same SHA). Never write the canonical file; it must stay
   byte-identical. Validation records `Lessons withheld (fresh): N` and `blindness:
