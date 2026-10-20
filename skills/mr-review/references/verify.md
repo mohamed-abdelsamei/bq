@@ -55,8 +55,8 @@ outcome itself.
 Search every quote the round returns in the matching `git show` output, or in the intent block for
 a business or scope finding. A keep must state the counter-case it tried and may not only re-quote
 the card's own **Why**. A keep whose quote isn't found, or without its own counter-case, downgrades
-the finding to `suspected`, logged as `- Downgraded F<n>: <from>→suspected, refute quote not found`
-(or `… no counter-case`). A drop or downgrade whose quote isn't found doesn't count: the Maestro
+the finding to `suspected`, logged as `- Downgraded F<n>: <from>→suspected, <title> — refute quote not found`
+(or `… — no counter-case`). A drop or downgrade whose quote isn't found doesn't count: the Maestro
 re-reads that ID and decides.<!-- copilot: --><!-- /claude-only -->
 
 ## Outcomes
@@ -67,8 +67,8 @@ re-reads that ID and decides.<!-- copilot: --><!-- /claude-only -->
 - A code-axis finding is kept or dropped only on a code quote from `git show`. An intent-block
   quote (MR text, ticket) can decide only a business or scope finding and never drops a code
   defect. With no qualifying quote, downgrade to `suspected`.
-- Log each drop and downgrade on its own Validation line; a dropped finding gets no card and keeps
-  its ID in `Last ID` (both per `report-format.md`).
+- Log each drop and downgrade on its own titled Validation line; a dropped finding gets no card and
+  keeps its ID in `Last ID` (both per `report-format.md`).
 - **Dropped carried IDs never vanish.** A dropped finding that matched a prior open ID goes under
   `## Prior findings triaged`: as `Fixed: <ID> — <code quote>` when the drop rests on a verified
   code quote, else as `Not re-raised: <ID> — <title>`, each with its posted-state tail
@@ -76,7 +76,7 @@ re-reads that ID and decides.<!-- copilot: --><!-- /claude-only -->
 
 ## Since-mode triages
 
-A verified `Fixed` counts as dropped (X): its `Fixed:` triage line plus `- Dropped F<n>: fixed (see
-triage)`. A `Residual` that holds counts as downgraded (D). A refuted `Fixed` or `Residual` (its
+A verified `Fixed` counts as dropped (X): its `Fixed:` triage line plus `- Dropped F<n>: <title> — fixed
+(see triage)`. A `Residual` that holds counts as downgraded (D). A refuted `Fixed` or `Residual` (its
 quote doesn't hold, or specialists disagree without a verified Fixed quote) stays Still open and
 counts as kept (K). Only Still open carries skip Verify.

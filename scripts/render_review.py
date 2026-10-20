@@ -275,12 +275,14 @@ CARD_ID = re.compile(r"F[1-9]\d*")
 # starts `Verify:`, `**Verify:**` or `**Verify**:`, any case, colon right after the word (so `- Verify
 # Suggested change ...` and `- verified CI` are not), outside a fence. It must then match VERIFY_LINE
 # (`Verify:` or `**Verify:**`, any case; `**Verify**:` is reported malformed): four non-negative
-# integers in this order and wording, then a non-empty parenthetical (method and trigger, free text:
-# not validated). Warned: a Verify line that doesn't match, N != K+D+X, or more than one Verify line.
+# integers in this order and wording, then a non-empty parenthetical (method and trigger are free text, not validated; an
+# optional last `evidence: T/M tagged` part must have T <= M). Warned: a Verify line that doesn't match, N != K+D+X, or more than one Verify line.
 # No Verify line: no warning (older files).
 VERIFY_START = re.compile(r"^\s*[-*]\s+(?:\*\*)?verify(?:\*\*)?:", re.I)
 VERIFY_LINE = re.compile(r"^\s*[-*]\s+(?:\*\*Verify:\*\*|Verify:) (\d+) found, (\d+) kept, (\d+) downgraded, (\d+) dropped "
                          r"\((.+)\)\s*$", re.I)
+EVIDENCE = re.compile(r"\bevidence:\s*(.*)$", re.I)
+EVIDENCE_OK = re.compile(r"^(\d+)/(\d+) tagged$", re.I)
 NIT_START = re.compile(r"^- \[nit\]", re.I)
 SEV_HEAD = re.compile(r"^### \[(critical|important)\]", re.I)
 LIST_ITEM = re.compile(r"^\s*(?:([-*+])|\d+[.)])\s+(.*)$")
@@ -1002,11 +1004,17 @@ def render(text, name):
         vm = VERIFY_LINE.match(vl)
         if not vm:
             problem("malformed Verify line %r (expected '- Verify: N found, K kept, D downgraded, X dropped "
-                    "(<method>; trigger: <threshold>)')" % vl[:80])
+                    "(<method>; trigger: <threshold>; evidence: <tagged>/<command lines> tagged)')" % vl[:80])
             continue
         n, k, d, x = (int(g) for g in vm.groups()[:4])
         if n != k + d + x:
             problem("Verify line says %d found but %d+%d+%d = %d (kept+downgraded+dropped)" % (n, k, d, x, k + d + x))
+        em = EVIDENCE.search(vm.group(5))
+        if em:
+            ev = EVIDENCE_OK.match(em.group(1).strip())
+            if not ev or int(ev.group(1)) > int(ev.group(2)):
+                problem("malformed Verify evidence %r (expected 'evidence: <tagged>/<command lines> tagged', "
+                        "tagged <= command lines)" % em.group(1).strip()[:40])
 
     cards, nits = [], []
     for heading, axis in SECTIONS[:3]:
