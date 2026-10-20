@@ -145,16 +145,25 @@ API itself. With no tool, or a branch or title ticket it can't see, the review s
 business check is marked *limited*. Rules: [`ticket-intake.md`](../skills/mr-review/references/ticket-intake.md).
 
 **Verify.** Before the verdict, the Maestro re-checks every critical, important or `suspected`
-finding against the code at the head commit. On Claude Code, when a critical or important finding
-is in play (or more than 8 non-nit findings, by default), a fresh Cass argues that each one is
-wrong. Each finding is kept, downgraded or dropped on a quoted line of code, and Validation records the count. On Copilot the Maestro does the re-read
-itself. Rules: [`verify.md`](../skills/mr-review/references/verify.md).
+finding against the code at the head commit. A finding stays unless a quoted line shows its failure
+can't happen. On Claude Code, when a critical or important finding is in play (or more than 8
+non-nit findings, by default), a fresh Cass tries to falsify each one, reading code only with
+`git show` (no tests or searches); the Maestro checks that each drop's quote actually bears on the
+finding, and re-reads it itself when it doesn't. A finding backed by a failing command that a
+specialist tagged `(supports: <title>)` can only be contested, not dropped on a quote. A "missing
+test" or "uncovered AC" finding stands on its empty search only when the search names an
+identifier from the code, and the Maestro re-runs it repo-wide first. Validation records the
+counts, an `evidence: N/M tagged` count of command lines, and one titled line per drop, downgrade
+or re-read, so no finding vanishes silently. On Copilot the Maestro does the re-read itself. Rules:
+[`verify.md`](../skills/mr-review/references/verify.md).
 
 **Noise controls and `REVIEW.md`.** Lockfiles, vendored and build output, minified and generated
-files get no line-by-line review, but are still checked for secrets and dependency risk. Issues your
-CI's linters already catch aren't reported. By default nits are capped at 5, and a diff over 400
-lines or 20 files is split into up to 4 risk areas, with one Cass pass each (defaults and bounds:
-the mr-review skill's **Thresholds** table). To tune this per repo, commit a
+files get no line-by-line review, but are still checked for secrets and dependency risk. Issues a
+lint, format or type check in your MR pipeline already catches aren't reported, but only when that
+check covers the file, and never when the MR edits the CI or tool config. By default nits are
+capped at 5, and a diff over 400 lines or 20 files is split into up to 4 risk areas, with one Cass
+pass each; each pass also reports defects where its area meets the rest of the code (defaults and
+bounds: the mr-review skill's **Thresholds** table). To tune this per repo, commit a
 `REVIEW.md` with any of these headings:
 
 ```markdown
