@@ -10,7 +10,9 @@ apply in full.
 - **One issue per finding**, at most ~4 sentences. Split two problems into two findings.
 - **Quote evidence** (`code`, a test result, a spec line) rather than paraphrasing it. **Why**
   quotes at most one line of evidence, in inline code, with no line-leading markdown (`#`, a code
-  fence, `-`, `>`), so it cannot break the report structure.
+  fence, `-`, `>`), so it cannot break the report structure. An **absence** finding (missing
+  test, uncovered AC, unhandled path) quotes the search that came back empty, its pattern an
+  identifier from the Anchor or What and its scope the whole tree: `` `git grep -n -i "retry_after" → no matches` ``.
 - **Ticket-free title, What and Fix.** They are posted verbatim (section 4), so state the expected
   behaviour in code terms: no ticket key, no AC text, no paraphrase of it. Only **Why** may quote
   the ticket (`report-format.md`).

@@ -49,25 +49,40 @@ round runs no commands. A command-confirmed candidate it may only keep or `conte
 line showing that the command doesn't exercise What's mechanism or that its result doesn't show
 the failure. Each ID comes back kept, downgraded (`<from>→<to>`), dropped or contest, with the
 counter-case it tried and the quoted line it rests on, from the `git show` reads above, the intent
-block, or a command-confirmed candidate's result in the brief. If the round errors, or hasn't
-returned about 10 minutes after the last specialist, re-read instead and record `Maestro re-read
-(verify round failed)`. Below the trigger, re-read.<!-- copilot: On this install the Maestro always
+block, or a command-confirmed candidate's result in the brief; an absence drop also gives that
+line's `path:line`. If the round errors, or hasn't returned about 10 minutes after the last
+specialist, re-read instead and record `Maestro re-read (verify round failed)`. Below the trigger, re-read.<!-- copilot: On this install the Maestro always
 re-reads, whatever the trigger, and records `Maestro re-read (no subagent on this install)`. --><!-- /claude-only -->
 To re-read, the Maestro reads each candidate's anchor with the `git show` above and decides each
 outcome itself (a command-confirmed candidate per the rule below).
 
 **Command-confirmed.** A candidate is command-confirmed when a specialist's Validation command line
-carries its tag, `(supports: <title>)` (the tag rule is in the specialist brief). On any Maestro
-re-read other than a contest it is kept, severity and confidence, even with no qualifying quote.
-<!-- claude-only -->A contest is decided under **Check the round's outcomes**. For a local target it
-is kept, whatever the round returns, and nothing is re-run.<!-- copilot: On
-this install it is kept and nothing is re-run. --><!-- /claude-only -->
+carries its tag, `(supports: <title>)` (the tag rule is in `/bq:review-mr`'s specialist brief).
+A tagged search (`grep`, `git grep`, `rg`, `find`, `ls`), a PASS, or a result that doesn't show
+the failure in What doesn't make it command-confirmed: it is judged as an ordinary candidate. On
+any Maestro re-read other than a contest a command-confirmed candidate is kept, severity and
+confidence, even with no qualifying quote. <!-- claude-only -->A contest is decided under **Check
+the round's outcomes**. For a local target it is kept whatever the round returns, logs no Re-read,
+and nothing is re-run: an accepted precision gap (R5).<!-- copilot: On this install it is kept
+and nothing is re-run. --><!-- /claude-only -->
+
+**Absence.** For an absence finding (missing test, uncovered AC, unhandled path), the search in
+**Why** and its empty result (`comment-style.md` §1) can be the qualifying quote. Its pattern must
+contain an identifier from the Anchor or What (a function, route or AC term), not a paraphrase,
+or it doesn't qualify. On every Maestro check of an absence finding<!-- claude-only --> (each
+absence keep from the round, and any re-read)<!-- copilot: --><!-- /claude-only -->, the Maestro runs the pattern widened, with no pathspec, at the reviewed
+revision: `git -C "<wt>" grep -n -i -e "<pattern>" "<sha>"` (it may substitute a better
+identifier from What). A local target searches `<dir>` at `<sha>`, never the working tree, and
+`current changes` also the saved patch's added lines (**SHAs and reads**). Each hit in a test, or
+a file where the thing would live, is read with `git show`; one that shows the thing exists is the
+drop's quote. The absence quote qualifies when no hit shows that (a hit that only mentions the
+identifier, like the source under review or a test of another case, doesn't count against it); a
+pattern without an identifier never qualifies, and the finding is then judged as an ordinary
+candidate on a code quote. A drop must give the `path:line` of the line showing the thing exists,
+checked with `git show "<sha>":"<path>"` (local targets per **SHAs and reads**).
 
 <!-- claude-only -->
 ## Check the round's outcomes
-
-A local-target command-confirmed candidate is the exception: it is kept (**Command-confirmed**)
-and logs no Re-read, whatever the round returns. This is an accepted precision gap (R5).
 
 Search every quote the round returns in the matching `git show` output, in the intent block for a
 business or scope finding, or in a command-confirmed candidate's result from the brief. The Maestro
@@ -82,12 +97,15 @@ re-reads an ID and decides it when:
   the `Dropped` or `Downgraded` line's reason; for a since-mode `Fixed` it goes into the `Fixed:`
   triage line's evidence and the Dropped reason stays `fixed (see triage)`. A `confirmed`→`suspected`
   downgrade needs only the unverified precondition;
+- an absence keep's empty-search quote doesn't qualify under **Absence** (it counts as found only
+  when it qualifies), or an absence drop's `path:line` doesn't show the thing exists;
 - a command-confirmed candidate comes back dropped or downgraded (only keep or contest are allowed);
 - it is contested. The Maestro may re-run only the byte-identical tagged command, in `<wt>`. A
   different result means the finding is flaky: downgrade it to `suspected`, never drop it. The same
-  result alone keeps it; the Maestro may lower it only on a quote showing the command doesn't
-  exercise What's mechanism (code) or that the result doesn't show the failure (the result); with
-  no re-run it decides on those quotes alone.
+  result alone keeps it. Once the Maestro rules, on a quote, that the command doesn't exercise
+  What's mechanism (code) or that the result doesn't show the failure (the result), the command no
+  longer supports it: it is judged as an ordinary candidate, kept, downgraded, or dropped on a
+  code quote. With no re-run it decides on those quotes alone.
 
 Log each such re-read, vetoes included, as its own `- Re-read F<n>:` line (`report-format.md`).
 Nothing is auto-downgraded.<!-- copilot: --><!-- /claude-only -->
@@ -101,7 +119,7 @@ Nothing is auto-downgraded.<!-- copilot: --><!-- /claude-only -->
 - A code-axis finding is kept or dropped only on a code quote from `git show`. An intent-block
   quote (MR text, ticket) can decide only a business or scope finding and never drops a code
   defect. On the Maestro's own re-read, with no qualifying quote, downgrade to `suspected`
-  (a command-confirmed finding excepted, per **Command-confirmed**).
+  (exceptions: **Command-confirmed**, and **Absence** when its widened search qualifies).
 - Log each drop and downgrade on its own titled Validation line; a dropped finding gets no card and
   keeps its ID in `Last ID` (both per `report-format.md`).
 - **Dropped carried IDs never vanish.** A dropped finding that matched a prior open ID goes under

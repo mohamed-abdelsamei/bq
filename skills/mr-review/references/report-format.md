@@ -48,9 +48,11 @@ skill point here. N = K+D+X.
   in force, from the mr-review skill's threshold table, written as a number), `none`. With 0
   candidates the parenthetical is `(none (no candidates); trigger: none; evidence: <tagged>/<command lines> tagged)`.
 - `evidence:`, last in the parenthetical: `<command lines>` is how many command lines the specialists
-  reported, `<tagged>` how many of them carry a `(supports: <finding title>)` tag, both integers
+  reported, `<tagged>` how many of them carry a `(supports: <finding title>)` tag (the rule is in
+  `/bq:review-mr`'s specialist brief), both integers
   (`0/0 tagged` with none; `<tagged>` never exceeds `<command lines>`, and the renderer warns
-  otherwise). An older file without it is still valid.
+  otherwise). An older file without it is still valid. A tag that names no finding after dedupe
+  still counts in `<tagged>` and adds `- Unmatched evidence tag: <title>`.
 - Each drop and downgrade adds its own line, titled with the finding's title: `- Dropped F<n>: <title> — <reason>`
   (a verified since-mode Fixed: `- Dropped F<n>: <title> — fixed (see triage)`) or
   `- Downgraded F<n>: <from>→<to>, <title> — <reason>`. A dropped

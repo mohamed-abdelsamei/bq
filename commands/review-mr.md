@@ -84,7 +84,12 @@ suggestion fences** (plain diff text only); **return `Suggested change:` only wh
 (`comment-style.md` §3; the Maestro confirms In diff);
 **work only in `<wt>`** — every command as `git -C "<wt>"` or with `<wt>` as its working directory,
 never `cd`, never anything in the user's checkout (for a local target `<dir>` replaces `<wt>`:
-read-only git only, and the tester runs nothing that writes there, no test or build runs); and
+read-only git only, and the tester runs nothing that writes there, no test or build runs);
+**tag supporting commands** — a Validation command line that executes code (a test, build,
+typecheck, lint or repro script) and whose result shows the finding's failure (FAIL, an error,
+wrong output) ends with `(supports: <finding title>)`, the title verbatim, one tag per supported
+finding, e.g. `` - `pytest -k retry` — FAIL (supports: Retry never stops on 4xx) ``; never tag a
+search (`grep`, `git grep`, `rg`, `find`, `ls`: absence evidence goes in **Why**) or a PASS; and
 **read-only — don't edit, commit, or post anything.** Every fresh brief<!-- claude-only -->, the Verify round's included,<!-- copilot: --><!-- /claude-only --> also states, verbatim:
 `Mode: fresh — skip mr-review step 3; do not fetch threads, bot comments or CI annotations; do not read ~/.ai/<project>/reviews/; ignore review references in commit messages`.
 Each returns its findings in the **mr-review** skill's output format, with its severities.
@@ -185,7 +190,9 @@ In run order (detail below):
 13. Posting
 
 **1. Dedupe.** Consolidate the returns into one report, with **code,
-business and process findings kept separate**.
+business and process findings kept separate**. A merged card inherits every source's
+`(supports:)` tags (a tag matching any source title now names the merged card); a tag that
+names no finding after dedupe is logged in Validation (`report-format.md`).
 
 **2. Match** (`full` and the since modes; fresh per **Fresh**). A finding matches a prior open one
 when it's the same issue at the same or a moved anchor; when unsure, it's new. A match keeps its

@@ -176,7 +176,7 @@ this skill points there.
 - **Security boundary touched** → elevate scrutiny; unresolved auth/secret/injection/exposure risk
   usually means Request changes.
 - **Tests absent for changed behavior** → Important when behavior, data, security, or a user-facing
-  flow changed.
+  flow changed; **Why** quotes the empty search as evidence (`comment-style.md` §1).
 - **Generated or vendored code** → skip deep style review; check provenance, necessity, security, and
   integration points; skip-listed paths still get this skim, and a manifest or lockfile change the
   dependency-risk check.
