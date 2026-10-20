@@ -56,6 +56,9 @@ skill point here. N = K+D+X.
   `- Downgraded F<n>: <from>→<to>, <title> — <reason>`. A dropped
   finding gets no card, but its ID still counts toward `Last ID`, so it is never reused. Other
   Validation notes never start with `Verify:` (e.g. `- Suggested change dropped F<n>: …`).
+<!-- claude-only -->- Each re-read the Maestro makes of a refute-round outcome (`verify.md`) adds
+  `- Re-read F<n>: <title> — <reason>; <outcome>`, `<outcome>` one of `kept`,
+  `downgraded <from>→<to>` or `dropped`. A drop or downgrade also gets its own line above.<!-- copilot: --><!-- /claude-only -->
 
 <!-- claude-only -->The renderer reads Verify lines only in `## Validation`, outside fences: a bullet whose text starts
 `Verify:`, `**Verify:**` or `**Verify**:`, in any case, colon right after the word (`- Verify
