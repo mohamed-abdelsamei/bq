@@ -164,12 +164,23 @@ does something in the repo produce or pin it? A dependency manifest or lockfile 
 the dependency-risk check (new, removed or re-pinned packages, registry or source changes, install
 scripts).
 
-**CI-owned checks.** Issues a lint, format or type check owns are not reported. "CI-owned" means the
-tool is run by the repo's CI files at `<rref>` (`.github/workflows/*`, `.gitlab-ci.yml`,
-`.circleci/config.yml`, `azure-pipelines.yml`, `Jenkinsfile`, and what they invoke), read with
-`git -C "<dir>" show "<rref>:<file>"`. When none are found, lint issues are reported as nits.
-Validation: `- CI-owned: ruff, mypy (.github/workflows/ci.yml at target)` or `- CI-owned: none
-found; lint issues reported as nits`.
+**CI-owned checks.** Don't report issues that a CI-owned lint, format or type check catches. Read
+the CI files at `<rref>` (`.github/workflows/*`, `.gitlab-ci.yml`, `.circleci/config.yml`,
+`azure-pipelines.yml`, `Jenkinsfile`, and what they invoke). An issue is CI-owned only when (a) a
+step in a workflow triggered for MRs/PRs (`on: pull_request`, GitLab `merge_request_event` rules, or
+equivalent) runs the tool, directly or via a script it calls; push-to-main or scheduled workflows
+don't gate, nor do steps with `continue-on-error`, `allow_failure`, `|| true` or a `paths:`/`if:`
+filter skipping the file; (b) the step's path arguments, or the tool's default file set, cover the
+file; and (c) the tool's config at `<rref>` doesn't exclude it. As with REVIEW.md, head-side edits
+don't count: if the diff touches a CI file, a script it calls, or a tool's config or ignore files
+(nested `ruff.toml` or `.eslintrc`, `.eslintignore`, `.prettierignore`, a `pyproject.toml`
+exclude), every tool that file runs or configures is not CI-owned for this review (`- CI-owned:
+<tool> dropped; CI/config edited by this MR`). The edit is reviewed as code, as are inline or
+file-level suppressions the diff adds, e.g. `# noqa`, `# ruff: noqa`, `# type: ignore`,
+`# mypy: ignore-errors`, `// @ts-nocheck`, `eslint-disable`, `//nolint`, `prettier-ignore`. If
+coverage can't be established (including an unresolvable trigger), it is not CI-owned: report
+normally, lint issues as nits. Validation: `- CI-owned: ruff (*.py; .github/workflows/ci.yml job
+lint, pyproject.toml at target)` or `- CI-owned: none found; lint issues reported as nits`.
 
 **Validation** lists skipped paths with their reason, at most 10, then `+N more`: `- Skipped paths:
 package-lock.json (lockfile), gen/out.txt (linguist-generated at target) +3 more`.
