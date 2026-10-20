@@ -98,10 +98,8 @@ this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
 - **In diff** says whether every anchored line lies inside one diff hunk on the anchor's side. The
   Maestro writes it at Close, never a specialist. `no` means the finding cannot be posted inline.<!-- claude-only --> It
   is shown as a tag; any value other than `yes` or `no` gets a warning.<!-- copilot: --><!-- /claude-only -->
-- **Why** of a business finding that cites a ticket AC quotes it, prefixed with its primary key:
-  ``**Why:** `ABC-12 AC-2: the user sees an error toast` ``. It is still one line of inline code
-  (`comment-style.md` section 1); quote one AC line, or the part of it that matters. Write any
-  backtick inside the quoted AC as `'` so the code span holds.
+- **Why** of a business finding that cites a ticket AC follows `comment-style.md` section 1 (**Ticket
+  AC in Why**): one line of inline code, prefixed with the primary key.
 - **Marker** is the finding's posting identity (R21, D7), kept in this md only and never put in a
   posted comment: exactly 12 lowercase hex characters,
   `sha256("<key>|<source>|<ID>")[:12]`, where `<key>` is the review key (`mr-<id>` or
@@ -273,3 +271,5 @@ Strengths: backoff is capped and jittered; the new tests cover the 5xx path.
 Request changes
 Most important fix first: stop retrying non-retryable 4xx responses.
 ````
+<!-- claude-only --><!-- copilot: On this install the sample's Verify method is written `Maestro re-read (no subagent on this install)`;
+there is no refute round here. --><!-- /claude-only -->

@@ -1,7 +1,7 @@
 # MR review — comment style
 
 How every specialist writes a finding, and when a finding may carry a suggested change. The card
-layout is in `report-format.md`; severity and "signal over noise" are in `../SKILL.md` and still
+layout is `../SKILL.md`'s Output format; severity and "signal over noise" are there too and still
 apply in full.
 
 ## 1. Anatomy of a finding
@@ -15,7 +15,11 @@ apply in full.
   identifier from the Anchor or What and its scope the whole tree: `` `git grep -n -i "retry_after" → no matches` ``.
 - **Ticket-free title, What and Fix.** They are posted verbatim (section 4), so state the expected
   behaviour in code terms: no ticket key, no AC text, no paraphrase of it. Only **Why** may quote
-  the ticket (`report-format.md`).
+  the ticket.
+- **Ticket AC in Why.** A business finding that cites a ticket AC quotes it in **Why**, prefixed
+  with its primary key: ``**Why:** `ABC-12 AC-2: the user sees an error toast` ``. It is still one
+  line of inline code; quote one AC line, or the part of it that matters. Write any backtick
+  inside the quoted AC as `'` so the code span holds.
 - **Neutral voice about the code.** "The loop never exits on 4xx", not "you forgot to...". No "you".
 - **Confidence sets the mood.** `confirmed` = reproduced, a command was run, or read directly in the
   cited code: assert it. `suspected` = anything else: phrase it as a question ("Should an exhausted
@@ -23,7 +27,7 @@ apply in full.
 - **`[nit]`** is labelled, one line, and never blocking. No concrete risk means nit at most.
 - **Strengths:** 0-2, each earned and specific (what is good and why it matters). No filler praise
   ("nice work", "LGTM overall"). Write them as at most one `Strengths: a; b` line at the top of the
-  `## Verdict` body (see `report-format.md`); there is no `## Strengths` section.
+  `## Verdict` body; there is no `## Strengths` section.
 - Keep signal over noise: no relitigating scope, no restyling untouched code, nothing a configured
   linter already owns.
 
@@ -49,8 +53,8 @@ Five forms. Line numbers are 1-based, and a range stays on one side (`a` <= `b`)
 - Path hygiene: repo-relative only. Never `/Users/`, `/home/`, `/tmp/` or any absolute local path,
   in any field.
 - Optional for business findings (a missing behavior has no line).
-- <!-- claude-only -->The renderer warns on a malformed Anchor or a reversed range; the<!-- copilot: The --><!-- /claude-only --> path-parsing limits are in
-  `report-format.md`.
+- The path is repo-relative: no leading `/`, no backtick, one Anchor per card. The full
+  path-parsing limits are the Maestro's<!-- claude-only --> (the renderer warns on a malformed Anchor or a reversed range)<!-- copilot: --><!-- /claude-only -->.
 
 ## 3. The `Suggested change:` field
 

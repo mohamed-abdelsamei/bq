@@ -84,7 +84,8 @@ suggestion fences** (plain diff text only); **return `Suggested change:` only wh
 (`comment-style.md` §3; the Maestro confirms In diff);
 **work only in `<wt>`** — every command as `git -C "<wt>"` or with `<wt>` as its working directory,
 never `cd`, never anything in the user's checkout (for a local target `<dir>` replaces `<wt>`:
-read-only git only, and the tester runs nothing that writes there, no test or build runs);
+read-only git only, and the tester runs nothing that writes there, no test or build runs, so no
+command line is tagged);
 **tag supporting commands** — a Validation command line that executes code (a test, build,
 typecheck, lint or repro script) and whose result shows the finding's failure (FAIL, an error,
 wrong output) ends with `(supports: <finding title>)`, the title verbatim, one tag per supported
@@ -190,7 +191,9 @@ In run order (detail below):
 13. Posting
 
 **1. Dedupe.** Consolidate the returns into one report, with **code,
-business and process findings kept separate**. A merged card inherits every source's
+business and process findings kept separate**. Across split Cass passes, merge findings with the
+same root cause whatever their anchor, keeping the anchor where the fix goes and that source's
+**Why**. A merged card inherits every source's
 `(supports:)` tags (a tag matching any source title now names the merged card); a tag that
 names no finding after dedupe is logged in Validation (`report-format.md`).
 

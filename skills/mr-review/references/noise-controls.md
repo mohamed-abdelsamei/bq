@@ -200,8 +200,9 @@ Changed lines = the sum of added + deleted over the paths not skip-listed; files
 
 - **Over the split lines or split files** (threshold table): spawn one Cass pass per risk area, up
   to 4, instead of one Cass for everything. A risk area is a concern, not a file order: auth, data
-  migration, public API, a module. Each pass's brief names its area and files; the whole diff stays
-  context. Sol and Vera are not split. Validation: `- Risk areas: auth (3 files), migrations (2
+  migration, public API, a module. Each pass's brief names its area and files; the pass reviews them
+  in depth and also reports defects where its area meets code outside it (callers, shared state,
+  contracts, a migration and the code that reads it). The whole diff stays context. Sol and Vera are not split. Validation: `- Risk areas: auth (3 files), migrations (2
   files), API (6 files)`.
 - **Over the coverage lines:** Validation also gets `- Coverage: in depth: <areas>; skimmed:
   <areas>`, saying honestly what was read closely and what wasn't.

@@ -180,7 +180,9 @@ this skill points there.
 - **Generated or vendored code** → skip deep style review; check provenance, necessity, security, and
   integration points; skip-listed paths still get this skim, and a manifest or lockfile change the
   dependency-risk check.
-- **Split review** → your brief names your risk area; review it in depth, the rest is context.
+- **Split review** → your brief names your risk area; review it in depth with the whole diff as
+  context, and also report defects where it meets code outside it: callers, shared state,
+  contracts, a migration and the code that reads it.
 - **Only nits found** → don't inflate them; Approve and list them as optional.
 
 ## Verdict
@@ -224,21 +226,22 @@ Use this structure unless the user asked for another:
 
 ## Validation
 - Commands run, with pass/fail. CI status on the reviewed SHA. Checks skipped, with why.
-- The Maestro's single Verify line (syntax in references/report-format.md).
+- The Maestro adds its single Verify line at Close.
 
 ## Verdict
 Approve | Approve with changes | Request changes
 Most important fix first: …
 ```
 
-A nit may be one line. Read `references/report-format.md` for the exact card syntax, section order,
-the verdict-contradiction rules, and a full sample before writing the report.
+A nit may be one line under its axis's findings section:
+``- [nit] <title> — <one line>. (`<repo>/<path>:<n>`)``. This is a specialist's whole card spec;
+every other field (ID, Carried, In diff, Marker, Posted) is the Maestro's, added at Close.
 
 ## Comments and report
 
 Read `references/comment-style.md` before writing any finding (voice, evidence, anchors, post-time
-syntax). `Suggested change:` only when that file's gates hold. The Maestro writes the review to
-`reviews/` per `references/report-format.md`.
+syntax). `Suggested change:` only when that file's gates hold. Only the Maestro reads
+`references/report-format.md`, at Close, and writes the review to `reviews/` by it.
 
 Order findings by severity. If there are no findings, say so plainly and still note what you validated and
 the residual risk. For a contract/spec mismatch, phrase `Fix:` as a fork — fix the code, or
