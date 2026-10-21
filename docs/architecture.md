@@ -189,11 +189,14 @@ each load at one step:
 - **Casting:** fetch and worktree (`isolated-checkout.md`, which also owns the since-mode baseline
   checks and `cleanup`), then noise controls and the target-side `REVIEW.md` (`noise-controls.md`),
   then ticket intake through the session's own Jira tool (`ticket-intake.md`), then lessons. The
-  reviewer, architect and tester get one brief each and run in parallel. Each reads
-  `comment-style.md`, and `deep-checks.md` when the diff calls for it.
-- **Close:** dedupe, match to prior finding IDs, nit cap, new IDs, then Verify (`verify.md`: a Cass
-  refute round or a Maestro re-read; always the re-read on Copilot), the suggested-change check, the
-  verdict, the md (`report-format.md`), In diff, the rewrite guard, the html.
+  reviewer, architect and tester get one brief each and run in parallel (over the split thresholds,
+  one Cass pass per risk area). Each reads `comment-style.md`, and `deep-checks.md` when the diff
+  calls for it; only the Maestro reads `report-format.md`, at Close.
+- **Close:** dedupe (findings with one root cause merge across split passes), match to prior
+  finding IDs, nit cap, new IDs, then Verify (`verify.md`: a Cass refute round that reads only with
+  `git show` and whose drops the Maestro checks, or a Maestro re-read; always the re-read on
+  Copilot), the suggested-change check, the verdict, the md (`report-format.md`), In diff, the
+  rewrite guard, the html.
 - **Posting** (`posting.md`) runs only when the user names finding IDs, and sends nothing until
   they've seen the exact payload and said "post".
 

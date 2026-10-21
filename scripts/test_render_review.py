@@ -686,6 +686,18 @@ class VerifyLineTests(unittest.TestCase):
                                       "## Prior findings triaged\n" + VERIFY_OK.replace("4 found", "9 found"))
         self.assertEqual(render(md)[1], [])
 
+    def test_evidence_part_is_accepted(self):
+        line = VERIFY_OK.replace("≥1 important)", "≥1 important; evidence: 2/3 tagged)")
+        doc, warns = render(review(extra=line))
+        self.assertEqual(warns, [], line)
+        self.assertNotIn("Review file structure problems", doc)
+
+    def test_malformed_evidence_part_warns(self):
+        for ev in ("x/y tagged", "5/3 tagged", ""):
+            line = VERIFY_OK.replace("≥1 important)", "≥1 important; evidence: %s)" % ev)
+            warns = render(review(extra=line))[1]
+            self.assertTrue(any("malformed Verify evidence" in w for w in warns), (ev, warns))
+
     def test_sample_carries_a_valid_verify_line(self):
         self.assertEqual(len(re.findall(r"^- Verify: ", sample(), re.M)), 1)
         self.assertEqual(render(sample())[1], [])
@@ -1307,6 +1319,14 @@ class ReconcileTests(unittest.TestCase):
         self.assertEqual(len(warns), 1, warns)
         self.assertIn("F12", warns[0])
         self.assertEqual(render(prev_review(last="- Dropped F10: x\n- Last ID: F10\n"))[1], [])
+
+    def test_titled_loss_lines(self):
+        warns = render(prev_review(last="- Dropped F12: Retry loops forever — `break` at a.py:3\n- Last ID: F10\n"))[1]
+        self.assertEqual(len(warns), 1, warns)
+        self.assertIn("F12", warns[0])
+        titled = ("- Dropped F10: Retry loops forever — `break` at a.py:3\n"
+                  "- Downgraded F9: important→minor, Slow query — only runs in the nightly job\n- Last ID: F10\n")
+        self.assertEqual(render(prev_review(last=titled))[1], [])
 
 
 class CssTests(unittest.TestCase):

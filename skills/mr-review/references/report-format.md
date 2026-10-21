@@ -35,7 +35,7 @@ lower than an ID used in the file (card, nit, triage or `- Dropped F<n>:` line).
 `## Validation` also carries exactly one Verify line, written at Close (`verify.md`):
 
 ```
-- Verify: N found, K kept, D downgraded, X dropped (<method>; trigger: <threshold that fired>)
+- Verify: N found, K kept, D downgraded, X dropped (<method>; trigger: <threshold that fired>; evidence: <tagged>/<command lines> tagged)
 ```
 
 This file is the one owner of the line's syntax and vocabulary; `verify.md`, the command and the
@@ -46,11 +46,21 @@ skill point here. N = K+D+X.
   trigger), or `none (no candidates)`.<!-- copilot: `Maestro re-read (no subagent on this install)` (every run on this install, whatever the trigger) or `none (no candidates)`. --><!-- /claude-only -->
 - `trigger:`, the first that holds of `≥1 critical/important`, `>N non-nit` (N = the Verify trigger
   in force, from the mr-review skill's threshold table, written as a number), `none`. With 0
-  candidates the parenthetical is `(none (no candidates); trigger: none)`.
-- Each drop and downgrade adds its own line: `- Dropped F<n>: <reason>` (a verified since-mode
-  Fixed: `- Dropped F<n>: fixed (see triage)`) or `- Downgraded F<n>: <from>→<to>, <reason>`. A dropped
+  candidates the parenthetical is `(none (no candidates); trigger: none; evidence: <tagged>/<command lines> tagged)`.
+- `evidence:`, last in the parenthetical: `<command lines>` is how many command lines the specialists
+  reported, `<tagged>` how many of them carry a `(supports: <finding title>)` tag (the rule is in
+  `/bq:review-mr`'s specialist brief), both integers
+  (`0/0 tagged` with none; `<tagged>` never exceeds `<command lines>`, and the renderer warns
+  otherwise). An older file without it is still valid. A tag that names no finding after dedupe
+  still counts in `<tagged>` and adds `- Unmatched evidence tag: <title>`.
+- Each drop and downgrade adds its own line, titled with the finding's title: `- Dropped F<n>: <title> — <reason>`
+  (a verified since-mode Fixed: `- Dropped F<n>: <title> — fixed (see triage)`) or
+  `- Downgraded F<n>: <from>→<to>, <title> — <reason>`. A dropped
   finding gets no card, but its ID still counts toward `Last ID`, so it is never reused. Other
   Validation notes never start with `Verify:` (e.g. `- Suggested change dropped F<n>: …`).
+<!-- claude-only -->- Each re-read the Maestro makes of a refute-round outcome (`verify.md`) adds
+  `- Re-read F<n>: <title> — <reason>; <outcome>`, `<outcome>` one of `kept`,
+  `downgraded <from>→<to>` or `dropped`. A drop or downgrade also gets its own line above.<!-- copilot: --><!-- /claude-only -->
 
 <!-- claude-only -->The renderer reads Verify lines only in `## Validation`, outside fences: a bullet whose text starts
 `Verify:`, `**Verify:**` or `**Verify**:`, in any case, colon right after the word (`- Verify
@@ -88,10 +98,8 @@ this order. `Axis`, `Confidence` and `What` are required; the rest are optional:
 - **In diff** says whether every anchored line lies inside one diff hunk on the anchor's side. The
   Maestro writes it at Close, never a specialist. `no` means the finding cannot be posted inline.<!-- claude-only --> It
   is shown as a tag; any value other than `yes` or `no` gets a warning.<!-- copilot: --><!-- /claude-only -->
-- **Why** of a business finding that cites a ticket AC quotes it, prefixed with its primary key:
-  ``**Why:** `ABC-12 AC-2: the user sees an error toast` ``. It is still one line of inline code
-  (`comment-style.md` section 1); quote one AC line, or the part of it that matters. Write any
-  backtick inside the quoted AC as `'` so the code span holds.
+- **Why** of a business finding that cites a ticket AC follows `comment-style.md` section 1 (**Ticket
+  AC in Why**): one line of inline code, prefixed with the primary key.
 - **Marker** is the finding's posting identity (R21, D7), kept in this md only and never put in a
   posted comment: exactly 12 lowercase hex characters,
   `sha256("<key>|<source>|<ID>")[:12]`, where `<key>` is the review key (`mr-<id>` or
@@ -254,8 +262,8 @@ None.
 ## Validation
 - `pytest tests/sync` — pass. CI green on 4f2a9c1.
 - Ticket: used SYNC-41 (branch, fetched via the session's Jira tool)
-- Verify: 3 found, 2 kept, 0 downgraded, 1 dropped (Cass refute round; trigger: ≥1 critical/important)
-- Dropped F4: `delay = min(delay * 2, MAX_DELAY)` at retry.py:47 caps the backoff delay, so the reported delay overflow cannot happen.
+- Verify: 3 found, 2 kept, 0 downgraded, 1 dropped (Cass refute round; trigger: ≥1 critical/important; evidence: 0/1 tagged)
+- Dropped F4: Retry delay overflows on long outages — `delay = min(delay * 2, MAX_DELAY)` at retry.py:47 caps the backoff delay, so the reported delay overflow cannot happen.
 - Last ID: F4
 
 ## Verdict
@@ -263,3 +271,5 @@ Strengths: backoff is capped and jittered; the new tests cover the 5xx path.
 Request changes
 Most important fix first: stop retrying non-retryable 4xx responses.
 ````
+<!-- claude-only --><!-- copilot: On this install the sample's Verify method is written `Maestro re-read (no subagent on this install)`;
+there is no refute round here. --><!-- /claude-only -->
