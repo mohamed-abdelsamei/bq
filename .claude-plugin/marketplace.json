@@ -5,13 +5,13 @@
   },
   "metadata": {
     "description": "Marketplace for the bq agent-team plugin.",
-    "version": "0.9.1"
+    "version": "0.9.2"
   },
   "plugins": [
     {
       "name": "bq",
       "description": "A team of AI agents — a Maestro conductor plus six specialists — for research → decision → delivery workflows, with durable per-project memory in ~/.ai/<project>/.",
-      "version": "0.9.1",
+      "version": "0.9.2",
       "keywords": [
         "agents",
         "orchestration",
